@@ -16,16 +16,43 @@ OpenHands should have a comprehensive design ready to work with and the various 
 
 ## Resources
 
-Where possible, external resources such as Amiga binaries, disk images and documentation should be kept in the project and committed. Where development includes the use of copyrighted material then this will need to be kept in a git ignored directory with users required to provide their own copies of the files concerned. For obvious reasons this should be a last resort.
+The repository should distinguish clearly between redistributable resources which can be committed and copyrighted binary assets which cannot.
 
-A full list of required resources is needed. In addition to ROMs/binaries and a suitable GUI app to test with, operating system and development documentation will probably be essential.
+Redistributable or fetchable resources should be kept in the tree where practical. Where a resource can be downloaded from a stable public source, the repository should prefer a tracked download script over undocumented manual acquisition. This already applies to:
+
+1. development and operating-system documentation under `assets/docs/`
+2. the ClassAct 3.3 archive and extracted source/material under `assets/libs/`
+
+Where a required binary resource cannot be kept in source control, the repository should keep an underscore-prefixed `.placeholder` file in the corresponding location. The placeholder files act as an inventory of expected assets and give the project a stable filename scheme even when the real binaries are absent. The real assets live alongside them in git-ignored paths when provided by the user.
+
+Broadly, the required binary resource classes are:
+
+1. AmigaOS ADF disk images, primarily Workbench and related system disks across the versions needed for reference and compatibility work.
+2. Kickstart ROM images for the Amiga models and OS versions the project expects to use for reference material and compatibility testing.
+3. Test application binaries and any accompanying Amiga-side support files needed to launch them realistically under `vamos`.
+4. Selected system-side binary fragments or extracted files which may be needed to fill specific runtime gaps where `vamos` alone is not sufficient.
 
 ## GUI
 
-The intention is to use tkinter for the GUI. The flexible canvas component, unopinionated approach to threading and liklihood of ongoing development/maintenance are the primary reasons for this. However, other options should be considered.
+The host GUI toolkit used in this project is PySide6, using Qt Widgets. Tkinter was seriously considered but the project needs both ordinary desktop controls and a significant amount of custom Workbench-style drawing and interaction. Qt Widgets provides many more widets, a more comprehensive painting system and several higher-level classes which are potentially useful.
 
-The right choice of UI framework will depend on the concurrency requirements and deciding on an approach to drawing Amiga application components. It may be possible to simply use a framework's build in widgets in place of e.g. an Amiga button but applications with bespoke components may require something canvas-like. 
+The expected implementation pattern is to use ordinary Qt widgets where they are a good fit, custom-painted widgets where Amiga-specific behavior or visuals require it, and `QGraphicsView` only where a scene of interactive objects is genuinely the right model. The goal is not to reproduce every Amiga control as a canvas primitive by default, but to choose the lightest Qt mechanism which preserves the required behavior.
 
 ## Runtime environment
 
-Even if OpenHands is, for example, capable of drawing tkinter interface components and testing them headlessly some sort of human testing and refinement is inevitable. The project may therefore have to be run in an envioronment with a Linux desktop. How to approach this is unknown. If a desktop is needed, the project will use a variant of one of the XFCE/KDE images in this project - https://github.com/jimnarey/server_containers -  with OpenHands and Ollama running in containers on the same host. I do not want to dive into using docker compose networking yet and instead treat Ollama and OpenHands as LAN services. The server containers project does not have an OpenHands service yet but I will add this shortly. The installation of OpenHands, beyond local project configuration, is not the concern of this project.
+The project should support two distinct runtime modes:
+
+1. Automated GUI testing in a headless Linux environment using `Xvfb`.
+2. Human testing in a normal Linux desktop environment.
+
+`Xvfb` is the standard automated test display server for this repository. Automated smoke tests and scripted GUI runs should use the project wrapper around `Xvfb`, so the host-side GUI layer can be exercised consistently without depending on a physical display or an already-running desktop session. The purpose of this mode is repeatable validation inside OpenHands and other non-interactive environments.
+
+Human testing should be done in a normal Linux desktop session rather than through the headless path.
+
+At a high level, getting started with this project in the OpenHands web UI should work as follows:
+
+1. Start OpenHands in its full web GUI mode and open the browser interface. The current OpenHands documentation describes this as the `serve` mode and notes that it launches the local web GUI through Docker.
+2. On first launch, configure the model/provider settings in the OpenHands settings dialog so the session uses the intended local or remote LLM.
+3. Open a conversation with this repository available to the workspace using the OpenHands mechanism you choose, for example by launching the GUI with the repository mounted or by using the repository/workspace flow exposed by the UI.
+4. Let any repository-specific bootstrap steps run, then verify the project environment from the OpenHands terminal by running the standard setup and validation commands such as `uv sync`, `./check_optional_deps.sh` and the GUI smoke test launcher.
+5. Use OpenHands as an autonomous worker rather than as an interactive pair-programming tool: give it a clear objective, let it run the target app or smoke test, inspect the resulting errors, implement the next missing function or feature, update the documentation and continue iterating until it reaches a natural stopping point or needs human intervention.
