@@ -1,3 +1,11 @@
+---
+title: "asl.library"
+status: stub
+depends_on:
+  - "../gui-stack.md"
+citations_used: []
+---
+
 # asl.library
 
 Purpose: Summarize Amiga requester APIs.

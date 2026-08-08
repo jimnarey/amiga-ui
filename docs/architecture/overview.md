@@ -1,3 +1,16 @@
+---
+title: "Architecture Overview"
+status: draft
+depends_on:
+  - "compatibility-scope.md"
+  - "runtime-model.md"
+citations_used:
+  - "S7"
+  - "S8"
+  - "S11"
+  - "S12"
+---
+
 # Architecture Overview
 
 Purpose: Describe the whole project in one short pass.

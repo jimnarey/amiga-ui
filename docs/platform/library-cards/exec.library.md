@@ -1,3 +1,11 @@
+---
+title: "exec.library"
+status: stub
+depends_on:
+  - "../structs/process-and-task.md"
+citations_used: []
+---
+
 # exec.library
 
 Purpose: Summarize the core task, memory, and messaging services exposed by `exec.library`.

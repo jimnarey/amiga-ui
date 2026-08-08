@@ -1,3 +1,12 @@
+---
+title: "Vamos Path Mapping"
+status: stub
+depends_on:
+  - "vamos-configuration.md"
+  - "../platform/filesystem-and-launch.md"
+citations_used: []
+---
+
 # Vamos Path Mapping
 
 Purpose: Explain how host paths are exposed as Amiga volumes and assigns.

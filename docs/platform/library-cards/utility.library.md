@@ -1,3 +1,11 @@
+---
+title: "utility.library"
+status: stub
+depends_on:
+  - "../data-types-and-conventions.md"
+citations_used: []
+---
+
 # utility.library
 
 Purpose: Summarize general support functions, especially tags and helper routines.

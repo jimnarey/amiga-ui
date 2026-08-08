@@ -1,3 +1,11 @@
+---
+title: "iffparse.library"
+status: stub
+depends_on:
+  - "../data-types-and-conventions.md"
+citations_used: []
+---
+
 # iffparse.library
 
 Purpose: Summarize structured IFF parsing support if target apps require it.

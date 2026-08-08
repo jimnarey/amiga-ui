@@ -1,3 +1,11 @@
+---
+title: "graphics.library"
+status: stub
+depends_on:
+  - "../gui-stack.md"
+citations_used: []
+---
+
 # graphics.library
 
 Purpose: Record the limited `graphics.library` behavior relevant to non-hardware-targeted apps.

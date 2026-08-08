@@ -1,3 +1,11 @@
+---
+title: "ADF Sets"
+status: stub
+depends_on:
+  - "index.md"
+citations_used: []
+---
+
 # ADF Sets
 
 Purpose: Document which AmigaOS disk sets are present and what each disk contributes.

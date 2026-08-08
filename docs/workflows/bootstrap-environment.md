@@ -1,3 +1,12 @@
+---
+title: "Bootstrap Environment"
+status: stub
+depends_on:
+  - "asset-acquisition.md"
+  - "../runtime/vamos-configuration.md"
+citations_used: []
+---
+
 # Bootstrap Environment
 
 Purpose: Define the minimum setup path for a fresh Linux/OpenHands machine.

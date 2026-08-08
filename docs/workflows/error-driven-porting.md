@@ -1,3 +1,18 @@
+---
+title: "Error Driven Porting"
+status: draft
+depends_on:
+  - "../runtime/tracing-and-debugging.md"
+  - "../apps/itidy/runbook.md"
+citations_used:
+  - "S7"
+  - "S8"
+  - "S9"
+  - "S10"
+  - "S11"
+  - "S12"
+---
+
 # Error Driven Porting
 
 Purpose: Define the core development loop for getting GUI apps running one missing feature at a time.

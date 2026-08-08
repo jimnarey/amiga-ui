@@ -1,3 +1,12 @@
+---
+title: "Vamos Gaps"
+status: stub
+depends_on:
+  - "vamos-overview.md"
+  - "../architecture/compatibility-scope.md"
+citations_used: []
+---
+
 # Vamos Gaps
 
 Purpose: Track known `vamos` limitations relevant to GUI application support.

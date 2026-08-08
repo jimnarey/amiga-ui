@@ -1,3 +1,11 @@
+---
+title: "Apps"
+status: index
+depends_on:
+  - "itidy/overview.md"
+citations_used: []
+---
+
 # Apps
 
 Purpose: Index the real applications used as compatibility targets.

@@ -1,3 +1,12 @@
+---
+title: "Vamos Configuration"
+status: stub
+depends_on:
+  - "vamos-overview.md"
+  - "vamos-path-mapping.md"
+citations_used: []
+---
+
 # Vamos Configuration
 
 Purpose: Document the repo-specific `vamos` configuration conventions.

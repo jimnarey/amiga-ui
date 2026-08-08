@@ -1,3 +1,12 @@
+---
+title: "Amiga Primer"
+status: stub
+depends_on:
+  - "filesystem-and-launch.md"
+  - "workbench-model.md"
+citations_used: []
+---
+
 # Amiga Primer
 
 Purpose: Give a minimal orientation to AmigaOS concepts used throughout the project.

@@ -1,3 +1,12 @@
+---
+title: "GUI Stack"
+status: stub
+depends_on:
+  - "workbench-model.md"
+  - "library-cards/gadtools.library.md"
+citations_used: []
+---
+
 # GUI Stack
 
 Purpose: Describe the layers of Amiga GUI software relevant to target apps.

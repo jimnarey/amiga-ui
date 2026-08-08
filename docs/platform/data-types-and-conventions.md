@@ -1,3 +1,11 @@
+---
+title: "Data Types And Conventions"
+status: stub
+depends_on:
+  - "amiga-primer.md"
+citations_used: []
+---
+
 # Data Types And Conventions
 
 Purpose: Record Amiga-specific data rules that affect implementation.

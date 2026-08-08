@@ -1,3 +1,11 @@
+---
+title: "Library Cards"
+status: index
+depends_on:
+  - "../amiga-primer.md"
+citations_used: []
+---
+
 # Library Cards
 
 Purpose: Provide one short file per important Amiga library.

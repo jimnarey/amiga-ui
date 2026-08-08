@@ -1,3 +1,12 @@
+---
+title: "iTidy Dependencies"
+status: stub
+depends_on:
+  - "overview.md"
+  - "../../platform/library-cards/README.md"
+citations_used: []
+---
+
 # iTidy Dependencies
 
 Purpose: Record the libraries, files, and Workbench features that `iTidy` relies on.

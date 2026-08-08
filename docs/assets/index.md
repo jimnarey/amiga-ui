@@ -1,3 +1,14 @@
+---
+title: "Assets Index"
+status: stub
+depends_on:
+  - "adf-sets.md"
+  - "rom-sets.md"
+  - "libraries-and-toolkits.md"
+  - "documentation-sources.md"
+citations_used: []
+---
+
 # Assets Index
 
 Purpose: Provide one map of all resource classes used by the project.

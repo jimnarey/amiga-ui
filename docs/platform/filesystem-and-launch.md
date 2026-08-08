@@ -1,3 +1,12 @@
+---
+title: "Filesystem And Launch"
+status: stub
+depends_on:
+  - "amiga-primer.md"
+  - "structs/wbstartup.md"
+citations_used: []
+---
+
 # Filesystem And Launch
 
 Purpose: Explain Amiga paths, volumes, assigns, locks, and launch modes.

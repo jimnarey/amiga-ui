@@ -1,3 +1,12 @@
+---
+title: "Locks And Filehandles"
+status: stub
+depends_on:
+  - "../filesystem-and-launch.md"
+  - "../library-cards/dos.library.md"
+citations_used: []
+---
+
 # Locks And Filehandles
 
 Purpose: Explain Amiga filesystem handles, ownership, and common mistakes.

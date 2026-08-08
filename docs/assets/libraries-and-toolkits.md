@@ -1,3 +1,11 @@
+---
+title: "Libraries And Toolkits"
+status: stub
+depends_on:
+  - "index.md"
+citations_used: []
+---
+
 # Libraries And Toolkits
 
 Purpose: Document add-on libraries and GUI toolkits fetched outside the base OS sets.

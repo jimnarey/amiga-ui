@@ -1,3 +1,12 @@
+---
+title: "workbench.library"
+status: stub
+depends_on:
+  - "../workbench-model.md"
+  - "../structs/wbstartup.md"
+citations_used: []
+---
+
 # workbench.library
 
 Purpose: Summarize the Workbench-specific APIs and startup conventions.

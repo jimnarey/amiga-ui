@@ -1,3 +1,11 @@
+---
+title: "WBArg"
+status: stub
+depends_on:
+  - "wbstartup.md"
+citations_used: []
+---
+
 # WBArg
 
 Purpose: Explain how Workbench passes file and directory arguments.

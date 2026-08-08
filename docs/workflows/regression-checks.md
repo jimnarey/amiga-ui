@@ -1,3 +1,11 @@
+---
+title: "Regression Checks"
+status: stub
+depends_on:
+  - "error-driven-porting.md"
+citations_used: []
+---
+
 # Regression Checks
 
 Purpose: Record how to make sure new fixes do not break earlier app behavior.

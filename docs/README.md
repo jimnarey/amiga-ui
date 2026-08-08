@@ -1,3 +1,10 @@
+---
+title: "Documentation"
+status: index
+depends_on: []
+citations_used: []
+---
+
 # Documentation
 
 This directory contains the project-authored documentation intended to be read before raw upstream material in the fetched documentation cache.

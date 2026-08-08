@@ -1,3 +1,11 @@
+---
+title: "Deferred Decisions"
+status: stub
+depends_on:
+  - "open-questions.md"
+citations_used: []
+---
+
 # Deferred Decisions
 
 Purpose: Track decisions intentionally postponed until more evidence exists.

@@ -1,3 +1,11 @@
+---
+title: "Asset Acquisition"
+status: stub
+depends_on:
+  - "../assets/index.md"
+citations_used: []
+---
+
 # Asset Acquisition
 
 Purpose: Explain how users obtain and place non-redistributable project assets.

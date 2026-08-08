@@ -1,3 +1,15 @@
+---
+title: "Compatibility Scope"
+status: draft
+depends_on:
+  - "overview.md"
+citations_used:
+  - "S7"
+  - "S8"
+  - "S11"
+  - "S12"
+---
+
 # Compatibility Scope
 
 Purpose: State exactly what software this project targets and excludes.

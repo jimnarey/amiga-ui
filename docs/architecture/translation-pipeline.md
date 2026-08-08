@@ -1,3 +1,12 @@
+---
+title: "Translation Pipeline"
+status: stub
+depends_on:
+  - "runtime-model.md"
+  - "../platform/library-cards/README.md"
+citations_used: []
+---
+
 # Translation Pipeline
 
 Purpose: Show how one Amiga-side action becomes one host-side effect.

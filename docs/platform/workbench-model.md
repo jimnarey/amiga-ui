@@ -1,3 +1,12 @@
+---
+title: "Workbench Model"
+status: stub
+depends_on:
+  - "amiga-primer.md"
+  - "icon-and-info-files.md"
+citations_used: []
+---
+
 # Workbench Model
 
 Purpose: Explain how Workbench thinks about files, icons, tools, projects, and user interaction.

@@ -1,3 +1,12 @@
+---
+title: "WBStartup"
+status: stub
+depends_on:
+  - "../filesystem-and-launch.md"
+  - "wbarg.md"
+citations_used: []
+---
+
 # WBStartup
 
 Purpose: Explain the Workbench startup message passed to launched applications.

@@ -1,3 +1,11 @@
+---
+title: "Documentation Sources"
+status: stub
+depends_on:
+  - "index.md"
+citations_used: []
+---
+
 # Documentation Sources
 
 Purpose: Record which upstream documentation sets were fetched and how they should be used.

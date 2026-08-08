@@ -1,3 +1,11 @@
+---
+title: "Open Questions"
+status: stub
+depends_on:
+  - "deferred-decisions.md"
+citations_used: []
+---
+
 # Open Questions
 
 Purpose: Capture unresolved technical questions in one place.

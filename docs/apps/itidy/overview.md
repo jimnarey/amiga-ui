@@ -1,3 +1,12 @@
+---
+title: "iTidy Overview"
+status: stub
+depends_on:
+  - "dependencies.md"
+  - "observed-behavior.md"
+citations_used: []
+---
+
 # iTidy Overview
 
 Purpose: Explain what `iTidy` is and why it is the first target app.

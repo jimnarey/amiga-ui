@@ -1,3 +1,11 @@
+---
+title: "Vamos Library Modes"
+status: stub
+depends_on:
+  - "vamos-overview.md"
+citations_used: []
+---
+
 # Vamos Library Modes
 
 Purpose: Explain `vamos`, `amiga`, `auto`, `fake`, and `off` library modes.

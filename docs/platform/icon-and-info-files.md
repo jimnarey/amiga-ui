@@ -1,3 +1,12 @@
+---
+title: "Icon And Info Files"
+status: stub
+depends_on:
+  - "workbench-model.md"
+  - "library-cards/icon.library.md"
+citations_used: []
+---
+
 # Icon And Info Files
 
 Purpose: Document `.info` files and the metadata they carry.

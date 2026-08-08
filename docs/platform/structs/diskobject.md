@@ -1,3 +1,12 @@
+---
+title: "DiskObject"
+status: stub
+depends_on:
+  - "../icon-and-info-files.md"
+  - "../library-cards/icon.library.md"
+citations_used: []
+---
+
 # DiskObject
 
 Purpose: Explain the icon metadata structure used by `icon.library`.

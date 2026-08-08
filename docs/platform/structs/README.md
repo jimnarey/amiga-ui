@@ -1,3 +1,11 @@
+---
+title: "Key Structs"
+status: index
+depends_on:
+  - "../data-types-and-conventions.md"
+citations_used: []
+---
+
 # Key Structs
 
 Purpose: Provide short notes for the structures this project must understand correctly.

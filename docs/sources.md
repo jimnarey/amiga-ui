@@ -1,3 +1,10 @@
+---
+title: "Sources"
+status: reference
+depends_on: []
+citations_used: []
+---
+
 # Sources
 
 This file is the external source registry for the documentation in `docs/`.

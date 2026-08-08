@@ -1,3 +1,11 @@
+---
+title: "intuition.library"
+status: stub
+depends_on:
+  - "../gui-stack.md"
+citations_used: []
+---
+
 # intuition.library
 
 Purpose: Summarize the core Amiga windowing and event model.

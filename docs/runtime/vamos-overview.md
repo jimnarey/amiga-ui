@@ -1,3 +1,15 @@
+---
+title: "Vamos Overview"
+status: draft
+depends_on:
+  - "vamos-library-modes.md"
+  - "vamos-path-mapping.md"
+citations_used:
+  - "S7"
+  - "S8"
+  - "S9"
+---
+
 # Vamos Overview
 
 Purpose: Summarize what `vamos` already provides for this project.

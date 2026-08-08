@@ -1,3 +1,11 @@
+---
+title: "Source Priority List"
+status: stub
+depends_on:
+  - "../assets/documentation-sources.md"
+citations_used: []
+---
+
 # Source Priority List
 
 Purpose: Rank upstream sources so contributors know what to consult first.

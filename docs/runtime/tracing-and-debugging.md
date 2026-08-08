@@ -1,3 +1,12 @@
+---
+title: "Tracing And Debugging"
+status: stub
+depends_on:
+  - "vamos-overview.md"
+  - "../workflows/error-driven-porting.md"
+citations_used: []
+---
+
 # Tracing And Debugging
 
 Purpose: Describe how to collect useful diagnostics from `vamos` runs.

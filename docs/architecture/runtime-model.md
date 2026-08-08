@@ -1,3 +1,12 @@
+---
+title: "Runtime Model"
+status: stub
+depends_on:
+  - "overview.md"
+  - "../runtime/vamos-overview.md"
+citations_used: []
+---
+
 # Runtime Model
 
 Purpose: Explain the moving pieces involved when an Amiga program runs under this project.

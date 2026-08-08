@@ -1,3 +1,12 @@
+---
+title: "GUI Strategy"
+status: stub
+depends_on:
+  - "compatibility-scope.md"
+  - "../platform/gui-stack.md"
+citations_used: []
+---
+
 # GUI Strategy
 
 Purpose: Record the intended host GUI approach and its tradeoffs.

@@ -1,3 +1,11 @@
+---
+title: "ROM Sets"
+status: stub
+depends_on:
+  - "index.md"
+citations_used: []
+---
+
 # ROM Sets
 
 Purpose: Document the Kickstart ROM files present in the tree and why they matter.

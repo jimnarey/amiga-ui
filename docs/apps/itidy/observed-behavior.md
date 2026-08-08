@@ -1,3 +1,11 @@
+---
+title: "iTidy Observed Behavior"
+status: stub
+depends_on:
+  - "overview.md"
+citations_used: []
+---
+
 # iTidy Observed Behavior
 
 Purpose: Record what `iTidy` appears to do from a user and system point of view.

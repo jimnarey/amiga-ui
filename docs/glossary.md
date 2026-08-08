@@ -1,3 +1,12 @@
+---
+title: "Glossary"
+status: stub
+depends_on:
+  - "platform/amiga-primer.md"
+  - "platform/data-types-and-conventions.md"
+citations_used: []
+---
+
 # Glossary
 
 Purpose: Define recurring Amiga and project terms in one compact place.

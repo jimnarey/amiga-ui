@@ -1,3 +1,11 @@
+---
+title: "gadtools.library"
+status: stub
+depends_on:
+  - "../gui-stack.md"
+citations_used: []
+---
+
 # gadtools.library
 
 Purpose: Summarize standard gadget construction helpers used by many classic GUI apps.
