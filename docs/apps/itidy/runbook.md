@@ -9,9 +9,6 @@ Depends on:
 - `dependencies.md`
 - `../../workflows/error-driven-porting.md`
 
-Primary sources:
-- Project runtime scripts and future launch commands
-
 Status: Stub.
 
 Notes:

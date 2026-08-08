@@ -8,9 +8,6 @@ Needed for:
 Depends on:
 - `error-driven-porting.md`
 
-Primary sources:
-- Project test scripts and future runbooks
-
 Status: Stub.
 
 Notes:

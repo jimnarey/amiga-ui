@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `overview.md`
 
-Primary sources:
-- iTidy manual
-- Live runs and screenshots
-
 Status: Stub.
 
 Notes:

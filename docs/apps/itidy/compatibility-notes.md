@@ -9,9 +9,6 @@ Depends on:
 - `runbook.md`
 - `../../runtime/vamos-gaps.md`
 
-Primary sources:
-- Live run results
-
 Status: Stub.
 
 Notes:

@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `deferred-decisions.md`
 
-Primary sources:
-- Authoritative project decisions recorded in this documentation tree
-- Ongoing investigation
-
 Status: Stub.
 
 Notes:

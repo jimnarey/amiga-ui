@@ -9,11 +9,6 @@ Depends on:
 - `amiga-primer.md`
 - `structs/wbstartup.md`
 
-Primary sources:
-- Vamos user documentation
-- AmigaOS Documentation Wiki: Workbench Library
-- AmigaOS 3 Developer: `dos.library` autodocs
-
 Status: Stub.
 
 Notes:

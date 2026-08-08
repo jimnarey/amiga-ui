@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `../filesystem-and-launch.md`
 
-Primary sources:
-- AmigaOS 3 Developer: `dos.library` autodocs
-- AmigaOS 3.2 NDK autodocs
-
 Status: Stub.
 
 Notes:

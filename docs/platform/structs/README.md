@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `../data-types-and-conventions.md`
 
-Primary sources:
-- AmigaOS 3.2 NDK headers
-- AmigaOS Documentation Wiki: Workbench Library
-
 Status: Stub.
 
 Notes:

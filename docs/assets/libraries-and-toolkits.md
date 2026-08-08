@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `index.md`
 
-Primary sources:
-- Current library and toolkit inventory
-- ClassAct 3.3 archive and extracted documentation
-
 Status: Stub.
 
 Notes:

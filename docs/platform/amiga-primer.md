@@ -9,10 +9,6 @@ Depends on:
 - `filesystem-and-launch.md`
 - `workbench-model.md`
 
-Primary sources:
-- AmigaOS Manual: Workbench
-- AmigaOS 3 Developer: `dos.library` autodocs
-
 Status: Stub.
 
 Notes:

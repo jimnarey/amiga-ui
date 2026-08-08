@@ -9,9 +9,6 @@ Depends on:
 - `wbarg.md`
 - `../library-cards/workbench.library.md`
 
-Primary sources:
-- AmigaOS Documentation Wiki: Workbench Library
-
 Status: Stub.
 
 Notes:

@@ -9,10 +9,6 @@ Depends on:
 - `../filesystem-and-launch.md`
 - `wbarg.md`
 
-Primary sources:
-- AmigaOS Documentation Wiki: Workbench Library
-- AmigaOS 3.2 NDK headers
-
 Status: Stub.
 
 Notes:

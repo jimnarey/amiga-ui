@@ -9,10 +9,6 @@ Depends on:
 - `overview.md`
 - `../runtime/vamos-overview.md`
 
-Primary sources:
-- Vamos user documentation
-- Vamos library documentation
-
 Status: Stub.
 
 Notes:

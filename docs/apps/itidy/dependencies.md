@@ -9,10 +9,6 @@ Depends on:
 - `overview.md`
 - `../../platform/library-cards/README.md`
 
-Primary sources:
-- iTidy source tree
-- iTidy build output log
-
 Status: Stub.
 
 Notes:

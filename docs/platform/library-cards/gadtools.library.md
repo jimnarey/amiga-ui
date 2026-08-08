@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `../gui-stack.md`
 
-Primary sources:
-- AmigaOS 3.2 NDK autodocs
-- iTidy GUI template material
-
 Status: Stub.
 
 Notes:

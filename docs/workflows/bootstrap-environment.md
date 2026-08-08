@@ -9,10 +9,6 @@ Depends on:
 - `asset-acquisition.md`
 - `../runtime/vamos-configuration.md`
 
-Primary sources:
-- Authoritative project decisions recorded in this documentation tree
-- Optional dependency check script
-
 Status: Stub.
 
 Notes:

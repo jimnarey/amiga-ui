@@ -9,9 +9,6 @@ Depends on:
 - `vamos-configuration.md`
 - `../platform/filesystem-and-launch.md`
 
-Primary sources:
-- Vamos user documentation
-
 Status: Stub.
 
 Notes:

@@ -9,10 +9,6 @@ Depends on:
 - `compatibility-scope.md`
 - `../platform/gui-stack.md`
 
-Primary sources:
-- Authoritative project decisions recorded in this documentation tree
-- AmigaOS Documentation Wiki: Workbench Library
-
 Status: Stub.
 
 Notes:

@@ -9,10 +9,6 @@ Depends on:
 - `vamos-overview.md`
 - `../architecture/compatibility-scope.md`
 
-Primary sources:
-- Vamos user documentation
-- Runtime observations from target apps
-
 Status: Stub.
 
 Notes:

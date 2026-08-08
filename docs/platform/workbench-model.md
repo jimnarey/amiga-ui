@@ -9,10 +9,6 @@ Depends on:
 - `amiga-primer.md`
 - `icon-and-info-files.md`
 
-Primary sources:
-- AmigaOS Documentation Wiki: Workbench Library
-- AmigaOS Manual: Workbench
-
 Status: Stub.
 
 Notes:

@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `../amiga-primer.md`
 
-Primary sources:
-- AmigaOS 3.2 NDK autodocs
-- AmigaOS 3 Developer: `dos.library` autodocs
-
 Status: Stub.
 
 Notes:

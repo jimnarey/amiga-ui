@@ -9,10 +9,6 @@ Depends on:
 - `../icon-and-info-files.md`
 - `../library-cards/icon.library.md`
 
-Primary sources:
-- AmigaOS 3.2 NDK headers
-- AmigaOS 3.2 NDK autodocs
-
 Status: Stub.
 
 Notes:

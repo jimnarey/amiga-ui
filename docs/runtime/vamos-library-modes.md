@@ -8,9 +8,6 @@ Needed for:
 Depends on:
 - `vamos-overview.md`
 
-Primary sources:
-- Vamos library documentation
-
 Status: Stub.
 
 Notes:

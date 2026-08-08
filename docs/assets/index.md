@@ -11,10 +11,6 @@ Depends on:
 - `libraries-and-toolkits.md`
 - `documentation-sources.md`
 
-Primary sources:
-- Project source index
-- Current resource inventory
-
 Status: Stub.
 
 Notes:

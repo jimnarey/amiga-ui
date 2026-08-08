@@ -9,10 +9,6 @@ Depends on:
 - `dependencies.md`
 - `observed-behavior.md`
 
-Primary sources:
-- iTidy source documentation
-- iTidy manual
-
 Status: Stub.
 
 Notes:

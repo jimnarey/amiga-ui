@@ -9,11 +9,6 @@ Depends on:
 - `platform/amiga-primer.md`
 - `platform/data-types-and-conventions.md`
 
-Primary sources:
-- AmigaOS 3.2 NDK autodocs
-- AmigaOS Documentation Wiki: Workbench Library
-- AmigaOS 3 Developer: `dos.library` autodocs
-
 Status: Stub.
 
 Notes:

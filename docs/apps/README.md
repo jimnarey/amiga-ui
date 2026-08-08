@@ -8,9 +8,6 @@ Needed for:
 Depends on:
 - `itidy/overview.md`
 
-Primary sources:
-- Current target app inventory
-
 Status: Stub.
 
 Notes:

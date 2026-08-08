@@ -9,10 +9,6 @@ Depends on:
 - `workbench-model.md`
 - `library-cards/icon.library.md`
 
-Primary sources:
-- AmigaOS Documentation Wiki: Workbench Library
-- iTidy manual
-
 Status: Stub.
 
 Notes:

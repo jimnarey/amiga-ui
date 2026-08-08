@@ -21,6 +21,10 @@ This directory contains the project-authored documentation intended to be read b
 - `apps/`: app-specific notes, beginning with `iTidy`.
 - `research/`: open questions, deferred decisions, and source priorities.
 
+## Sources
+
+Use the numbered inline reference system defined in [sources.md](sources.md) when citing external material.
+
 ## Status
 
 This tree currently contains stubs. Each file should be expanded from the fetched upstream documentation, inspected source trees, and verified runtime behavior.

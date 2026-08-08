@@ -8,9 +8,6 @@ Needed for:
 Depends on:
 - `index.md`
 
-Primary sources:
-- Current Kickstart ROM inventory
-
 Status: Stub.
 
 Notes:

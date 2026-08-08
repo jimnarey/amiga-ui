@@ -9,10 +9,6 @@ Depends on:
 - `../filesystem-and-launch.md`
 - `../library-cards/dos.library.md`
 
-Primary sources:
-- AmigaOS 3 Developer: `dos.library` autodocs
-- AmigaOS Documentation Wiki: Workbench Library
-
 Status: Stub.
 
 Notes:

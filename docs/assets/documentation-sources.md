@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `index.md`
 
-Primary sources:
-- Fetched documentation cache
-- Project source index
-
 Status: Stub.
 
 Notes:

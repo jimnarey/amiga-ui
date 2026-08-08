@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `../structs/process-and-task.md`
 
-Primary sources:
-- AmigaOS 3.2 NDK autodocs
-- Vamos library documentation
-
 Status: Stub.
 
 Notes:

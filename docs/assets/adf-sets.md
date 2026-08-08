@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `index.md`
 
-Primary sources:
-- Current ADF inventory
-- Local ADF inspection results
-
 Status: Stub.
 
 Notes:

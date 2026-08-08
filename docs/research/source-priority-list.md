@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `../assets/documentation-sources.md`
 
-Primary sources:
-- Fetched documentation cache
-- Inspected source trees
-
 Status: Stub.
 
 Notes:

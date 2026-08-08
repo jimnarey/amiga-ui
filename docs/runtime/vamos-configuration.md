@@ -9,10 +9,6 @@ Depends on:
 - `vamos-overview.md`
 - `vamos-path-mapping.md`
 
-Primary sources:
-- Vamos user documentation
-- Vamos sample configuration
-
 Status: Stub.
 
 Notes:

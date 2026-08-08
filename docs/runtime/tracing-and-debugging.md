@@ -9,10 +9,6 @@ Depends on:
 - `vamos-overview.md`
 - `../workflows/error-driven-porting.md`
 
-Primary sources:
-- Vamos user documentation
-- Vamos helper runner code
-
 Status: Stub.
 
 Notes:

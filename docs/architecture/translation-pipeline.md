@@ -9,10 +9,6 @@ Depends on:
 - `runtime-model.md`
 - `../platform/library-cards/README.md`
 
-Primary sources:
-- Vamos user documentation
-- iTidy source documentation
-
 Status: Stub.
 
 Notes:

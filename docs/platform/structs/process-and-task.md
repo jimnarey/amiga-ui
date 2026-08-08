@@ -9,10 +9,6 @@ Depends on:
 - `../library-cards/exec.library.md`
 - `../library-cards/dos.library.md`
 
-Primary sources:
-- AmigaOS 3.2 NDK autodocs
-- Vamos user documentation
-
 Status: Stub.
 
 Notes:

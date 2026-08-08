@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `../icon-and-info-files.md`
 
-Primary sources:
-- AmigaOS 3.2 NDK autodocs
-- AmigaOS Documentation Wiki: Workbench Library
-
 Status: Stub.
 
 Notes:

@@ -9,10 +9,6 @@ Depends on:
 - `../workbench-model.md`
 - `../structs/wbstartup.md`
 
-Primary sources:
-- AmigaOS Documentation Wiki: Workbench Library
-- AmigaOS 3.2 NDK autodocs
-
 Status: Stub.
 
 Notes:

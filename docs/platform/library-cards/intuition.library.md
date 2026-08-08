@@ -8,9 +8,6 @@ Needed for:
 Depends on:
 - `../gui-stack.md`
 
-Primary sources:
-- AmigaOS 3.2 NDK autodocs
-
 Status: Stub.
 
 Notes:

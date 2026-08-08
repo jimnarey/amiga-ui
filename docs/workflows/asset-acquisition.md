@@ -8,11 +8,6 @@ Needed for:
 Depends on:
 - `../assets/index.md`
 
-Primary sources:
-- Project source index
-- Required documentation download script
-- ClassAct 3.3 download script
-
 Status: Stub.
 
 Notes:

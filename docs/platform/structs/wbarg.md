@@ -8,9 +8,6 @@ Needed for:
 Depends on:
 - `wbstartup.md`
 
-Primary sources:
-- AmigaOS Documentation Wiki: Workbench Library
-
 Status: Stub.
 
 Notes:

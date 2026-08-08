@@ -8,10 +8,6 @@ Needed for:
 Depends on:
 - `open-questions.md`
 
-Primary sources:
-- Authoritative project decisions recorded in this documentation tree
-- Project discussion history
-
 Status: Stub.
 
 Notes:
