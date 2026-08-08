@@ -3,3 +3,4 @@ assets/**
 !assets/**/
 !assets/**/*.placeholder
 !assets/libs/download_classact33.sh
+!assets/docs/download_required_docs.sh

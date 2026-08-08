@@ -1,0 +1,18 @@
+# AppMessage
+
+Purpose: Explain the structure Workbench uses for AppIcon, AppWindow, and AppMenuItem notifications.
+
+Needed for:
+- Any later support for drag and drop or Workbench app objects.
+
+Depends on:
+- `wbarg.md`
+- `../library-cards/workbench.library.md`
+
+Primary sources:
+- AmigaOS Documentation Wiki: Workbench Library
+
+Status: Stub.
+
+Notes:
+- Include which fields matter first for this project and which can wait.
