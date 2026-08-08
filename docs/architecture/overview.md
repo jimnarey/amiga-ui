@@ -58,7 +58,7 @@ The compatibility layer will therefore concentrate on:
 
 ### 4. Host UI Layer
 
-The host UI layer is where Amiga-facing GUI intent becomes a Linux desktop interface. The current project decision is to use Python with `tkinter` as the first host GUI implementation. This layer should remain conceptually separate from the emulation layer: it is not responsible for executing m68k code, only for representing the resulting interface and interactions in a host-native way.
+The host UI layer is where Amiga-facing GUI intent becomes a Linux desktop interface. The current project decision is to use Python with PySide6 and Qt Widgets as the first host GUI implementation. This layer should remain conceptually separate from the emulation layer: it is not responsible for executing m68k code, only for representing the resulting interface and interactions in a host-native way. Automated GUI checks should use the project `Xvfb` wrapper, while human testing should use a normal Linux desktop session.
 
 ### 5. Validation Layer
 

@@ -79,3 +79,35 @@ Use these locator styles:
 | `S15` | Aminet `iTidy` archive | https://aminet.net/util/wb/iTidy.lha | none | Direct binary archive. |
 | `S16` | Aminet `classact33` package page | https://aminet.net/package/dev/gui/classact33 | `item n` or named subsection | Metadata and contents listing for ClassAct 3.3. |
 | `S17` | Aminet `classact33` archive | https://aminet.net/dev/gui/classact33.lha | none | Direct archive fetched by the helper script. |
+| `S18` | Qt for X11 Requirements | https://doc.qt.io/qt-6.10/linux-requirements.html | `§Heading tbl.1` or `§Heading ¶n-m` | Confirms the `xcb` platform plugin used by Qt Widgets on X11. |
+| `S19` | Qt Platform Abstraction | https://doc.qt.io/qt-6/qpa.html | `§Heading ¶n-m` | Defines `QT_QPA_PLATFORM` selection and documents `qminimal`. |
+| `S20` | `Xvfb` manual page | https://xorg.freedesktop.org/archive/X11R7.5/doc/man/man1/Xvfb.1.html | `§Description ¶n-m` | Primary reference for the virtual X server used by the project. |
+| `S21` | Running Weston | https://wayland.pages.freedesktop.org/weston/toc/running-weston.html | `§Heading item n` or `§Heading ¶n-m` | Documents the available Weston backends, including `headless`. |
+| `S22` | `weston(1)` manual page | https://manpages.debian.org/testing/weston/weston.1.en.html | `§Heading ¶n-m` | Confirms `headless` backend behavior and Xwayland support. |
+| `S23` | Wayland and Qt | https://doc.qt.io/qt-6.8/wayland-and-qt.html | `§Heading ¶n-m` | Reference for Qt Wayland client support. |
+| `S24` | Icon Library | https://wiki.amigaos.net/wiki/Icon_Library | `§Heading ¶n-m` or `Lx-Ly` | Official overview of `.info` files, `DiskObject`, and icon library functions. |
+| `S25` | AmigaOS Manual: Workbench Fundamentals | https://wiki.amigaos.net/wiki/AmigaOS_Manual%3A_Workbench_Fundamentals | `§Heading ¶n-m` | Official description of icon types and basic Workbench interaction. |
+| `S26` | Intuition Library | https://wiki.amigaos.net/wiki/Intuition_Library | `§Heading ¶n-m` | Official overview of Intuition screens, windows, menus, gadgets, and requesters. |
+| `S27` | Window Communication | https://wiki.amigaos.net/wiki/Window_Communication | `§Heading ¶n-m` | Official description of IDCMP, window events, and system versus application gadgets. |
+| `S28` | Intuition Gadgets | https://wiki.amigaos.net/wiki/Intuition_Gadgets | `§Heading ¶n-m` | Official overview of gadget roles and GadTools as a higher-level helper library. |
+| `S29` | `iTidy` Makefile | https://github.com/Kwezza/iTidy/blob/v1/Makefile | `Lx-Ly` | Build target, compiler, CPU target, and source-module list. |
+| `S30` | `iTidy` `main_gui.c` | https://github.com/Kwezza/iTidy/blob/v1/src/main_gui.c | `Lx-Ly` | Launch mode, Workbench startup, and early runtime checks. |
+| `S31` | `iTidy` `GUI/main_window.c` | https://github.com/Kwezza/iTidy/blob/v1/src/GUI/main_window.c | `Lx-Ly` | Main-window UI, menus, requesters, and deferred PATH initialization. |
+| `S32` | `iTidy` `backup_lha.c` | https://github.com/Kwezza/iTidy/blob/v1/src/backup_lha.c | `Lx-Ly` | LhA detection, command construction, and archive creation behavior. |
+| `S33` | `iTidy` `folder_scanner.c` | https://github.com/Kwezza/iTidy/blob/v1/src/folder_scanner.c | `Lx-Ly` | Recursive folder pre-scan and hidden-folder handling. |
+| `S34` | `iTidy` `icon_types.c` | https://github.com/Kwezza/iTidy/blob/v1/src/icon_types.c | `Lx-Ly` | Icon metadata handling, icon-library version use, and PATH parsing. |
+| `S35` | `iTidy` `icon_management.c` | https://github.com/Kwezza/iTidy/blob/v1/src/icon_management.c | `Lx-Ly` | `.info` scanning rules and scan-time exclusions. |
+| `S36` | Tags | https://wiki.amigaos.net/wiki/Tags | `§Heading ¶n-m` | TagItem conventions and control-tag meanings. |
+| `S37` | `exec.library` autodocs index | https://developer.amigaos3.net/autodocs/exec.library/ | `item n` | Overview of the Exec function surface. |
+| `S38` | `OpenLibrary()` autodoc | https://developer.amigaos3.net/autodocs/exec.library/OpenLibrary.html | `§Heading ¶n-m` | Process-versus-task caveats around opening libraries. |
+| `S39` | `AddTask()` autodoc | https://developer.amigaos3.net/autodocs/exec.library/AddTask.html | `§Heading ¶n-m` | Defines the low-level task model and its DOS limitations. |
+| `S40` | `GetMsg()` autodoc | https://developer.amigaos3.net/autodocs/exec.library/GetMsg.html | `§Heading ¶n-m` | Message-port receive semantics. |
+| `S41` | `WaitPort()` autodoc | https://developer.amigaos3.net/autodocs/exec.library/WaitPort.html | `§Heading ¶n-m` | Waiting semantics for message ports. |
+| `S42` | `gadtools.library` autodocs index | https://developer.amigaos3.net/autodocs/gadtools.library/ | `item n` | Core GadTools function surface. |
+| `S43` | `graphics.library` autodocs index | https://developer.amigaos3.net/autodocs/graphics.library/ | `item n` | Core drawing and raster operations. |
+| `S44` | `utility.library` autodocs index | https://developer.amigaos3.net/autodocs/utility.library/ | `item n` | Utility helpers including tag functions. |
+| `S45` | `iTidy` `file_directory_handling.c` | https://github.com/Kwezza/iTidy/blob/v1/src/file_directory_handling.c | `Lx-Ly` | Real-world `TagItem` use for icon save/update paths. |
+| `S46` | IFFParse Library | https://wiki.amigaos.net/wiki/IFFParse_Library | `§Heading ¶n-m` | Official overview of `iffparse.library`, `IFFHandle`, streams, and context management. |
+| `S47` | Parsing IFF | https://wiki.amigaos.net/wiki/Parsing_IFF | `§Heading ¶n-m` | Official explanation of `ParseIFF()`, `PropChunk()`, `FindProp()`, and parsing modes. |
+| `S48` | `iTidy` `Settings/IControlPrefs.c` | https://github.com/Kwezza/iTidy/blob/v1/src/Settings/IControlPrefs.c | `Lx-Ly` | Shows `iffparse.library` use for `ENV:sys/icontrol.prefs`. |
+| `S49` | `iTidy` `window_management.c` | https://github.com/Kwezza/iTidy/blob/v1/src/window_management.c | `Lx-Ly` | Shows `iffparse.library` use for `ENV:sys/font.prefs` and Workbench screen setup. |

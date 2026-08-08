@@ -16,7 +16,38 @@ Needed for:
 Depends on:
 - `../amiga-primer.md`
 
-Status: Stub.
+Status: Index.
 
 Notes:
 - Each card should eventually include role, key types, key functions, and project relevance.
+
+## Purpose Of This Section
+
+These files are the short-form lookup cards for Amiga libraries that keep showing up in source code, logs, and compatibility discussions. The goal is not to replace full autodocs. It is to give a small-context model or a human reviewer the project-relevant meaning of a library quickly.
+
+## Highest-Priority Cards
+
+For the current project scope, these are the key cards to read first:
+
+- [dos.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/dos.library.md)
+- [exec.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/exec.library.md)
+- [workbench.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/workbench.library.md)
+- [icon.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/icon.library.md)
+- [intuition.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/intuition.library.md)
+- [gadtools.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/gadtools.library.md)
+- [asl.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/asl.library.md)
+
+These map directly onto the current `iTidy` target and the present `vamos` integration work.
+
+## Secondary Cards
+
+These are important, but usually after the core set above:
+
+- [graphics.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/graphics.library.md)
+- [utility.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/utility.library.md)
+
+## Lower-Priority Card
+
+- [iffparse.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/iffparse.library.md)
+
+This is still a lower-priority card than the core GUI and DOS libraries, but it is no longer purely hypothetical because the current `iTidy` source reads Workbench preference files through `iffparse.library`.

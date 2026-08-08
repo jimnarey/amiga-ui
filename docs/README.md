@@ -15,8 +15,9 @@ This directory contains the project-authored documentation intended to be read b
 2. `architecture/compatibility-scope.md`
 3. `platform/amiga-primer.md`
 4. `runtime/vamos-overview.md`
-5. `workflows/error-driven-porting.md`
-6. Relevant app notes in `apps/`
+5. `runtime/headless-gui.md`
+6. `workflows/error-driven-porting.md`
+7. Relevant app notes in `apps/`
 
 ## Sections
 
@@ -34,4 +35,4 @@ Use the numbered inline reference system defined in [sources.md](sources.md) whe
 
 ## Status
 
-This tree currently contains stubs. Each file should be expanded from the fetched upstream documentation, inspected source trees, and verified runtime behavior.
+This tree is a mix of filled-in draft pages and stubs. Expand the remaining stubs from the fetched upstream documentation, inspected source trees, and verified runtime behavior.
