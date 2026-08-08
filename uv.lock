@@ -1,0 +1,31 @@
+version = 1
+revision = 3
+requires-python = ">=3.12"
+
+[[package]]
+name = "amiga-ui"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "amitools", extra = ["vamos"] },
+]
+
+[package.metadata]
+requires-dist = [{ name = "amitools", extras = ["vamos"] }]
+
+[[package]]
+name = "amitools"
+version = "0.8.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/de/01/b837b2fbb7e1dc2a5f5b94149ba59c71293578f2373ae4bb926db0e53c04/amitools-0.8.1.tar.gz", hash = "sha256:f622c0725c15737e7d4820ed147f930f4cfb7b80b04c786c2bc3943b799faf7e", size = 3279815, upload-time = "2025-12-30T17:58:22.692Z" }
+
+[package.optional-dependencies]
+vamos = [
+    { name = "machine68k" },
+]
+
+[[package]]
+name = "machine68k"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/53/30/8548ba3cfd52f4cbef12c053532936a97f59d7044ed9ae0bc5eceb63e35d/machine68k-0.3.0.tar.gz", hash = "sha256:40bf621b208ae402317c3bd0abb7b6ae36124a2fc416d33599f35ee337028deb", size = 398247, upload-time = "2024-08-25T17:45:44.93Z" }

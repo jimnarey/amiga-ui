@@ -1,0 +1,12 @@
+[project]
+name = "amiga-ui"
+version = "0.1.0"
+description = "Workbench application compatibility layer research and implementation"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "amitools[vamos]",
+]
+
+[tool.uv]
+package = false

@@ -1,4 +1,5 @@
 /amitools/
+.venv/
 assets/**
 !assets/**/
 !assets/**/*.placeholder
