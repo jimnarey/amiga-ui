@@ -1,0 +1,5 @@
+/amitools/
+assets/**
+!assets/**/
+!assets/**/*.placeholder
+!assets/libs/download_classact33.sh

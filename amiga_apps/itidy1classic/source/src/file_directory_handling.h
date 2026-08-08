@@ -1,0 +1,53 @@
+#ifndef FILE_DIRECTORY_HANDLING_H
+#define FILE_DIRECTORY_HANDLING_H
+
+/* VBCC MIGRATION NOTE (Stage 2): Modernized for AmigaDOS and VBCC C99
+ * 
+ * Key changes in corresponding .c file:
+ * - Replaced AllocMem/FreeMem with AllocDosObject/FreeDosObject for FileInfoBlock
+ * - Replaced sprintf with snprintf for safety
+ * - Added proper error handling with IoErr()
+ * - Improved lock/unlock consistency
+ * - C99 features: inline, //, mixed declarations
+ */
+
+#include <exec/types.h>
+#include <libraries/dos.h>
+#include <workbench/workbench.h>
+#include <workbench/icon.h>
+#include <proto/exec.h>
+#include <proto/dos.h>
+#include <proto/icon.h>
+#include <proto/intuition.h>
+#include <proto/graphics.h>
+#include <stdlib.h>
+#include <devices/trackdisk.h>
+#include <dos/dos.h>
+
+#include "itidy_types.h"
+#include "icon_management.h"
+#include "window_management.h"
+#include "utilities.h"
+#include "writeLog.h"
+#include "icon_misc.h"
+#include "dos/getDiskDetails.h"
+#include "icon_management.h"
+
+void GetFullPath(const char *directory, struct FileInfoBlock *fib, char *fullPath, int fullPathSize);
+int IsRootDirectorySimple(char *path);
+void removeInfoExtension(const char *input, char *output);
+int saveIconsPositionsToDisk(IconArray *iconArray);
+void SaveFolderSettings(const char *folderPath, folderWindowSize *newFolderInfo, int sanityCheck);
+BOOL GetFolderWindowSettings(const char *folderPath, folderWindowSize *folderInfo, UWORD *viewMode);
+void dumpIconArrayToScreen(IconArray *iconArray);
+void sanitizeAmigaPath(char *path);
+
+BOOL isDirectory(const char *path);
+BOOL does_file_or_folder_exist(const char *name, int isFile);
+BOOL GetWriteProtection(const char *filename);
+void SetWriteProtection(const char *filename, BOOL protect);
+void SetDeleteProtection(const char *filename, BOOL protect);
+BOOL GetDeleteProtection(const char *filename);
+BOOL IsDeviceReadOnly(const char *deviceName);
+
+#endif // FILE_DIRECTORY_HANDLING_H
