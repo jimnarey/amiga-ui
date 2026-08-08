@@ -23,6 +23,10 @@ check_tool \
   "7z command available" \
   7z -h
 
+check_tool \
+  "Xvfb command available" \
+  Xvfb -help
+
 if [[ "${missing}" -ne 0 ]]; then
   echo
   echo "Missing dependencies:"

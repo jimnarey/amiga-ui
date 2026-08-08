@@ -23,6 +23,17 @@ uv run vamos --help
 uv run xdftool --help
 ```
 
+## Headless GUI Smoke Test
+
+For headless GUI work on Linux, install `Xvfb` and use the project wrapper:
+
+```bash
+./check_optional_deps.sh
+./tests/run_gui_smoke_test.sh
+```
+
+The smoke-test launcher starts a temporary X11 server via the project `Xvfb` wrapper, exports `DISPLAY`, and defaults `QT_QPA_PLATFORM` to `xcb` so Qt Widgets runs in a predictable mode.
+
 ### Bootstrap Note
 
 The `amitools` checkout currently present in the repository root is only a bootstrap analysis aid. Once the dependency-based workflow is verified, the project should rely on the `uv`-managed installation instead of that in-tree copy.

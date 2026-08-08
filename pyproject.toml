@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "amitools[vamos]",
+    "PySide6",
 ]
 
 [tool.uv]
