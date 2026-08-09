@@ -15,6 +15,7 @@ dependencies = [
 
 [project.scripts]
 amiga-ui = "amiga_ui.cli:main"
+amiga-ui-xvfb = "amiga_ui.host.xvfb:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/amiga_ui"]

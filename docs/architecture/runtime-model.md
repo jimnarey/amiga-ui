@@ -51,6 +51,6 @@ The project should preserve those boundaries in both documentation and debugging
 The application logic should be the same in both modes. The only intended difference is the outer display environment:
 
 - interactive mode uses a normal Linux desktop session;
-- headless mode uses `./tools/run_with_xvfb.sh`.
+- headless mode uses `uv run amiga-ui-xvfb -- <command>`.
 
 That keeps smoke tests close to real execution while still making automation possible.

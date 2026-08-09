@@ -38,7 +38,7 @@ That makes `Xvfb` the lowest-friction way to give the project a real window-syst
 
 ## Project Rule
 
-Use `./tools/run_with_xvfb.sh` as the default headless launcher for GUI smoke tests and scripted app runs. The script starts a temporary `Xvfb` instance, exports `DISPLAY`, and defaults `QT_QPA_PLATFORM` to `xcb`. Qt documents `QT_QPA_PLATFORM` as the mechanism for selecting a specific platform plugin [S19 §Selecting a QPA plugin ¶1-2].
+Use `uv run amiga-ui-xvfb -- <command>` as the default headless launcher for GUI smoke tests and scripted app runs. The Python wrapper starts a temporary `Xvfb` instance, exports `DISPLAY`, and defaults `QT_QPA_PLATFORM` to `xcb`. Qt documents `QT_QPA_PLATFORM` as the mechanism for selecting a specific platform plugin [S19 §Selecting a QPA plugin ¶1-2].
 
 The canonical virtual screen configuration is:
 

@@ -55,7 +55,7 @@ Before touching `vamos`, run the host-side checks:
 ```bash
 uv sync
 ./check_optional_deps.sh
-./tests/run_gui_smoke_test.sh
+uv run python tests/run_gui_smoke_test.py
 ```
 
 If `uv` cannot write to its normal cache location in a restricted environment, run it with `UV_CACHE_DIR` redirected to a writable location such as `/tmp/uv-cache`.

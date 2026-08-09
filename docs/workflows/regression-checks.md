@@ -29,7 +29,7 @@ Run these checks before and after a compatibility change:
 
 ```bash
 ./.venv/bin/python -m unittest tests.test_helper tests.test_docs_metadata
-./tests/run_gui_smoke_test.sh
+uv run python tests/run_gui_smoke_test.py
 ```
 
 The first command protects the documentation metadata conventions. The second proves that the host-side Qt Widgets path can still create and close a window under the project-standard headless display server.

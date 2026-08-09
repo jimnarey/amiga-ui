@@ -74,14 +74,14 @@ The project should favor stable, machine-reviewable output:
 Before blaming an Amiga-side compatibility change for a GUI failure, verify that the host GUI path is healthy. The project smoke-test launcher:
 
 ```bash
-./tests/run_gui_smoke_test.sh
+uv run python tests/run_gui_smoke_test.py
 ```
 
 should be treated as a quick sanity check for:
 
 - the Python environment
 - PySide6 imports
-- the `Xvfb` wrapper
+- the Python `Xvfb` wrapper and `uv run python tests/run_gui_smoke_test.py`
 - the basic Qt Widgets window path
 
 If this smoke test fails, the problem is probably outside the Amiga application logic.
