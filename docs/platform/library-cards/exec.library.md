@@ -6,12 +6,14 @@ depends_on:
 citations_used:
   - "S1"
   - "S8"
+  - "S31"
   - "S30"
   - "S37"
   - "S38"
   - "S39"
   - "S40"
   - "S41"
+  - "S56"
 ---
 
 # exec.library
@@ -48,6 +50,18 @@ Many compatibility problems that first look like GUI or Workbench issues are act
 
 The `exec.library` autodocs index shows just how broad the surface is, but the highest-value subset for this project is smaller: task/process discovery, message passing, signals, library opening, and memory management [S37 item 1].
 
+## High-Value APIs
+
+At the API level, the most useful first-wave `exec.library` calls for this repository are:
+
+- `FindTask()`, `AddTask()`, `RemTask()` for task identity and lifetime [S1 Include_H/clib/exec_protos.h L94-L97]
+- `Wait()`, `Signal()`, `AllocSignal()`, `FreeSignal()` for wait-state and wakeup behavior [S1 Include_H/clib/exec_protos.h L98-L105]
+- `PutMsg()`, `GetMsg()`, `ReplyMsg()`, `WaitPort()` for port-driven message loops [S1 Include_H/clib/exec_protos.h L107-L113] [S40 §FUNCTION ¶1-5] [S41 §FUNCTION ¶1-5]
+- `OpenLibrary()` and `CloseLibrary()` for shared-library access [S1 Include_H/clib/exec_protos.h L117-L143] [S38 §FUNCTION ¶1-3]
+- `AllocMem()`, `FreeMem()`, `AvailMem()`, and `AllocVec()` for OS-managed memory [S1 Include_H/clib/exec_protos.h L69-L77] [S56 §FUNCTION ¶1-2] [S56 §WARNING ¶1-2]
+
+This is not the whole library. It is the part most likely to surface in early Workbench-app compatibility failures.
+
 ### Message Ports And Messages
 
 `GetMsg()` removes the next message from a port but does not wait, while `WaitPort()` waits until a port becomes non-empty and then still expects the caller to drain messages in a loop [S40 §FUNCTION ¶1-5] [S41 §FUNCTION ¶1-5]. That distinction is core to GUI compatibility because a correct event loop is not "wait once, process once." It is "wait, then drain."
@@ -61,6 +75,10 @@ The `AddTask()` autodoc is blunt that tasks are low-level building blocks and ge
 ### Library Opening
 
 `OpenLibrary()` historically carries a task-versus-process caveat too. The autodoc notes that only processes are allowed to call it in the fully general case because disk-backed library opening may require DOS involvement, even though later systems added more protection for tasks [S38 §FUNCTION ¶1-3] [S38 §NOTES ¶1-3].
+
+### Memory Management
+
+Memory management also belongs high on the practical list. The Exec proto surface exposes `AllocMem()`, `FreeMem()`, `AvailMem()`, and allocation helpers directly [S1 Include_H/clib/exec_protos.h L69-L77]. The `AllocVec()` autodoc adds two important project-facing rules: allocations can fail and must be checked, and memory-management calls require task or process context rather than interrupt context [S56 §WARNING ¶1-2].
 
 ## Concrete Relevance In `iTidy`
 

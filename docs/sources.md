@@ -111,3 +111,10 @@ Use these locator styles:
 | `S47` | Parsing IFF | https://wiki.amigaos.net/wiki/Parsing_IFF | `§Heading ¶n-m` | Official explanation of `ParseIFF()`, `PropChunk()`, `FindProp()`, and parsing modes. |
 | `S48` | `iTidy` `Settings/IControlPrefs.c` | https://github.com/Kwezza/iTidy/blob/v1/src/Settings/IControlPrefs.c | `Lx-Ly` | Shows `iffparse.library` use for `ENV:sys/icontrol.prefs`. |
 | `S49` | `iTidy` `window_management.c` | https://github.com/Kwezza/iTidy/blob/v1/src/window_management.c | `Lx-Ly` | Shows `iffparse.library` use for `ENV:sys/font.prefs` and Workbench screen setup. |
+| `S50` | Programming in the Amiga Environment | https://wiki.amigaos.net/wiki/Programming_in_the_Amiga_Environment | `§Heading ¶n-m` | High-level official overview of multitasking, memory protection, shared libraries, and dynamic memory behavior. |
+| `S51` | Introduction to Exec | https://wiki.amigaos.net/wiki/Introduction_to_Exec | `§Heading ¶n-m` or `Lx-Ly` | Official overview of Exec tasking, dynamic memory allocation, and library loading behavior. |
+| `S52` | Libraries | https://wiki.amigaos.net/wiki/Libraries | `§Heading ¶n-m` | Official overview of Amiga shared libraries and the broader library families. |
+| `S53` | `LoadSeg()` autodoc | https://developer.amigaos3.net/autodocs/dos.library/LoadSeg.html | `§FUNCTION ¶n-m`, `§RESULT ¶n`, `§NOTES ¶n-m` | Primary reference for Amiga load modules and seglists. |
+| `S54` | Exec Libraries | https://wiki.amigaos.net/wiki/Exec_Libraries | `§Heading ¶n-m` | Official explanation of library base pointers, vector tables, and open/close/expunge behavior. |
+| `S55` | AmigaDOS Data Structures | https://wiki.amigaos.net/wiki/AmigaDOS_Data_Structures | `§Heading ¶n-m` | Official explanation of `Process`-side DOS data structures and cleanup behavior. |
+| `S56` | `AllocVec()` autodoc | https://developer.amigaos3.net/autodocs/exec.library/AllocVec.html | `§FUNCTION ¶n-m`, `§WARNING ¶n-m` | Primary reference for task-context memory allocation behavior. |

@@ -7,6 +7,8 @@ citations_used:
   - "S3"
   - "S5"
   - "S25"
+  - "S50"
+  - "S51"
 ---
 
 # Amiga Primer
@@ -25,9 +27,9 @@ Notes:
 
 ## Summary
 
-For this project, the fastest way to think about classic AmigaOS is: it is a message-driven operating system with a DOS-style filesystem layer and an icon-driven desktop called Workbench layered on top. Programs may run from the Shell, but many GUI utilities are really designed around Workbench concepts such as icons, drawers, default tools, public screens, and startup messages rather than around plain command-line arguments [S3 §Welcome ¶2-5] [S2 §Workbench Library ¶1-4].
+For this project, the fastest way to think about classic AmigaOS is: it is a message-driven operating system with a DOS-style filesystem layer and an icon-driven desktop called Workbench layered on top. Under those layers sits Exec, the core kernel/runtime library responsible for tasks, signals, message ports, libraries, and memory management [S51 §What is Exec? ¶1-5]. Programs may run from the Shell, but many GUI utilities are really designed around Workbench concepts such as icons, drawers, default tools, public screens, and startup messages rather than around plain command-line arguments [S3 §Welcome ¶2-5] [S2 §Workbench Library ¶1-4].
 
-## Five Core Ideas
+## Six Core Ideas
 
 ### 1. Workbench Is Not Just A File Browser
 
@@ -49,6 +51,10 @@ Shell-launched programs get ordinary CLI-style arguments. Workbench-launched pro
 
 Classic Amiga GUI code is built around libraries such as Intuition, GadTools, ASL, and Graphics. Windows and gadgets are not "declarative widgets" in the modern web sense; they are objects that participate in explicit message loops and stateful library calls. That shapes both the runtime model and the way compatibility bugs appear.
 
+### 6. Tasks Share One Machine Address Space
+
+Classic Amiga multitasking does not come with hardware memory protection. The official programming overview says that tasks coexist in memory without that protection and warns that an errant task can overwrite another task's code or data [S50 §What the System Doesn't Do For You ¶1-4]. That is a major difference from modern Unix-like process isolation and one of the reasons Amiga software is so sensitive to pointer and ownership mistakes.
+
 ## What To Read Next
 
 Use this file as orientation only. The more detailed follow-on pages are:
@@ -57,6 +63,8 @@ Use this file as orientation only. The more detailed follow-on pages are:
 - [Workbench Model](/home/jimnarey/projects/amiga-ui/docs/platform/workbench-model.md) for the desktop-side object model
 - [Icon And Info Files](/home/jimnarey/projects/amiga-ui/docs/platform/icon-and-info-files.md) for `.info` files and icon metadata
 - [Data Types And Conventions](/home/jimnarey/projects/amiga-ui/docs/platform/data-types-and-conventions.md) for BPTRs, tag lists, and other low-level calling conventions
+- [Memory Model And Address Space](/home/jimnarey/projects/amiga-ui/docs/platform/memory-model-and-address-space.md) for shared-memory and allocation rules
+- [Library And Segment Loading](/home/jimnarey/projects/amiga-ui/docs/platform/library-and-segment-loading.md) for runtime libraries, seglists, and load modules
 
 ## Working Rule
 

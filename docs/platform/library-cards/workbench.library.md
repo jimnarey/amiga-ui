@@ -7,6 +7,7 @@ depends_on:
 citations_used:
   - "S1"
   - "S2"
+  - "S50"
 ---
 
 # workbench.library
@@ -40,6 +41,17 @@ The target application class is Workbench-oriented software. That means correctn
 - understand how it was launched,
 - receive Workbench objects as arguments,
 - and possibly continue receiving Workbench-driven messages while already running.
+
+## High-Value APIs
+
+The Workbench proto surface shows the main API families the project is likely to care about first:
+
+- `AddAppWindow()` and `RemoveAppWindow()` for windows that can receive dropped Workbench objects [S1 Include_H/clib/wb_protos.h L36-L40]
+- `AddAppIcon()` and `RemoveAppIcon()` for icons representing running applications [S1 Include_H/clib/wb_protos.h L41-L44]
+- `AddAppMenuItem()` and `RemoveAppMenuItem()` for Workbench-level menu integration [S1 Include_H/clib/wb_protos.h L46-L49]
+- `WBInfo()` for opening Workbench information on an object [S1 Include_H/clib/wb_protos.h L51-L55]
+
+Later APIs such as `OpenWorkbenchObject()` and `MakeWorkbenchObjectVisible()` exist too, but they are clearly later-phase for this repo's current scope [S1 Include_H/clib/wb_protos.h L56-L69].
 
 ## AppMessage
 
@@ -75,6 +87,8 @@ One of the most important design facts is that `AppMessage.am_ArgList` uses the 
 
 - startup-time argument delivery,
 - and later Workbench message delivery.
+
+The broader programming overview also reinforces the architectural context: Workbench-facing APIs sit on top of shared run-time libraries opened through Exec rather than inside private per-process desktop state [S50 §Libraries of functions ¶1-7] [S50 §Another Kind of Function Library ¶1-8].
 
 ## Working Rule
 
