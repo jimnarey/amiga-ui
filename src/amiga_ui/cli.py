@@ -3,21 +3,61 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import re
-import shutil
+import signal
 import subprocess
 import sys
-from dataclasses import asdict
+import tempfile
+import traceback
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .assets import asset_inventory, project_relative, required_asset_checks
+from .assets import AssetCheck, asset_inventory, project_relative, required_asset_checks
 from .config import DEFAULT_PROBE_TIMEOUT_SECONDS, PROJECT_ROOT
 from .host.gui_smoke import run_smoke_gui
 from .host.xvfb import run_with_xvfb
-from .run_artifacts import create_run_artifacts, write_json
+from .run_artifacts import RunArtifacts, create_run_artifacts, write_json
 from .targets import ProbeTarget, get_probe_target
+from .vamos.launcher import run_vamos_in_process
+
+
+@dataclass(frozen=True)
+class CheckResult:
+    """One host or asset preflight check."""
+
+    label: str
+    ok: bool
+    detail: str
+
+
+@dataclass(frozen=True)
+class ProbeRuntimePaths:
+    """Prepared host directories mapped into the probe runtime."""
+
+    sys_root: Path
+    work_root: Path
+    volumes_root: Path
+
+    def as_display_dict(self) -> dict[str, str]:
+        """Render runtime paths relative to the repo root when possible."""
+
+        return {
+            "sys_root": project_relative(self.sys_root),
+            "work_root": project_relative(self.work_root),
+            "volumes_root": project_relative(self.volumes_root),
+        }
+
+
+@dataclass(frozen=True)
+class ProbeClassification:
+    """Classification of one probe result."""
+
+    status: str
+    ok: bool
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -77,91 +117,111 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _run_check(args: argparse.Namespace) -> int:
-    checks: list[dict[str, Any]] = []
-
-    def add_check(label: str, ok: bool, detail: str) -> None:
-        checks.append({"label": label, "ok": ok, "detail": detail})
-
-    python_ok = sys.version_info >= (3, 12)
-    add_check(
-        "Python 3.12 or newer",
-        python_ok,
-        f"running {sys.version.split()[0]}",
-    )
-
-    for module_name in ("PySide6", "amitools"):
-        try:
-            __import__(module_name)
-        except Exception as exc:  # pragma: no cover - exercised by manual preflight
-            add_check(f"Python import: {module_name}", False, str(exc))
-        else:
-            add_check(f"Python import: {module_name}", True, "import succeeded")
-
-    for label, command in (
-        ("7z command available", ["7z", "-h"]),
-        ("Xvfb command available", ["Xvfb", "-help"]),
-    ):
-        try:
-            completed = subprocess.run(
-                command,
-                cwd=PROJECT_ROOT,
-                capture_output=True,
-                text=True,
-                timeout=10,
-                check=False,
-            )
-            ok = completed.returncode == 0
-            detail = f"exit code {completed.returncode}"
-        except FileNotFoundError:
-            ok = False
-            detail = "command not found"
-        add_check(label, ok, detail)
-
-    for asset in required_asset_checks():
-        status_label = f"Asset: {asset.label}"
-        detail = project_relative(asset.path)
-        if not asset.exists and asset.required:
-            add_check(status_label, False, f"missing required file at {detail}")
-        elif not asset.exists:
-            add_check(status_label, True, f"optional file not present at {detail}")
-        else:
-            add_check(status_label, True, f"found at {detail}")
-
+    checks = _collect_check_results()
     inventories = asset_inventory()
-    payload = {
-        "ok": all(item["ok"] for item in checks),
-        "checks": checks,
-        "inventory": [asdict(entry) | {"directory": project_relative(entry.directory)} for entry in inventories],
-    }
+    payload = _build_check_payload(checks, inventories)
 
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
-        print("Checking project environment...")
-        for item in checks:
-            prefix = "[ok]" if item["ok"] else "[missing]"
-            print(f"{prefix} {item['label']}: {item['detail']}")
-        print()
-        print("Asset inventory:")
-        for entry in inventories:
-            print(
-                f"- {entry.label}: {entry.present_count} present, "
-                f"{entry.placeholder_count} placeholders in {project_relative(entry.directory)}"
-            )
-        if not payload["ok"]:
-            print()
-            print("Missing dependencies or required assets:")
-            for item in checks:
-                if not item["ok"]:
-                    print(f"- {item['label']}: {item['detail']}")
+        _print_check_report(checks, inventories)
 
     return 0 if payload["ok"] else 1
+
+
+def _collect_check_results() -> list[CheckResult]:
+    checks = [_check_python_version()]
+    checks.extend(_check_python_import(module_name) for module_name in ("PySide6", "amitools"))
+    checks.extend(
+        (
+            _check_command_available("7z command available", ["7z", "-h"]),
+            _check_command_available("Xvfb command available", ["Xvfb", "-help"]),
+        )
+    )
+    checks.extend(_check_required_asset(asset) for asset in required_asset_checks())
+    return checks
+
+
+def _check_python_version() -> CheckResult:
+    return CheckResult(
+        label="Python 3.12 or newer",
+        ok=sys.version_info >= (3, 12),
+        detail=f"running {sys.version.split()[0]}",
+    )
+
+
+def _check_python_import(module_name: str) -> CheckResult:
+    try:
+        __import__(module_name)
+    except Exception as exc:  # pragma: no cover - exercised by manual preflight
+        return CheckResult(f"Python import: {module_name}", False, str(exc))
+    return CheckResult(f"Python import: {module_name}", True, "import succeeded")
+
+
+def _check_command_available(label: str, command: list[str]) -> CheckResult:
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        return CheckResult(label, completed.returncode == 0, f"exit code {completed.returncode}")
+    except FileNotFoundError:
+        return CheckResult(label, False, "command not found")
+
+
+def _check_required_asset(asset: AssetCheck) -> CheckResult:
+    detail = project_relative(asset.path)
+    if asset.exists:
+        return CheckResult(f"Asset: {asset.label}", True, f"found at {detail}")
+    if asset.required:
+        return CheckResult(f"Asset: {asset.label}", False, f"missing required file at {detail}")
+    return CheckResult(f"Asset: {asset.label}", True, f"optional file not present at {detail}")
+
+
+def _build_check_payload(checks: list[CheckResult], inventories: list[Any]) -> dict[str, Any]:
+    return {
+        "ok": all(check.ok for check in checks),
+        "checks": [asdict(check) for check in checks],
+        "inventory": [
+            asdict(entry) | {"directory": project_relative(entry.directory)}
+            for entry in inventories
+        ],
+    }
+
+
+def _print_check_report(checks: list[CheckResult], inventories: list[Any]) -> None:
+    print("Checking project environment...")
+    for check in checks:
+        prefix = "[ok]" if check.ok else "[missing]"
+        print(f"{prefix} {check.label}: {check.detail}")
+
+    print()
+    print("Asset inventory:")
+    for entry in inventories:
+        print(
+            f"- {entry.label}: {entry.present_count} present, "
+            f"{entry.placeholder_count} placeholders in {project_relative(entry.directory)}"
+        )
+
+    missing = [check for check in checks if not check.ok]
+    if missing:
+        print()
+        print("Missing dependencies or required assets:")
+        for check in missing:
+            print(f"- {check.label}: {check.detail}")
 
 
 def _run_smoke_gui(args: argparse.Namespace) -> int:
     if args.direct:
         return run_smoke_gui(duration_ms=args.duration_ms)
+    return _run_smoke_gui_with_xvfb(args.duration_ms)
 
+
+def _run_smoke_gui_with_xvfb(duration_ms: int) -> int:
     command = [
         sys.executable,
         "-m",
@@ -169,142 +229,223 @@ def _run_smoke_gui(args: argparse.Namespace) -> int:
         "smoke-gui",
         "--direct",
         "--duration-ms",
-        str(args.duration_ms),
+        str(duration_ms),
     ]
     completed = run_with_xvfb(command, capture_output=False, text=True)
     return completed.returncode
 
 
 def _run_probe(args: argparse.Namespace) -> int:
-    target = get_probe_target(args.target)
+    if not args.direct:
+        return _run_probe_with_xvfb(args.target, args.timeout)
+    return _run_probe_direct(args.target, args.timeout)
+
+
+def _run_probe_with_xvfb(target_name: str, timeout: int) -> int:
+    command = [
+        sys.executable,
+        "-m",
+        "amiga_ui",
+        "probe",
+        target_name,
+        "--direct",
+        "--timeout",
+        str(timeout),
+    ]
+    completed = run_with_xvfb(command, capture_output=False, text=True)
+    return completed.returncode
+
+
+def _run_probe_direct(target_name: str, timeout: int) -> int:
+    target = get_probe_target(target_name)
     artifacts = create_run_artifacts("probe", target.name)
-
-    invocation_base = {
-        "command": "probe",
-        "target": target.name,
-        "direct": bool(args.direct),
-        "timeout_seconds": args.timeout,
-        "artifact_root": project_relative(artifacts.root),
-    }
-
+    invocation = _build_probe_invocation_base(target.name, timeout)
     preflight_errors = _probe_preflight_errors(target)
+
     if preflight_errors:
-        result = {
-            "status": "missing_asset",
-            "ok": False,
-            "target": target.name,
-            "errors": preflight_errors,
-            "artifact_root": project_relative(artifacts.root),
-        }
-        write_json(artifacts.invocation_path, invocation_base)
-        write_json(artifacts.result_path, result)
-        artifacts.stdout_path.write_text("", encoding="utf-8")
-        artifacts.stderr_path.write_text("", encoding="utf-8")
-        print(f"Probe aborted before launch. Artifacts: {project_relative(artifacts.root)}")
-        for error in preflight_errors:
-            print(f"- {error}")
-        return 1
+        return _finish_probe_preflight_failure(artifacts, invocation, target, preflight_errors)
 
     runtime_paths = _prepare_probe_runtime(artifacts.runtime_root)
-    command = _build_probe_command(target, runtime_paths, artifacts.vamos_log_path)
-    write_json(
-        artifacts.invocation_path,
-        invocation_base
-        | {
-            "vamos_command": command,
-            "runtime": {key: project_relative(value) for key, value in runtime_paths.items()},
-        },
-    )
+    vamos_args = _build_probe_args(target, runtime_paths, artifacts.vamos_log_path)
+    _write_probe_invocation(artifacts, invocation, runtime_paths, vamos_args)
 
     try:
-        completed = _execute_probe(command, args.timeout, direct=args.direct)
-        artifacts.stdout_path.write_text(completed.stdout, encoding="utf-8")
-        artifacts.stderr_path.write_text(completed.stderr, encoding="utf-8")
-        classification = _classify_probe_outcome(
-            completed.returncode,
-            artifacts.vamos_log_path,
-            artifacts.stderr_path,
-        )
-        result = {
-            "status": classification["status"],
-            "ok": classification["ok"],
-            "target": target.name,
-            "returncode": completed.returncode,
-            "artifact_root": project_relative(artifacts.root),
-            "stdout_path": project_relative(artifacts.stdout_path),
-            "stderr_path": project_relative(artifacts.stderr_path),
-            "vamos_log_path": project_relative(artifacts.vamos_log_path),
-        }
-        result.update(classification["details"])
-        write_json(artifacts.result_path, result)
-        print(f"Probe finished with status {result['status']}.")
-        if "diagnostic_summary" in result:
-            print(result["diagnostic_summary"])
-        print(f"Artifacts: {project_relative(artifacts.root)}")
-        return 0 if result["ok"] else 1
-    except subprocess.TimeoutExpired:
-        artifacts.stdout_path.write_text("", encoding="utf-8")
-        artifacts.stderr_path.write_text("", encoding="utf-8")
-        result = {
-            "status": "timeout",
-            "ok": False,
-            "target": target.name,
-            "timeout_seconds": args.timeout,
-            "artifact_root": project_relative(artifacts.root),
-            "stdout_path": project_relative(artifacts.stdout_path),
-            "stderr_path": project_relative(artifacts.stderr_path),
-            "vamos_log_path": project_relative(artifacts.vamos_log_path),
-        }
-        write_json(artifacts.result_path, result)
-        print(f"Probe timed out after {args.timeout}s. Artifacts: {project_relative(artifacts.root)}")
-        return 1
+        completed = _execute_probe(vamos_args, timeout)
+    except ProbeTimeoutError:
+        return _finish_probe_timeout(artifacts, target, timeout)
+
+    _write_probe_streams(artifacts, completed.stdout, completed.stderr)
+    classification = _classify_probe_outcome(
+        completed.returncode,
+        artifacts.vamos_log_path,
+        artifacts.stderr_path,
+    )
+    return _finish_probe_completion(artifacts, target, completed.returncode, classification)
+
+
+def _build_probe_invocation_base(target_name: str, timeout: int) -> dict[str, Any]:
+    return {
+        "command": "probe",
+        "target": target_name,
+        "direct": True,
+        "timeout_seconds": timeout,
+    }
+
+
+def _write_probe_invocation(
+    artifacts: RunArtifacts,
+    invocation_base: dict[str, Any],
+    runtime_paths: ProbeRuntimePaths,
+    vamos_args: list[str],
+) -> None:
+    payload = invocation_base | {
+        "artifact_root": project_relative(artifacts.root),
+        "launch_mode": "in_process",
+        "runtime": runtime_paths.as_display_dict(),
+        "vamos_args": vamos_args,
+    }
+    write_json(artifacts.invocation_path, payload)
+
+
+def _finish_probe_preflight_failure(
+    artifacts: RunArtifacts,
+    invocation_base: dict[str, Any],
+    target: ProbeTarget,
+    errors: list[str],
+) -> int:
+    write_json(
+        artifacts.invocation_path,
+        invocation_base | {"artifact_root": project_relative(artifacts.root)},
+    )
+    _write_probe_streams(artifacts, "", "")
+    payload = {
+        "status": "missing_asset",
+        "ok": False,
+        "target": target.name,
+        "errors": errors,
+        "artifact_root": project_relative(artifacts.root),
+    }
+    _write_probe_result(artifacts, payload)
+    _print_probe_message("Probe aborted before launch.", project_relative(artifacts.root), errors)
+    return 1
+
+
+def _finish_probe_timeout(artifacts: RunArtifacts, target: ProbeTarget, timeout: int) -> int:
+    _write_probe_streams(artifacts, "", "")
+    payload = {
+        "status": "timeout",
+        "ok": False,
+        "target": target.name,
+        "timeout_seconds": timeout,
+        "artifact_root": project_relative(artifacts.root),
+        "stdout_path": project_relative(artifacts.stdout_path),
+        "stderr_path": project_relative(artifacts.stderr_path),
+        "vamos_log_path": project_relative(artifacts.vamos_log_path),
+    }
+    _write_probe_result(artifacts, payload)
+    _print_probe_message(
+        f"Probe timed out after {timeout}s.",
+        project_relative(artifacts.root),
+    )
+    return 1
+
+
+def _finish_probe_completion(
+    artifacts: RunArtifacts,
+    target: ProbeTarget,
+    returncode: int,
+    classification: ProbeClassification,
+) -> int:
+    payload = {
+        "status": classification.status,
+        "ok": classification.ok,
+        "target": target.name,
+        "returncode": returncode,
+        "artifact_root": project_relative(artifacts.root),
+        "stdout_path": project_relative(artifacts.stdout_path),
+        "stderr_path": project_relative(artifacts.stderr_path),
+        "vamos_log_path": project_relative(artifacts.vamos_log_path),
+    }
+    payload.update(classification.details)
+    _write_probe_result(artifacts, payload)
+    _print_probe_message(
+        f"Probe finished with status {classification.status}.",
+        project_relative(artifacts.root),
+        _probe_detail_lines(classification),
+    )
+    return 0 if classification.ok else 1
+
+
+def _write_probe_result(artifacts: RunArtifacts, payload: dict[str, Any]) -> None:
+    write_json(artifacts.result_path, payload)
+
+
+def _write_probe_streams(artifacts: RunArtifacts, stdout_text: str, stderr_text: str) -> None:
+    artifacts.stdout_path.write_text(stdout_text, encoding="utf-8")
+    artifacts.stderr_path.write_text(stderr_text, encoding="utf-8")
+
+
+def _print_probe_message(summary: str, artifact_root: str, details: list[str] | None = None) -> None:
+    print(summary)
+    if details:
+        for detail in details:
+            print(detail)
+    print(f"Artifacts: {artifact_root}")
+
+
+def _probe_detail_lines(classification: ProbeClassification) -> list[str]:
+    summary = classification.details.get("diagnostic_summary")
+    if summary is None:
+        return []
+    return [summary]
 
 
 def _probe_preflight_errors(target: ProbeTarget) -> list[str]:
     errors: list[str] = []
     if not target.host_binary_path.is_file():
         errors.append(f"missing target binary: {project_relative(target.host_binary_path)}")
-    if _find_vamos_binary() is None:
-        errors.append("unable to locate the vamos executable in the current Python environment")
     return errors
 
 
-def _prepare_probe_runtime(runtime_root: Path) -> dict[str, Path]:
+def _prepare_probe_runtime(runtime_root: Path) -> ProbeRuntimePaths:
     sys_root = runtime_root / "sys"
     work_root = runtime_root / "work"
     volumes_root = runtime_root / "volumes"
-    for path in (sys_root, work_root, volumes_root):
+
+    _ensure_probe_runtime_root(sys_root, work_root, volumes_root)
+    _ensure_probe_sys_layout(sys_root)
+    _write_probe_startup_sequence(sys_root / "S" / "startup-sequence")
+
+    return ProbeRuntimePaths(
+        sys_root=sys_root,
+        work_root=work_root,
+        volumes_root=volumes_root,
+    )
+
+
+def _ensure_probe_runtime_root(*paths: Path) -> None:
+    for path in paths:
         path.mkdir(parents=True, exist_ok=True)
+
+
+def _ensure_probe_sys_layout(sys_root: Path) -> None:
     for relative_dir in ("C", "S", "Libs", "Devs", "L", "T"):
         (sys_root / relative_dir).mkdir(exist_ok=True)
-    (sys_root / "S" / "startup-sequence").write_text(
-        "; amiga-ui probe runtime\n",
-        encoding="utf-8",
-    )
-    return {
-        "sys_root": sys_root,
-        "work_root": work_root,
-        "volumes_root": volumes_root,
-    }
 
 
-def _build_probe_command(
+def _write_probe_startup_sequence(path: Path) -> None:
+    path.write_text("; amiga-ui probe runtime\n", encoding="utf-8")
+
+
+def _build_probe_args(
     target: ProbeTarget,
-    runtime_paths: dict[str, Path],
+    runtime_paths: ProbeRuntimePaths,
     vamos_log_path: Path,
 ) -> list[str]:
-    vamos_binary = _find_vamos_binary()
-    if vamos_binary is None:
-        raise RuntimeError("vamos executable not found")
-
-    sys_root = runtime_paths["sys_root"]
-    work_root = runtime_paths["work_root"]
-    volumes_root = runtime_paths["volumes_root"]
     return [
-        str(vamos_binary),
         "-S",
         "--vols-base-dir",
-        str(volumes_root),
+        str(runtime_paths.volumes_root),
         "--auto-volumes",
         "off",
         "--auto-assigns",
@@ -314,9 +455,9 @@ def _build_probe_command(
         "-V",
         f"app:{target.app_volume_root}",
         "-V",
-        f"sys:{sys_root}",
+        f"sys:{runtime_paths.sys_root}",
         "-V",
-        f"work:{work_root}",
+        f"work:{runtime_paths.work_root}",
         "-a",
         "c:sys:C",
         "-a",
@@ -348,87 +489,121 @@ def _build_probe_command(
     ]
 
 
-def _execute_probe(command: list[str], timeout: int, *, direct: bool) -> subprocess.CompletedProcess[str]:
-    if direct:
-        return subprocess.run(
-            command,
-            cwd=PROJECT_ROOT,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
+class ProbeTimeoutError(Exception):
+    """Raised when an in-process probe exceeds its time limit."""
+
+
+def _execute_probe(vamos_args: list[str], timeout: int) -> subprocess.CompletedProcess[str]:
+    with (
+        tempfile.NamedTemporaryFile("w+", encoding="utf-8") as stdout_file,
+        tempfile.NamedTemporaryFile("w+", encoding="utf-8") as stderr_file,
+    ):
+        returncode = 1
+        try:
+            with (
+                contextlib.redirect_stdout(stdout_file),
+                contextlib.redirect_stderr(stderr_file),
+                _probe_timeout(timeout),
+            ):
+                returncode = run_vamos_in_process(args=vamos_args)
+        except ProbeTimeoutError:
+            raise
+        except Exception:
+            traceback.print_exc(file=stderr_file)
+
+        stdout_file.flush()
+        stderr_file.flush()
+        stdout_file.seek(0)
+        stderr_file.seek(0)
+        return subprocess.CompletedProcess(
+            vamos_args,
+            returncode,
+            stdout_file.read(),
+            stderr_file.read(),
         )
-    return run_with_xvfb(
-        command,
-        cwd=PROJECT_ROOT,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
 
 
 def _classify_probe_outcome(
     returncode: int,
     vamos_log_path: Path,
     stderr_path: Path,
-) -> dict[str, Any]:
+) -> ProbeClassification:
     if returncode == 0:
-        return {"status": "completed", "ok": True, "details": {}}
+        return ProbeClassification("completed", True)
 
-    log_text = ""
-    stderr_text = ""
-    if vamos_log_path.is_file():
-        log_text = vamos_log_path.read_text(encoding="utf-8")
-    if stderr_path.is_file():
-        stderr_text = stderr_path.read_text(encoding="utf-8")
+    log_text = _read_probe_text(vamos_log_path)
+    stderr_text = _read_probe_text(stderr_path)
 
-    missing_library = _find_missing_library(log_text)
-    if missing_library is not None:
-        return {
-            "status": "missing_library",
-            "ok": False,
-            "details": {
-                "missing_library": missing_library,
-                "diagnostic_summary": f"First missing library: {missing_library}",
-            },
-        }
+    for detector in (
+        lambda: _detect_missing_library(log_text),
+        lambda: _detect_path_setup_failure(log_text),
+        lambda: _detect_vamos_error(stderr_text),
+    ):
+        classification = detector()
+        if classification is not None:
+            return classification
 
-    if "path setup failed!" in log_text:
-        return {
-            "status": "path_setup_failed",
-            "ok": False,
-            "details": {"diagnostic_summary": "Vamos failed during path setup."},
-        }
-
-    if "Traceback" in stderr_text:
-        return {
-            "status": "vamos_error",
-            "ok": False,
-            "details": {"diagnostic_summary": "Vamos raised a Python traceback during launch."},
-        }
-
-    return {"status": "app_failed", "ok": False, "details": {}}
+    return ProbeClassification("app_failed", False)
 
 
-def _find_missing_library(log_text: str) -> str | None:
+def _read_probe_text(path: Path) -> str:
+    if not path.is_file():
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
+def _detect_missing_library(log_text: str) -> ProbeClassification | None:
     match = re.search(r"OpenLibrary: '([^']+)' V\d+ -> 000000", log_text)
     if match is None:
         return None
-    return match.group(1)
+    missing_library = match.group(1)
+    return ProbeClassification(
+        "missing_library",
+        False,
+        {
+            "missing_library": missing_library,
+            "diagnostic_summary": f"First missing library: {missing_library}",
+        },
+    )
 
 
-def _find_vamos_binary() -> Path | None:
-    candidate = Path(sys.executable).with_name("vamos")
-    if candidate.is_file():
-        return candidate
-    virtual_env = sys.prefix
-    virtual_env_candidate = Path(virtual_env) / "bin" / "vamos"
-    if virtual_env_candidate.is_file():
-        return virtual_env_candidate
-    which_result = shutil.which("vamos")
-    if which_result is None:
+def _detect_path_setup_failure(log_text: str) -> ProbeClassification | None:
+    if "path setup failed!" not in log_text:
         return None
-    return Path(which_result)
+    return ProbeClassification(
+        "path_setup_failed",
+        False,
+        {"diagnostic_summary": "Vamos failed during path setup."},
+    )
+
+
+def _detect_vamos_error(stderr_text: str) -> ProbeClassification | None:
+    if "Traceback" not in stderr_text:
+        return None
+    return ProbeClassification(
+        "vamos_error",
+        False,
+        {"diagnostic_summary": "Vamos raised a Python traceback during launch."},
+    )
+
+
+@contextlib.contextmanager
+def _probe_timeout(timeout_seconds: int):
+    if timeout_seconds <= 0:
+        yield
+        return
+
+    def handle_timeout(signum, frame):  # pragma: no cover - signal callback
+        raise ProbeTimeoutError()
+
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    signal.signal(signal.SIGALRM, handle_timeout)
+    signal.setitimer(signal.ITIMER_REAL, timeout_seconds)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
 
 
 def main(argv: list[str] | None = None) -> int:
