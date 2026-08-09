@@ -1,6 +1,7 @@
 *.pyc
 /amitools/
 .venv/
+/artifacts/
 assets/**
 !assets/**/
 !assets/**/*.placeholder

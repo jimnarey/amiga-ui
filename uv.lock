@@ -5,7 +5,7 @@ requires-python = ">=3.12"
 [[package]]
 name = "amiga-ui"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "amitools", extra = ["vamos"] },
     { name = "pyside6" },

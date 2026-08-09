@@ -37,3 +37,4 @@ if [[ "${missing}" -ne 0 ]]; then
 fi
 
 echo
+echo "All optional project dependencies were found."
