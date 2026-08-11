@@ -74,7 +74,7 @@ See `docs/workflows/branching-and-merging.md` for the authoritative policy.
 ## Standard Development Loop
 
 1. Run `uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy`.
-2. Read the latest run artifacts under `artifacts/runs/`.
+2. Read the latest local run artifacts under `artifacts/runs/`.
 3. Classify the first blocker honestly:
    - host dependency or setup issue
    - path/runtime-tree issue
@@ -131,7 +131,7 @@ Use `.agents/skills/` for focused guidance on launcher work, path setup, host GU
 - `src/amiga_ui/host/xvfb.py`: Python-managed `Xvfb` wrapper
 - `amiga_apps/itidy1classic/`: first real target app and source tree
 - `assets/`: required copyrighted assets, placeholders, and download scripts
-- `artifacts/runs/`: captured probe outputs and logs
+- `artifacts/runs/`: transient local probe outputs and logs from recent runs
 
 ## Verification
 

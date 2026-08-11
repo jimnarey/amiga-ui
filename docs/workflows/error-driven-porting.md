@@ -116,12 +116,12 @@ Do this in one specific, mechanical place so the step cannot be skipped or scatt
 ```
 ### YYYY-MM-DD — <one-line description of the blocker>
 
-- Artifacts: <path to the run's artifact folder under artifacts/runs/>
+- Observed: <important/useful outcome from the run, including the first blocker and any key evidence worth preserving>
 - Change: <what was implemented, or "none — recorded for triage">
 - Next: <what to look at next, if known>
 ```
 
-Do not duplicate data the run artifact folder already holds. The exact command, stdout, stderr, `vamos.log`, full diagnostic text, and return code all live in `invocation.json` / `result.json` / `vamos.log` inside that folder already — repeat none of it. The log entry's only job is to point at that folder and add what the folder cannot contain on its own: a short human-readable label for skimming, what repo change (if any) followed the run, and what to do next. If a run produced no artifact folder (for example, a preflight failure before the runtime tree was prepared), say so instead of inventing a path.
+Treat `artifacts/runs/` as transient local evidence from recent runs, not as the project's durable history. The run log is the durable history. Pull forward the important facts from the run artifacts into the log entry itself: the blocker, the meaningful evidence, what changed, and what to do next. It is fine to omit low-value noise, but do not rely on an artifact folder still being present later when someone resumes the work.
 
 Newest entry last. Do not rewrite or delete earlier entries; the log is a history, not a single mutable status field. If the log's most recent entry already shows the app past a previously-recorded blocker, treat that as confirmation the earlier fix held, not as something to silently overwrite.
 

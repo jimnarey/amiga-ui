@@ -100,7 +100,7 @@ uv run amiga-ui smoke-gui --direct
 
 ### Probe Artifacts
 
-The `probe` subcommand writes run artifacts under `artifacts/runs/`, including the exact invocation, stdout, stderr, a `vamos` log, and a JSON result summary. This is the main handoff point for an automated OpenHands loop that fixes one issue and reruns the target.
+The `probe` subcommand writes local run artifacts under `artifacts/runs/`, including the exact invocation, stdout, stderr, a `vamos` log, and a JSON result summary. These files are for recent-run inspection, not long-term project history. Important findings from a run should be carried forward into the relevant documentation, especially the app run log.
 
 ## Documentation Sources
 
