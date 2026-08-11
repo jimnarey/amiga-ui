@@ -1,3 +1,7 @@
+# Project Brief
+
+An earlier version of this document was the first thing added to the repository. It's purpose was to instruct Codex, using GPT 5.4, to start laying down the foundations for the project. It more-or-less describes the state of the repository before setting OpenHands and gpt-oss on the actual objective of the project, extending the compatibility layer provided by amitools/vamos to support GUI Workbench apps. 
+
 ## Objective
 
 Setup this repository as a basis for automated development of an Amiga Workbench API translation layer, written in Python, to enable Workbench applications which do not access sound and graphics hardware directly, to be run on Linux and possibly other desktop OS's.
