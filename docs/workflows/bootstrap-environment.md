@@ -32,10 +32,10 @@ On a fresh Linux machine, the project bootstrap path is:
 
 1. Acquire the project tree and required copyrighted assets.
 2. Run `uv sync` to install the Python dependencies.
-3. Run `./check_optional_deps.sh` to confirm optional external tools are available.
+3. Run `./check_dependencies.sh` to confirm required host tools are available.
 4. Use `uv run amiga-ui-xvfb -- <command>` for headless GUI checks when no desktop session is available.
 
-The only optional non-distro dependency currently checked for headless GUI work is `Xvfb`. It is the project-standard virtual display server because it provides a real X11 environment for machines with no physical display hardware [S20 §Description ¶1-2].
+The project currently requires `Xvfb` for headless GUI execution and `7z` for archive and asset handling. `Xvfb` is the project-standard virtual display server because it provides a real X11 environment for machines with no physical display hardware [S20 §Description ¶1-2].
 
 ## First GUI Validation
 

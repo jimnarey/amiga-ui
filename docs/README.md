@@ -16,8 +16,9 @@ This directory contains the project-authored documentation intended to be read b
 3. `platform/amiga-primer.md`
 4. `runtime/vamos-overview.md`
 5. `runtime/headless-gui.md`
-6. `workflows/error-driven-porting.md`
-7. Relevant app notes in `apps/`
+6. `workflows/branching-and-merging.md`
+7. `workflows/error-driven-porting.md`
+8. Relevant app notes in `apps/`
 
 ## Sections
 

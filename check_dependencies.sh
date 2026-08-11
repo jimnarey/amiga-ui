@@ -17,7 +17,7 @@ check_tool() {
   fi
 }
 
-echo "Checking optional project dependencies..."
+echo "Checking required host dependencies..."
 
 check_tool \
   "7z command available" \
@@ -37,4 +37,4 @@ if [[ "${missing}" -ne 0 ]]; then
 fi
 
 echo
-echo "All optional project dependencies were found."
+echo "All required host dependencies were found."

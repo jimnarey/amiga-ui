@@ -54,7 +54,7 @@ Before touching `vamos`, run the host-side checks:
 
 ```bash
 uv sync
-./check_optional_deps.sh
+./check_dependencies.sh
 uv run python tests/run_gui_smoke_test.py
 ```
 

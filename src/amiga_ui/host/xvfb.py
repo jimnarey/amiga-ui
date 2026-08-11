@@ -138,7 +138,7 @@ def ensure_xvfb_available() -> None:
     """Raise if Xvfb is not available on the host."""
 
     if shutil.which("Xvfb") is None:
-        raise XvfbUnavailableError("Xvfb is not available. Run ./check_optional_deps.sh for guidance.")
+        raise XvfbUnavailableError("Xvfb is not available. Run ./check_dependencies.sh for guidance.")
 
 
 def validate_x11_socket_dir(path: Path = X11_SOCKET_DIR) -> None:

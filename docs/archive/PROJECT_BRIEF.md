@@ -1,3 +1,10 @@
+---
+title: "Archived Project Brief"
+status: archive
+depends_on: []
+citations_used: []
+---
+
 # Project Brief
 
 An earlier version of this document was the first thing added to the repository. It's purpose was to instruct Codex, using GPT 5.4, to start laying down the foundations for the project. It more-or-less describes the state of the repository before setting OpenHands and gpt-oss on the actual objective of the project, extending the compatibility layer provided by amitools/vamos to support GUI Workbench apps. 

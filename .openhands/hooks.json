@@ -1,0 +1,24 @@
+{
+  "pre_tool_use": [
+    {
+      "matcher": "terminal",
+      "hooks": [
+        {
+          "command": ".openhands/hooks/protect_git_workflow.sh",
+          "timeout": 10
+        }
+      ]
+    }
+  ],
+  "stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "command": ".openhands/hooks/quality_gate.sh",
+          "timeout": 300
+        }
+      ]
+    }
+  ]
+}
