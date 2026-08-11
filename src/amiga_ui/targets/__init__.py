@@ -1,5 +1,5 @@
-"""Known Amiga application targets for early probes."""
+"""Probe target metadata for Amiga application binaries."""
 
-from .itidy import ProbeTarget, get_probe_target
+from .probe_target import ProbeTarget, resolve_probe_target
 
-__all__ = ["ProbeTarget", "get_probe_target"]
+__all__ = ["ProbeTarget", "resolve_probe_target"]

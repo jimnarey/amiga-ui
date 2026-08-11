@@ -106,6 +106,19 @@ Update the relevant project docs with:
 
 This is part of the workflow, not optional cleanup. The project is intentionally designed for small-context models, so each resolved or deferred failure should leave a short, readable trace.
 
+Do this in one specific, mechanical place so the step cannot be skipped or scattered by ambiguity about where it belongs: append one dated entry to the end of the `## Run Log` section in `docs/apps/<app>/compatibility-notes.md` (create the section if it does not exist yet). Use this template:
+
+```
+### YYYY-MM-DD — <one-line description of the blocker>
+
+- Command: <the probe command or invocation that was run>
+- Blocker: <the classified failure, e.g. "OpenLibrary: 'icon.library' V0 -> 000000">
+- Change: <what was implemented, or "none — recorded for triage">
+- Result: <what the rerun showed — new blocker, resolved, or unchanged>
+```
+
+Newest entry last. Do not rewrite or delete earlier entries; the log is a history, not a single mutable status field. If the log's most recent entry already shows the app past a previously-recorded blocker, treat that as confirmation the earlier fix held, not as something to silently overwrite.
+
 ## Working Rules
 
 ### Prefer Real App Pressure Over Abstract Completeness

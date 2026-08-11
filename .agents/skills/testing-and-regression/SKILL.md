@@ -25,7 +25,7 @@ Run the smallest set of checks that gives honest confidence for the change.
   - `PYTHONPATH=src .venv/bin/python -m unittest tests.test_helper tests.test_docs_metadata`
 - Launcher and probe integration:
   - `PYTHONPATH=src .venv/bin/python -m unittest tests.test_vamos_launcher`
-  - `PYTHONPATH=src .venv/bin/python -m amiga_ui probe itidy --direct --timeout 5`
+  - `PYTHONPATH=src .venv/bin/python -m amiga_ui probe amiga_apps/itidy1classic/binary/extracted/iTidy --direct --timeout 5`
 - Xvfb wrapper and smoke helpers:
   - `PYTHONPATH=src .venv/bin/python -m unittest tests.test_xvfb`
   - `uv run python tests/run_gui_smoke_test.py`

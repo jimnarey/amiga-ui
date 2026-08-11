@@ -37,11 +37,11 @@ Keep `vamos` integration reviewable, repo-owned, and easy to rerun.
 
 ## When Adding A Library Override
 1. Identify the exact Amiga library name.
-2. Create the smallest repo-owned implementation that moves the app forward.
+2. Create the smallest repo-owned implementation that moves the app forward. See `docs/runtime/writing-a-library-impl.md` for the concrete class shape, register-argument handling, and registration mechanics.
 3. Register it in `src/amiga_ui/vamos/extensions.py`.
 4. Rerun `tests.test_vamos_launcher` and the relevant probe.
 5. Confirm the first blocker has changed for the right reason.
 
 ## Verification
 - `PYTHONPATH=src .venv/bin/python -m unittest tests.test_vamos_launcher`
-- `PYTHONPATH=src .venv/bin/python -m amiga_ui probe itidy --direct --timeout 5`
+- `PYTHONPATH=src .venv/bin/python -m amiga_ui probe amiga_apps/itidy1classic/binary/extracted/iTidy --direct --timeout 5`

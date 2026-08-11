@@ -59,12 +59,12 @@ Classic Amiga multitasking does not come with hardware memory protection. The of
 
 Use this file as orientation only. The more detailed follow-on pages are:
 
-- [Filesystem And Launch](/home/jimnarey/projects/amiga-ui/docs/platform/filesystem-and-launch.md) for path and startup behavior
-- [Workbench Model](/home/jimnarey/projects/amiga-ui/docs/platform/workbench-model.md) for the desktop-side object model
-- [Icon And Info Files](/home/jimnarey/projects/amiga-ui/docs/platform/icon-and-info-files.md) for `.info` files and icon metadata
-- [Data Types And Conventions](/home/jimnarey/projects/amiga-ui/docs/platform/data-types-and-conventions.md) for BPTRs, tag lists, and other low-level calling conventions
-- [Memory Model And Address Space](/home/jimnarey/projects/amiga-ui/docs/platform/memory-model-and-address-space.md) for shared-memory and allocation rules
-- [Library And Segment Loading](/home/jimnarey/projects/amiga-ui/docs/platform/library-and-segment-loading.md) for runtime libraries, seglists, and load modules
+- [Filesystem And Launch](./filesystem-and-launch.md) for path and startup behavior
+- [Workbench Model](./workbench-model.md) for the desktop-side object model
+- [Icon And Info Files](./icon-and-info-files.md) for `.info` files and icon metadata
+- [Data Types And Conventions](./data-types-and-conventions.md) for BPTRs, tag lists, and other low-level calling conventions
+- [Memory Model And Address Space](./memory-model-and-address-space.md) for shared-memory and allocation rules
+- [Library And Segment Loading](./library-and-segment-loading.md) for runtime libraries, seglists, and load modules
 
 ## Working Rule
 

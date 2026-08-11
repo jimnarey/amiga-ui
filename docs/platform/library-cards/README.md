@@ -29,13 +29,13 @@ These files are the short-form lookup cards for Amiga libraries that keep showin
 
 For the current project scope, these are the key cards to read first:
 
-- [dos.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/dos.library.md)
-- [exec.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/exec.library.md)
-- [workbench.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/workbench.library.md)
-- [icon.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/icon.library.md)
-- [intuition.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/intuition.library.md)
-- [gadtools.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/gadtools.library.md)
-- [asl.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/asl.library.md)
+- [dos.library](./dos.library.md)
+- [exec.library](./exec.library.md)
+- [workbench.library](./workbench.library.md)
+- [icon.library](./icon.library.md)
+- [intuition.library](./intuition.library.md)
+- [gadtools.library](./gadtools.library.md)
+- [asl.library](./asl.library.md)
 
 These map directly onto the current `iTidy` target and the present `vamos` integration work.
 
@@ -43,11 +43,11 @@ These map directly onto the current `iTidy` target and the present `vamos` integ
 
 These are important, but usually after the core set above:
 
-- [graphics.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/graphics.library.md)
-- [utility.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/utility.library.md)
+- [graphics.library](./graphics.library.md)
+- [utility.library](./utility.library.md)
 
 ## Lower-Priority Card
 
-- [iffparse.library](/home/jimnarey/projects/amiga-ui/docs/platform/library-cards/iffparse.library.md)
+- [iffparse.library](./iffparse.library.md)
 
 This is still a lower-priority card than the core GUI and DOS libraries, but it is no longer purely hypothetical because the current `iTidy` source reads Workbench preference files through `iffparse.library`.

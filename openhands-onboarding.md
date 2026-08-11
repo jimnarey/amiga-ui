@@ -38,8 +38,8 @@ Use these commands by default:
 uv run amiga-ui check
 uv run amiga-ui smoke-gui
 uv run amiga-ui smoke-gui --direct
-uv run amiga-ui probe itidy
-uv run amiga-ui probe itidy --direct
+uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy
+uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy --direct
 uv run amiga-ui-xvfb -- <command> [args...]
 ```
 
@@ -73,7 +73,7 @@ See `docs/workflows/branching-and-merging.md` for the authoritative policy.
 
 ## Standard Development Loop
 
-1. Run `uv run amiga-ui probe itidy`.
+1. Run `uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy`.
 2. Read the latest run artifacts under `artifacts/runs/`.
 3. Classify the first blocker honestly:
    - host dependency or setup issue
@@ -110,17 +110,7 @@ The repository stop hook is intended to enforce the minimum quality gate automat
 
 ## Where To Read Next
 
-Read these in order when more context is needed:
-
-1. `AGENTS.md`
-2. `docs/README.md`
-3. `docs/architecture/overview.md`
-4. `docs/architecture/compatibility-scope.md`
-5. `docs/runtime/vamos-overview.md`
-6. `docs/runtime/headless-gui.md`
-7. `docs/workflows/branching-and-merging.md`
-8. `docs/workflows/error-driven-porting.md`
-9. `docs/apps/itidy/runbook.md`
+Start with `AGENTS.md`, then follow the reading order in `docs/README.md`. Do not duplicate that order here; keep `docs/README.md` as the single canonical list so it only needs updating in one place.
 
 Use `.agents/skills/` for focused guidance on launcher work, path setup, testing, assets, citations, and the error-driven porting loop.
 
@@ -151,6 +141,6 @@ After making changes, run the smallest relevant checks and report exactly what r
 uv run ruff check .
 uv run pyright
 uv run python -m unittest
-uv run amiga-ui probe itidy --direct
+uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy --direct
 uv run python tests/run_gui_smoke_test.py
 ```

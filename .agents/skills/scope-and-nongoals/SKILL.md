@@ -32,6 +32,7 @@ If a blocker is fundamentally about hardware registers, chipset behavior, or ano
 - Keep the repo focused on a small number of real Workbench-class targets, not broad unsupported software classes.
 
 ## Key Repo Files
-- `PROJECT_BRIEF.md`
 - `docs/architecture/compatibility-scope.md`
 - `docs/research/deferred-decisions.md`
+
+`docs/archive/PROJECT_BRIEF.md` is historical bootstrap material, not a current scope reference. Do not treat it as authoritative; use the two files above instead.

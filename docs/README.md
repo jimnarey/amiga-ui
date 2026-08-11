@@ -18,7 +18,7 @@ This directory contains the project-authored documentation intended to be read b
 5. `runtime/headless-gui.md`
 6. `workflows/branching-and-merging.md`
 7. `workflows/error-driven-porting.md`
-8. Relevant app notes in `apps/`
+8. `apps/itidy/runbook.md` for the current target application, then other relevant notes under `apps/` as more targets are added
 
 ## Sections
 

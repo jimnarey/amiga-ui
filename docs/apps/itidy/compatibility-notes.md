@@ -4,6 +4,8 @@ status: draft
 depends_on:
   - "runbook.md"
   - "../../runtime/vamos-gaps.md"
+  - "../../runtime/writing-a-library-impl.md"
+  - "../../workflows/error-driven-porting.md"
 citations_used:
   - "S11"
   - "S12"
@@ -26,15 +28,21 @@ Needed for:
 Depends on:
 - `runbook.md`
 - `../../runtime/vamos-gaps.md`
+- `../../runtime/writing-a-library-impl.md`
+- `../../workflows/error-driven-porting.md`
 
 Status: Draft.
 
 Notes:
 - Organize by working, partially working, blocked, and deferred behavior.
 
-## Current Project Baseline
+## Current Status
 
-No successful `iTidy` run is recorded in the repo docs yet. The purpose of this note is therefore to define the expected compatibility frontier clearly enough that future runs can be classified quickly instead of re-arguing the target every time.
+Trust the `## Run Log` section at the end of this file over any status claim in the prose sections below. The log is the append-only, dated record of what has actually been run and observed, per the "Recording A Result" convention in `../../workflows/error-driven-porting.md`; the sections below it are forward-looking triage guidance written before most of that evidence existed, and can go stale as the log advances. Read the log's most recent entry first, then use the rest of this file to interpret it.
+
+## Compatibility Frontier
+
+The purpose of the sections below is to define the expected compatibility frontier clearly enough that new runs can be classified quickly instead of re-arguing the target every time.
 
 ## Likely Earliest Wins
 
@@ -88,3 +96,14 @@ When `iTidy` fails under the project runtime, the most probable first buckets ar
 - missing command execution support for `LhA`
 
 This ordering comes directly from the published feature set and the current source structure, which bundles GUI, icon, scan, default-tool, and backup subsystems into one executable [S11 L15-L26] [S29 L38-L116].
+
+## Run Log
+
+Newest entry last. Append here per `../../workflows/error-driven-porting.md` step 7; do not edit or delete earlier entries.
+
+### 2026-08-09 — Missing `icon.library` blocks startup past core-library setup
+
+- Command: `uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy --direct`
+- Blocker: `OpenLibrary: 'icon.library' V0 -> 000000` in `vamos.log`, immediately after `intuition.library` and `utility.library` opened successfully. Probe classification: `missing_library`.
+- Change: none — this and four earlier same-day runs (`artifacts/runs/20260809T01*`) established this as the first reproducible blocker; two still-earlier runs the same day failed on launcher bugs unrelated to `iTidy` itself (a `vamos` config-parser keyword mismatch and a stdout-buffer assumption), both since fixed in the launcher.
+- Result: consistent across all five same-day reruns once the launcher bugs were fixed. This is the current frontier as of this entry — see `../../runtime/writing-a-library-impl.md` for how to implement a missing library, and confirm against a fresh probe run before assuming it still applies.

@@ -81,10 +81,10 @@ The asset tree is primarily a reference and staging area, not a direct `vamos` r
 
 ## Section Guide
 
-- [ADF Sets](/home/jimnarey/projects/amiga-ui/docs/assets/adf-sets.md) covers the AmigaOS disk-image families retained in the tree.
-- [ROM Sets](/home/jimnarey/projects/amiga-ui/docs/assets/rom-sets.md) covers the Kickstart references and their limited current role.
-- [Libraries And Toolkits](/home/jimnarey/projects/amiga-ui/docs/assets/libraries-and-toolkits.md) covers non-base toolkit dependencies, currently centered on ClassAct 3.3 [S16].
-- [Documentation Sources](/home/jimnarey/projects/amiga-ui/docs/assets/documentation-sources.md) covers the fetched upstream reference material used to write the project docs.
+- [ADF Sets](./adf-sets.md) covers the AmigaOS disk-image families retained in the tree.
+- [ROM Sets](./rom-sets.md) covers the Kickstart references and their limited current role.
+- [Libraries And Toolkits](./libraries-and-toolkits.md) covers non-base toolkit dependencies, currently centered on ClassAct 3.3 [S16].
+- [Documentation Sources](./documentation-sources.md) covers the fetched upstream reference material used to write the project docs.
 
 ## Working Rule
 

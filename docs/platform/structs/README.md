@@ -29,14 +29,14 @@ These files capture the structures that the project most needs to model correctl
 
 For the current target class, the most important struct notes are:
 
-- [WBStartup](/home/jimnarey/projects/amiga-ui/docs/platform/structs/wbstartup.md)
-- [WBArg](/home/jimnarey/projects/amiga-ui/docs/platform/structs/wbarg.md)
-- [Locks And Filehandles](/home/jimnarey/projects/amiga-ui/docs/platform/structs/locks-and-filehandles.md)
-- [DiskObject](/home/jimnarey/projects/amiga-ui/docs/platform/structs/diskobject.md)
-- [Process And Task](/home/jimnarey/projects/amiga-ui/docs/platform/structs/process-and-task.md)
+- [WBStartup](./wbstartup.md)
+- [WBArg](./wbarg.md)
+- [Locks And Filehandles](./locks-and-filehandles.md)
+- [DiskObject](./diskobject.md)
+- [Process And Task](./process-and-task.md)
 
 ## Later-Phase Struct
 
-- [AppMessage](/home/jimnarey/projects/amiga-ui/docs/platform/structs/appmessage.md)
+- [AppMessage](./appmessage.md)
 
 This one is already important conceptually, but it is more likely to become an active implementation target after basic Workbench launch and icon behavior are in place.

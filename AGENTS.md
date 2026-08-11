@@ -21,7 +21,7 @@ Read `openhands-onboarding.md` first for the standard bootstrap and autonomous d
 - Do not delete branches after merge.
 
 ## Runtime And GUI
-- Use `uv run amiga-ui probe <target>` for target probing.
+- Use `uv run amiga-ui probe <path-to-amiga-binary>` for target probing.
 - Use `uv run python tests/run_gui_smoke_test.py` for the headless GUI smoke test.
 - Use `uv run amiga-ui smoke-gui --direct` for manual desktop smoke testing.
 - Use `uv run amiga-ui-xvfb -- <command>` for ad hoc headless GUI commands.

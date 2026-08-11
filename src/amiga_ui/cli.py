@@ -20,7 +20,7 @@ from .config import DEFAULT_PROBE_TIMEOUT_SECONDS, PROJECT_ROOT
 from .host.gui_smoke import run_smoke_gui
 from .host.xvfb import run_with_xvfb
 from .run_artifacts import RunArtifacts, create_run_artifacts, write_json
-from .targets import ProbeTarget, get_probe_target
+from .targets import ProbeTarget, resolve_probe_target
 from .vamos.launcher import run_vamos_in_process
 
 
@@ -97,9 +97,9 @@ def _build_parser() -> argparse.ArgumentParser:
         help="run an Amiga application probe under vamos and capture artifacts",
     )
     probe_parser.add_argument(
-        "target",
-        choices=["itidy"],
-        help="the named application target to probe",
+        "binary",
+        type=Path,
+        help="path to the Amiga executable to probe; its containing directory becomes the app: volume",
     )
     probe_parser.add_argument(
         "--timeout",
@@ -233,18 +233,19 @@ def _run_smoke_gui_with_xvfb(duration_ms: int) -> int:
 
 
 def _run_probe(args: argparse.Namespace) -> int:
+    binary_path = args.binary.resolve()
     if not args.direct:
-        return _run_probe_with_xvfb(args.target, args.timeout)
-    return _run_probe_direct(args.target, args.timeout)
+        return _run_probe_with_xvfb(binary_path, args.timeout)
+    return _run_probe_direct(binary_path, args.timeout)
 
 
-def _run_probe_with_xvfb(target_name: str, timeout: int) -> int:
+def _run_probe_with_xvfb(binary_path: Path, timeout: int) -> int:
     command = [
         sys.executable,
         "-m",
         "amiga_ui",
         "probe",
-        target_name,
+        str(binary_path),
         "--direct",
         "--timeout",
         str(timeout),
@@ -253,10 +254,10 @@ def _run_probe_with_xvfb(target_name: str, timeout: int) -> int:
     return completed.returncode
 
 
-def _run_probe_direct(target_name: str, timeout: int) -> int:
-    target = get_probe_target(target_name)
+def _run_probe_direct(binary_path: Path, timeout: int) -> int:
+    target = resolve_probe_target(binary_path)
     artifacts = create_run_artifacts("probe", target.name)
-    invocation = _build_probe_invocation_base(target.name, timeout)
+    invocation = _build_probe_invocation_base(target, timeout)
     preflight_errors = _probe_preflight_errors(target)
 
     if preflight_errors:
@@ -280,10 +281,11 @@ def _run_probe_direct(target_name: str, timeout: int) -> int:
     return _finish_probe_completion(artifacts, target, completed.returncode, classification)
 
 
-def _build_probe_invocation_base(target_name: str, timeout: int) -> dict[str, Any]:
+def _build_probe_invocation_base(target: ProbeTarget, timeout: int) -> dict[str, Any]:
     return {
         "command": "probe",
-        "target": target_name,
+        "target": target.name,
+        "binary": project_relative(target.host_binary_path),
         "direct": True,
         "timeout_seconds": timeout,
     }

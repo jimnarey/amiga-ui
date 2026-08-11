@@ -3,6 +3,7 @@ title: "Vamos Library Modes"
 status: draft
 depends_on:
   - "vamos-overview.md"
+  - "writing-a-library-impl.md"
 citations_used:
   - "S8"
 ---
@@ -44,6 +45,8 @@ Use `vamos` mode when:
 
 - the library is already implemented well enough in Python,
 - or the project is actively implementing that library as host-side logic.
+
+See `writing-a-library-impl.md` for the concrete mechanics of adding a repo-owned implementation.
 
 This is mandatory for `exec.library` and `dos.library`. The upstream docs state that `vamos` is not able to run correctly if those libraries are not of type `vamos` [S8 L151-L163].
 

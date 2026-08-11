@@ -42,8 +42,8 @@ Move the target app forward by fixing the earliest meaningful blocker, then reru
 - If the failure points to direct hardware access or full-system emulation needs, stop and mark it clearly.
 
 ## Preferred Commands
-- `uv run amiga-ui probe itidy`
-- `PYTHONPATH=src .venv/bin/python -m amiga_ui probe itidy --direct --timeout 5`
+- `uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy`
+- `PYTHONPATH=src .venv/bin/python -m amiga_ui probe amiga_apps/itidy1classic/binary/extracted/iTidy --direct --timeout 5`
 - `PYTHONPATH=src .venv/bin/python -m unittest tests.test_vamos_launcher`
 
 ## Key Repo Files

@@ -50,7 +50,7 @@ Current subcommands:
 
 - `uv run amiga-ui check`
 - `uv run amiga-ui smoke-gui`
-- `uv run amiga-ui probe itidy`
+- `uv run amiga-ui probe <path-to-amiga-binary>`, for example `uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy`
 
 For ad hoc commands under a temporary headless X11 server, use:
 
@@ -63,7 +63,7 @@ Examples:
 ```bash
 uv run amiga-ui check
 uv run amiga-ui smoke-gui
-uv run amiga-ui probe itidy
+uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy
 uv run amiga-ui-xvfb -- python -c 'print("hello from xvfb")'
 uv run vamos --help
 uv run xdftool --help
