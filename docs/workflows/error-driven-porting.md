@@ -106,16 +106,17 @@ Update the relevant project docs with:
 
 This is part of the workflow, not optional cleanup. The project is intentionally designed for small-context models, so each resolved or deferred failure should leave a short, readable trace.
 
-Do this in one specific, mechanical place so the step cannot be skipped or scattered by ambiguity about where it belongs: append one dated entry to the end of the `## Run Log` section in `docs/apps/<app>/compatibility-notes.md` (create the section if it does not exist yet). Use this template:
+Do this in one specific, mechanical place so the step cannot be skipped or scattered by ambiguity about where it belongs: append one dated entry to `docs/apps/<app>/run-log.md` (a dedicated log file, separate from `compatibility-notes.md`; create it from the template below if it does not exist yet). Use this template:
 
 ```
 ### YYYY-MM-DD — <one-line description of the blocker>
 
-- Command: <the probe command or invocation that was run>
-- Blocker: <the classified failure, e.g. "OpenLibrary: 'icon.library' V0 -> 000000">
+- Artifacts: <path to the run's artifact folder under artifacts/runs/>
 - Change: <what was implemented, or "none — recorded for triage">
-- Result: <what the rerun showed — new blocker, resolved, or unchanged>
+- Next: <what to look at next, if known>
 ```
+
+Do not duplicate data the run artifact folder already holds. The exact command, stdout, stderr, `vamos.log`, full diagnostic text, and return code all live in `invocation.json` / `result.json` / `vamos.log` inside that folder already — repeat none of it. The log entry's only job is to point at that folder and add what the folder cannot contain on its own: a short human-readable label for skimming, what repo change (if any) followed the run, and what to do next. If a run produced no artifact folder (for example, a preflight failure before the runtime tree was prepared), say so instead of inventing a path.
 
 Newest entry last. Do not rewrite or delete earlier entries; the log is a history, not a single mutable status field. If the log's most recent entry already shows the app past a previously-recorded blocker, treat that as confirmation the earlier fix held, not as something to silently overwrite.
 

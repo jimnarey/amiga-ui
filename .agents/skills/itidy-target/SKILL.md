@@ -47,5 +47,6 @@ description: >
 ## Key Repo Files
 - `docs/apps/itidy/runbook.md`
 - `docs/apps/itidy/compatibility-notes.md`
+- `docs/apps/itidy/run-log.md`
 - `docs/apps/itidy/dependencies.md`
 - `docs/apps/itidy/observed-behavior.md`
