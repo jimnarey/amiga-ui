@@ -18,13 +18,6 @@ Purpose: Give a minimal orientation to AmigaOS concepts used throughout the proj
 Needed for:
 - Contributors who know Python/Linux better than AmigaOS.
 
-Depends on:
-
-Status: Draft.
-
-Notes:
-- Keep this short and cross-link to more specific documents instead of becoming a manual.
-
 ## Summary
 
 For this project, the fastest way to think about classic AmigaOS is: it is a message-driven operating system with a DOS-style filesystem layer and an icon-driven desktop called Workbench layered on top. Under those layers sits Exec, the core kernel/runtime library responsible for tasks, signals, message ports, libraries, and memory management [S51 §What is Exec? ¶1-5]. Programs may run from the Shell, but many GUI utilities are really designed around Workbench concepts such as icons, drawers, default tools, public screens, and startup messages rather than around plain command-line arguments [S3 §Welcome ¶2-5] [S2 §Workbench Library ¶1-4].

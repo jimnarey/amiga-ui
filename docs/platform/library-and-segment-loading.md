@@ -22,16 +22,6 @@ Purpose: Explain how classic Amiga libraries and load modules enter memory and a
 Needed for:
 - Understanding library bases, shared code, seglists, and process launch state.
 
-Depends on:
-- `memory-model-and-address-space.md`
-- `data-types-and-conventions.md`
-- `structs/process-and-task.md`
-
-Status: Draft.
-
-Notes:
-- Focus on the classic model relevant to Workbench applications, not later OS4 interface details.
-
 ## Summary
 
 Classic Amiga applications do not generally carry private in-process copies of operating-system libraries. The official libraries overview says that AmigaOS libraries are shared libraries and that only one copy of a shared library exists in memory no matter how many programs are using it [S52 §Introduction ¶2-4]. Applications open those libraries, receive library-base pointers, and then call through library vectors rather than directly embedding separate copies of the OS code [S50 §Libraries of functions ¶1-7] [S54 §What is a Library? ¶1-4].

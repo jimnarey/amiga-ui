@@ -23,14 +23,6 @@ Purpose: Summarize the core task, memory, and messaging services exposed by `exe
 Needed for:
 - Process execution, task behavior, and message-passing analysis.
 
-Depends on:
-- `../structs/process-and-task.md`
-
-Status: Draft.
-
-Notes:
-- Focus on what `vamos` already replaces and what target apps still assume.
-
 ## Summary
 
 `exec.library` is the kernel-level substrate beneath the rest of AmigaOS. For this repository it matters for four reasons above all others:

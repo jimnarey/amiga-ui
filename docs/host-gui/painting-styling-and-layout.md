@@ -19,12 +19,6 @@ Needed for:
 - Building maintainable host widgets.
 - Avoiding unnecessary rendering complexity.
 
-Depends on:
-- `qt-widgets-primer.md`
-- `../architecture/gui-strategy.md`
-
-Status: Draft.
-
 Notes:
 - This is where the project draws the line between normal widget use and custom rendering.
 

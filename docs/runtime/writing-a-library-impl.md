@@ -14,12 +14,6 @@ Purpose: Show the concrete, mechanical shape of a repo-owned `vamos` library imp
 Needed for:
 - The moment a probe fails with `OpenLibrary: 'X.library' V0 -> 000000` and the fix is "implement (part of) that library."
 
-Depends on:
-- `vamos-overview.md`
-- `vamos-library-modes.md`
-
-Status: Draft.
-
 Notes:
 - This page describes internal `amitools` mechanics, not upstream Amiga API facts, so it does not use the `docs/sources.md` numbered citation system. Instead it points directly at file paths inside the installed dependency. Those paths are correct for the `amitools` version pinned in `uv.lock` at the time this page was written; if a function or file has moved, re-derive the pattern from the installed package rather than trusting this page blindly — `grep -rn "class LibImpl" .venv/lib/python*/site-packages/amitools/` is the fastest way to relocate it.
 - The worked example below uses `icon.library` because it is a concrete, real function set. It is an illustration of the mechanism, not a claim about what the project's current blocker is — check `docs/apps/<app>/compatibility-notes.md` for that.

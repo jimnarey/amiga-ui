@@ -15,14 +15,6 @@ Purpose: Explain Amiga paths, volumes, assigns, locks, and launch modes.
 Needed for:
 - Correct path mapping and startup behavior under `vamos`.
 
-Depends on:
-- `amiga-primer.md`
-
-Status: Draft.
-
-Notes:
-- Cover CLI vs Workbench launch, current directory rules, and `CON:` behavior.
-
 ## Summary
 
 For this project, the most important difference between Amiga Shell launch and Workbench launch is that Workbench does not hand an application a normal `argc`/`argv` list or a ready-made console environment. Workbench-started programs receive a `WBStartup` message instead, and by default they also lack valid `stdin`, `stdout`, and `stderr` file handles unless a console is explicitly set up [S2 §Launching ¶1-5] [S2 §WBStartup Message ¶1-2].

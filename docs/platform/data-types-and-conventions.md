@@ -16,14 +16,6 @@ Purpose: Record Amiga-specific data rules that affect implementation.
 Needed for:
 - Avoiding repeated confusion about pointers, strings, tags, and handles.
 
-Depends on:
-- `amiga-primer.md`
-
-Status: Draft.
-
-Notes:
-- Cover BPTR, BSTR, TagItems, lock ownership, and alignment expectations.
-
 ## Summary
 
 The Amiga APIs used by this project rely on a handful of conventions that are easy to flatten away accidentally in Python: relative pointers, BCPL strings, small fixed-size integer types, DOS truth values, and tag lists. These conventions are not historical trivia. They directly affect filesystem access, Workbench argument handling, icon APIs, and many GUI calls.

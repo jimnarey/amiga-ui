@@ -19,14 +19,6 @@ Purpose: Record which upstream documentation sets were fetched and how they shou
 Needed for:
 - Turning raw documents into project-owned markdown summaries.
 
-Depends on:
-- `index.md`
-
-Status: Draft.
-
-Notes:
-- Explain the split between ignored raw docs and committed derived docs.
-
 ## Summary
 
 The `assets/docs/` area is the raw documentation cache used to support the project-authored docs in `docs/`. It is deliberately not the primary reading surface. The human- and model-facing documentation lives under `docs/`, while `assets/docs/` holds fetched upstream material that can be inspected when a project summary needs to be validated or expanded.

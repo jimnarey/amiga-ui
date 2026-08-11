@@ -19,16 +19,6 @@ Purpose: Explain the Amiga memory model the project is actually trying to emulat
 Needed for:
 - Avoiding Unix-shaped assumptions about process isolation and allocation.
 
-Depends on:
-- `amiga-primer.md`
-- `data-types-and-conventions.md`
-- `structs/process-and-task.md`
-
-Status: Draft.
-
-Notes:
-- Focus on shared address-space behavior, Exec-managed allocation, and the practical consequences for compatibility work.
-
 ## Summary
 
 Classic AmigaOS is a multitasking system without hardware memory protection. The official programming overview says this directly and warns that an errant task can overwrite another task's code or data [S50 §What the System Doesn't Do For You ¶1-4]. For this project, that means the right mental model is not "many isolated Unix processes" but "many tasks sharing one machine-wide address space under OS-managed coordination."

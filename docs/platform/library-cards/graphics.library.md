@@ -16,14 +16,6 @@ Purpose: Record the limited `graphics.library` behavior relevant to non-hardware
 Needed for:
 - Deciding what can be ignored and what still affects Workbench-class software.
 
-Depends on:
-- `../gui-stack.md`
-
-Status: Draft.
-
-Notes:
-- Emphasize indirect relevance, not demo or direct-chip programming.
-
 ## Summary
 
 `graphics.library` is not the main compatibility battleground for this project, but it is not irrelevant either. The autodocs index shows that the library owns the standard raster drawing operations such as `Move`, `Draw`, `Text`, `RectFill`, `SetAPen`, `SetBPen`, and font-related helpers [S43 item 1]. Those are exactly the operations that Workbench-class utilities may still use for custom adornments even when they are otherwise built on Intuition and GadTools.

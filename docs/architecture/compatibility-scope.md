@@ -17,14 +17,6 @@ Purpose: State exactly what software this project targets and excludes.
 Needed for:
 - Avoiding wasted effort on unsupported app classes.
 
-Depends on:
-- `overview.md`
-
-Status: Draft.
-
-Notes:
-- Include Workbench GUI apps, exclude direct hardware access, and define how toolkit dependencies affect scope.
-
 ## Summary
 
 This project targets classic Amiga Workbench applications whose value primarily comes from filesystem, icon, configuration, requester, and window-management behavior. It does not target applications whose core behavior depends on direct chipset access, cycle-accurate timing, custom blitters, heavy hardware-facing audio or peripheral behavior, or a full emulated Amiga desktop.

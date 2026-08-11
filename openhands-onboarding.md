@@ -85,10 +85,12 @@ See `docs/workflows/branching-and-merging.md` for the authoritative policy.
 4. Make the smallest repo-owned change that addresses that blocker.
 5. Rerun the same probe immediately.
 6. If the app advances to a new blocker and the current branch now represents one coherent completed fix, run the quality gates, commit it, merge it into `development`, and record the result.
-7. Start the next blocker from a fresh feature branch created from the updated `development` branch.
+7. Start the next blocker from a fresh feature branch created from the updated `development` branch. Do not continue working on a branch that has already been merged; treat it as completed history, not a rolling workspace.
 8. Stop without merging only when the blocker is out of scope, the work is intentionally draft, the user asked to leave it unmerged, or a merge issue needs human input.
 
 Do not patch installed packages inside `.venv/`. Keep project behavior in this repository.
+
+There is a concrete example of this loop producing one completed unit of work in commit `c097fbb` on the `development` branch (`Add minimal icon.library override`) — a useful reference for the expected size and shape of one blocker-level iteration: narrow code change, focused verification, docs update, and merge-ready branch closure.
 
 ## Commit And Merge Conditions
 
@@ -109,19 +111,6 @@ Do not merge a feature branch back into `development` unless all of the followin
 5. the branch remains within project scope.
 
 The repository stop hook is intended to enforce the minimum quality gate automatically before OpenHands finishes a task.
-
-## Task Completion Sequence
-
-For normal blocker-fix work, "done" means more than "tests passed on the feature branch." Use this closing sequence:
-
-1. finish one coherent blocker or decision on the feature branch;
-2. run the relevant checks and confirm they pass;
-3. commit the branch cleanly;
-4. merge the branch into `development`;
-5. leave the feature branch in place;
-6. if more blocker work remains, create a fresh branch from the updated `development` branch before continuing.
-
-Do not continue the next blocker on the same feature branch after merge. Treat merged branches as completed history, not as rolling workspaces.
 
 ## Where To Read Next
 

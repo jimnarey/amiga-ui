@@ -15,14 +15,6 @@ Purpose: Document add-on libraries and GUI toolkits fetched outside the base OS 
 Needed for:
 - Understanding external GUI dependencies in target apps.
 
-Depends on:
-- `index.md`
-
-Status: Draft.
-
-Notes:
-- Start with ClassAct 3.3 and expand only when new app dependencies require it.
-
 ## Summary
 
 This directory is for non-base dependencies that are neither part of the default AmigaOS disk families nor part of the project's own Python environment. At the moment the key entry is ClassAct 3.3, retained because add-on GUI toolkit dependencies are conditionally in scope when a real target app needs them [S16].

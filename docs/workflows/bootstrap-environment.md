@@ -16,16 +16,6 @@ Purpose: Define the minimum setup path for a fresh Linux/OpenHands machine.
 Needed for:
 - Reproducible onboarding and recovery.
 
-Depends on:
-- `asset-acquisition.md`
-- `../runtime/vamos-configuration.md`
-- `../runtime/headless-gui.md`
-
-Status: Draft.
-
-Notes:
-- Reference helper scripts instead of embedding long setup steps here.
-
 ## Minimum Setup
 
 On a fresh Linux machine, the project bootstrap path is:

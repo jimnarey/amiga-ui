@@ -15,14 +15,6 @@ Purpose: Summarize icon loading, saving, and icon metadata operations.
 Needed for:
 - Workbench icon compatibility and `iTidy` behavior.
 
-Depends on:
-- `../icon-and-info-files.md`
-
-Status: Draft.
-
-Notes:
-- Include `DiskObject` usage and common icon file operations.
-
 ## Summary
 
 `icon.library` is the main API surface for reading, writing, creating, and inspecting Workbench icon metadata. The official icon library docs describe it as the support library for managing `.info` files and `DiskObject` data [S24 L7-L14] [S24 L98-L117].

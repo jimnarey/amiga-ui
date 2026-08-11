@@ -27,19 +27,6 @@ Purpose: Track the current support state of `iTidy` under the project runtime.
 Needed for:
 - Preventing repeated investigation of the same failures.
 
-Depends on:
-- `runbook.md`
-- `../../runtime/vamos-gaps.md`
-- `run-log.md`
-- `../../runtime/workbench-integration-boundaries.md`
-- `../../host-gui/README.md`
-- `../../workflows/external-helpers-and-shellouts.md`
-
-Status: Draft.
-
-Notes:
-- Organize by working, partially working, blocked, and deferred behavior.
-
 ## Current Status
 
 Trust `run-log.md` over any status claim in the sections below. The log is the append-only, dated record of what has actually been run and observed; the sections below are forward-looking triage guidance written before most of that evidence existed, and can go stale as the log advances. Read the log's most recent entry first, then use the rest of this file to interpret it.

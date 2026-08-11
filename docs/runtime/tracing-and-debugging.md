@@ -16,15 +16,6 @@ Purpose: Describe how to collect useful diagnostics from `vamos` runs.
 Needed for:
 - The error-driven development loop.
 
-Depends on:
-- `vamos-overview.md`
-- `headless-gui.md`
-
-Status: Draft.
-
-Notes:
-- Include logging flags, expected log files, and what to capture for model consumption.
-
 ## Summary
 
 Every meaningful `vamos` run in this project should produce enough evidence for the next iteration decision. `Vamos` itself supports verbose logging, channel-based logging, log-file output, and deep memory tracing [S7 L492-L599]. The `amitools` test helper also shows a practical pattern for repeatable execution: build the `vamos` command explicitly, insert `--` before the Amiga program, disable timestamps when useful, and capture return code, stdout, stderr, and an optional `vamos.log` file [S9 L172-L247].

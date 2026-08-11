@@ -17,12 +17,6 @@ Needed for:
 - Honest triage.
 - Preventing scope creep by subsystem.
 
-Depends on:
-- `vamos-overview.md`
-- `../architecture/compatibility-scope.md`
-
-Status: Draft.
-
 Notes:
 - These are project stop-rules layered on top of upstream `vamos` boundaries.
 

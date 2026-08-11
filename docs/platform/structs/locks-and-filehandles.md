@@ -18,16 +18,6 @@ Purpose: Explain Amiga filesystem handles, ownership, and common mistakes.
 Needed for:
 - Safe path handling and accurate Workbench argument processing.
 
-Depends on:
-- `../filesystem-and-launch.md`
-- `../library-cards/dos.library.md`
-- `wbarg.md`
-
-Status: Draft.
-
-Notes:
-- Include the rule that Workbench-owned locks must not be unlocked by the application.
-
 ## Summary
 
 Amiga filesystem code uses locks and file handles as distinct concepts. For this project, the important part is that Workbench launch and AppMessage argument handling are lock-based. The `dos.library` overview describes the current directory itself as a lock and explains that `CurrentDir()` and `Lock()` are central to directory access [S5 §Path names and current directories ¶6-8].

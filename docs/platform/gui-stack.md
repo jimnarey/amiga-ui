@@ -18,16 +18,6 @@ Purpose: Describe the layers of Amiga GUI software relevant to target apps.
 Needed for:
 - Understanding what an app expects when it says Intuition, GadTools, or ClassAct.
 
-Depends on:
-- `workbench-model.md`
-- `library-cards/gadtools.library.md`
-- `library-cards/intuition.library.md`
-
-Status: Draft.
-
-Notes:
-- Clarify the relationship between native system GUI APIs and add-on widget toolkits.
-
 ## Summary
 
 The Amiga GUI stack relevant to this project is layered rather than monolithic. At the base of the native GUI model is `intuition.library`, which provides the fundamental screens, windows, menus, gadgets, and requesters used by applications [S26 §Components of Intuition tbl.1]. On top of that, higher-level helper layers exist to make common UI construction easier.

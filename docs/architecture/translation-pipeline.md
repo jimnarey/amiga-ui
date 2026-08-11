@@ -22,16 +22,6 @@ Purpose: Show how one Amiga-side action becomes one host-side effect.
 Needed for:
 - Designing small, testable implementation steps.
 
-Depends on:
-- `runtime-model.md`
-- `../platform/library-cards/README.md`
-- `gui-strategy.md`
-
-Status: Draft.
-
-Notes:
-- Include API interception, state translation, host rendering, and result propagation.
-
 ## Summary
 
 The core implementation pattern for this project is not "run an Amiga app and magically mirror it." It is a translation pipeline: `vamos` executes m68k code, intercepted library behavior is turned into project-owned semantic events, those events update host-side state or UI, and results are then propagated back in the Amiga-shaped form the program expects [S7 L21-L31] [S8 L18-L32].

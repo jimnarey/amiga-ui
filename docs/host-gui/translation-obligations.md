@@ -20,13 +20,6 @@ Needed for:
 - Preventing fake progress during compatibility work.
 - Making the error-driven porting loop produce real UI capability.
 
-Depends on:
-- `widget-mapping.md`
-- `../architecture/translation-pipeline.md`
-- `../apps/itidy/runbook.md`
-
-Status: Draft.
-
 Notes:
 - This document records a project implementation rule, not an external framework requirement.
 

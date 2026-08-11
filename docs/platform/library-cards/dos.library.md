@@ -16,14 +16,6 @@ Purpose: Summarize the file, path, CLI, and process-facing parts of `dos.library
 Needed for:
 - Most filesystem and program startup work in this project.
 
-Depends on:
-- `../filesystem-and-launch.md`
-
-Status: Draft.
-
-Notes:
-- Prioritize locks, file handles, path functions, startup rules, and console behavior.
-
 ## Summary
 
 `dos.library` is the main API surface for Amiga path handling, filesystem access, current-directory state, and process-facing I/O conventions. For this project, it is second only to `exec.library` in practical importance because Workbench utilities tend to spend most of their time navigating paths, opening files, switching directories, and reporting results through DOS-facing abstractions [S5 §Path names and current directories ¶1-9].

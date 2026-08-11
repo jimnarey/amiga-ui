@@ -28,20 +28,6 @@ Purpose: Record the libraries, files, and Workbench features that `iTidy` relies
 Needed for:
 - Triage when `vamos` fails to run the app.
 
-Depends on:
-- `overview.md`
-- `../../platform/library-cards/dos.library.md`
-- `../../platform/library-cards/icon.library.md`
-- `../../platform/library-cards/intuition.library.md`
-- `../../platform/library-cards/workbench.library.md`
-- `../../host-gui/README.md`
-- `../../workflows/external-helpers-and-shellouts.md`
-
-Status: Draft.
-
-Notes:
-- Include both compile-time and runtime dependencies.
-
 ## Runtime Minimum
 
 The upstream manual says `iTidy` requires Workbench 3.0 or newer, at least 1 MB of RAM, at least 1 MB of free storage, and `LhA` in `SYS:C` if backup and restore features are to work [S12 L24-L33]. The program enforces the Workbench-floor requirement in code by checking for Exec version 39 or later before continuing [S30 L115-L129] [S30 L598-L605].

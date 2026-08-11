@@ -26,17 +26,6 @@ Purpose: Explain how users obtain and place non-redistributable project assets.
 Needed for:
 - Filling placeholders without guesswork.
 
-Depends on:
-- `../assets/index.md`
-- `../assets/adf-sets.md`
-- `../assets/rom-sets.md`
-- `../assets/libraries-and-toolkits.md`
-
-Status: Draft.
-
-Notes:
-- Link each asset class to its location, helper script, and legal handling notes.
-
 ## Summary
 
 The asset-acquisition workflow has one governing principle: commit the instructions and the filename contract, but do not commit local binary payloads that the project has decided not to redistribute. In practice, that means:

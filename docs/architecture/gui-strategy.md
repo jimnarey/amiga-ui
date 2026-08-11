@@ -20,17 +20,6 @@ Purpose: Record the intended host GUI approach and its tradeoffs.
 Needed for:
 - Deciding when native widgets are enough and when custom drawing is required.
 
-Depends on:
-- `compatibility-scope.md`
-- `../platform/gui-stack.md`
-- `../runtime/headless-gui.md`
-
-Status: Draft.
-
-Notes:
-- Start from PySide6/Qt Widgets, document expected threading model, and note where custom drawing is likely.
-- Detailed host-side widget, menu, painting, and testing rules live under `../host-gui/`.
-
 ## Summary
 
 The project-standard host GUI approach is PySide6 with Qt Widgets and not a browser-like UI layer. This choice fits the current target class because the first real applications are native Workbench utilities with menus, gadgets, requesters, and occasional custom drawing rather than highly animated scenes or direct hardware rendering [S11 L107-L112] [S31 L103-L142]. For automated runs, the same Qt Widgets layer is exercised under `Xvfb` using Qt's `xcb` platform plugin on X11 [S18 §Platform Plugin Dependencies tbl.1] [S19 §Selecting a QPA plugin ¶1-2] [S20 §Description ¶1-2].

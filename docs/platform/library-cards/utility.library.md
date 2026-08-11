@@ -17,14 +17,6 @@ Purpose: Summarize general support functions, especially tags and helper routine
 Needed for:
 - Interpreting API signatures and message construction.
 
-Depends on:
-- `../data-types-and-conventions.md`
-
-Status: Draft.
-
-Notes:
-- Focus on TagItems and the pieces most likely to affect GUI and system APIs.
-
 ## Summary
 
 `utility.library` matters to this repository mainly because the Amiga tag system runs through so many other APIs. The utility autodocs index includes functions such as `FindTagItem`, `GetTagData`, `NextTagItem`, `AllocateTagItems`, `CloneTagItems`, `ApplyTagChanges`, and `MapTags` [S44 item 1]. In practice, that makes `utility.library` part of the connective tissue between higher-level libraries rather than a standalone subsystem.

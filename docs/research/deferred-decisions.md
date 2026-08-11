@@ -25,16 +25,6 @@ Purpose: Track decisions intentionally postponed until more evidence exists.
 Needed for:
 - Avoiding accidental drift in project direction.
 
-Depends on:
-- `../architecture/gui-strategy.md`
-- `../runtime/headless-gui.md`
-- `../assets/libraries-and-toolkits.md`
-
-Status: Draft.
-
-Notes:
-- Include why each decision was deferred and what event should reopen it.
-
 ## Summary
 
 Several major project choices are now settled: the host GUI toolkit is PySide6 with Qt Widgets, Linux is the primary host baseline, and `Xvfb` is the standard headless test display path. The remaining deferred decisions are the ones that genuinely depend on evidence from real app runs rather than on more up-front theorizing.

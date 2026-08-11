@@ -16,14 +16,6 @@ Purpose: Document `.info` files and the metadata they carry.
 Needed for:
 - Apps like `iTidy` that operate directly on Workbench layout data.
 
-Depends on:
-- `workbench-model.md`
-
-Status: Draft.
-
-Notes:
-- Explain icon types, drawer state, and file naming conventions.
-
 ## Summary
 
 Workbench represents visible files, directories, and disks through `.info` files. The Workbench library documentation describes the `.info` file as the mechanism that stores the icon imagery and other metadata needed by Workbench, and states that icons are associated with files or directories by matching name in the same location [S2 §The Info File ¶1-3]. The icon library docs go further and call the `.info` file the center of interaction between applications and Workbench [S24 L7-L14].

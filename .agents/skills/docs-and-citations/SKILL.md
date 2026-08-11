@@ -21,6 +21,7 @@ Keep documentation compact, layered, and verifiable by humans and LLMs.
 - Use YAML front matter consistently.
 - Keep one file focused on one concept or one tightly related cluster of concepts.
 - Prefer concise, high-signal prose over broad narrative repetition.
+- The prose `Notes:` line under the heading is optional. Add it only when it tells the reader something `Purpose` and `Needed for` do not already cover; do not add it as a leftover drafting checklist once the file is written.
 
 ## Required Front Matter Pattern
 Each documentation file should maintain appropriate metadata such as:

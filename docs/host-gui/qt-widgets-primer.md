@@ -21,12 +21,6 @@ Needed for:
 - Reading and editing host GUI code.
 - Avoiding unnecessary framework sprawl.
 
-Depends on:
-- `../architecture/gui-strategy.md`
-- `README.md`
-
-Status: Draft.
-
 Notes:
 - This is a project primer, not a general Qt textbook.
 

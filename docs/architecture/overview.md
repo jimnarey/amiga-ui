@@ -18,15 +18,6 @@ Purpose: Describe the whole project in one short pass.
 Needed for:
 - Understanding what the Python compatibility layer is meant to do.
 
-Depends on:
-- `compatibility-scope.md`
-- `runtime-model.md`
-
-Status: Draft.
-
-Notes:
-- Cover Amiga binary execution, `vamos`, the Python translation layer, and the host GUI output path.
-
 ## Summary
 
 This project is a Python compatibility layer for classic Amiga Workbench applications. It is not trying to replace a full machine emulator. Instead, it uses `vamos` as the execution substrate for m68k code and then adds the missing Workbench- and GUI-facing behavior needed to make selected desktop applications usable on a modern host.

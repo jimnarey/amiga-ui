@@ -17,15 +17,6 @@ Purpose: Summarize what `vamos` already provides for this project.
 Needed for:
 - Avoiding duplicate implementation effort.
 
-Depends on:
-- `vamos-library-modes.md`
-- `vamos-path-mapping.md`
-
-Status: Draft.
-
-Notes:
-- Distinguish clearly between what is emulated in Python and what still needs new work.
-
 ## Summary
 
 `Vamos` is the runtime substrate for this project. It already provides the core machinery needed to execute m68k binaries, expose Amiga memory structures, map host files into an Amiga-style filesystem view, and intercept many library calls into Python implementations [S7 L21-L31] [S7 L64-L77]. The project should therefore treat `vamos` as the execution and low-level OS bridge, not as something to replace.

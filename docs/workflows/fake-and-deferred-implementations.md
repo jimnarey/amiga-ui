@@ -17,13 +17,6 @@ Needed for:
 - Avoiding misleading compatibility wins.
 - Keeping temporary shortcuts disciplined.
 
-Depends on:
-- `error-driven-porting.md`
-- `../runtime/subsystem-stop-rules.md`
-- `../host-gui/translation-obligations.md`
-
-Status: Draft.
-
 Notes:
 - This file covers project policy, not just `vamos` capability.
 

@@ -17,12 +17,6 @@ Purpose: Distinguish first-wave Workbench launch support from later running-app 
 Needed for:
 - Preventing premature expansion into richer Workbench desktop behavior.
 
-Depends on:
-- `../platform/library-cards/workbench.library.md`
-- `../apps/itidy/runbook.md`
-
-Status: Draft.
-
 Notes:
 - This document narrows priorities rather than claiming later Workbench APIs are unimportant forever.
 

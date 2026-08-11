@@ -18,16 +18,6 @@ Purpose: Document the repo-specific `vamos` configuration conventions.
 Needed for:
 - Repeatable runs and consistent debugging output.
 
-Depends on:
-- `vamos-overview.md`
-- `vamos-path-mapping.md`
-- `vamos-library-modes.md`
-
-Status: Draft.
-
-Notes:
-- Include volumes, assigns, library sections, CPU choice, and hardware access policy.
-
 ## Summary
 
 `Vamos` can be configured partly on the command line and partly through `.vamosrc` files, and command-line settings override file settings [S7 L79-L94]. For this project, that flexibility is useful but also dangerous: hidden per-user configuration would make OpenHands runs harder to reproduce. The project should therefore prefer explicit repo-owned settings and should avoid depending on ambient `~/.vamosrc` state.

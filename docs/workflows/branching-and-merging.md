@@ -15,12 +15,6 @@ Needed for:
 - Safe autonomous development.
 - Predictable review and rollback points.
 
-Depends on:
-- `bootstrap-environment.md`
-- `regression-checks.md`
-
-Status: Draft.
-
 Notes:
 - This document records a local project policy, not an externally sourced fact.
 

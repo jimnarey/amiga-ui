@@ -20,14 +20,7 @@ Purpose: Define the core development loop for getting GUI apps running one missi
 Needed for:
 - Day-to-day implementation work.
 
-Depends on:
-- `../runtime/tracing-and-debugging.md`
-- `../apps/itidy/runbook.md`
-
-Status: Draft.
-
 Notes:
-- Capture the loop: run app, capture failure, identify missing behavior, implement one fix, rerun, document result.
 - Use the dedicated stop-rule and fake/defer policy docs when a blocker points outside normal library/UI/runtime-tree work.
 
 ## Summary

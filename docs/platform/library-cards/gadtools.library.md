@@ -17,15 +17,6 @@ Purpose: Summarize standard gadget construction helpers used by many classic GUI
 Needed for:
 - Understanding common widget patterns in target software.
 
-Depends on:
-- `../gui-stack.md`
-- `intuition.library.md`
-
-Status: Draft.
-
-Notes:
-- Note how GadTools differs from lower-level Intuition gadget work.
-
 ## Summary
 
 `gadtools.library` is the classic convenience layer for building standard Intuition gadgets and menus without hand-assembling every gadget structure. The autodocs index highlights the core surface clearly: `CreateGadgetA()`, `CreateMenusA()`, `GetVisualInfoA()`, `LayoutMenusA()`, `GT_GetIMsg()`, `GT_ReplyIMsg()`, and `GT_RefreshWindow()` are all first-class parts of the API [S42 item 1].

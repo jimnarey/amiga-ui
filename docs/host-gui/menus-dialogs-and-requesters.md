@@ -19,12 +19,6 @@ Needed for:
 - Main-window construction.
 - Requester behavior.
 
-Depends on:
-- `widget-mapping.md`
-- `../apps/itidy/dependencies.md`
-
-Status: Draft.
-
 Notes:
 - This document settles project policy on menu-bar placement and dialog defaults.
 

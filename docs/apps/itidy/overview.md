@@ -18,15 +18,6 @@ Purpose: Explain what `iTidy` is and why it is the first real compatibility targ
 Needed for:
 - Framing the app-specific docs that follow.
 
-Depends on:
-- `../../architecture/compatibility-scope.md`
-- `../../platform/workbench-model.md`
-
-Status: Draft.
-
-Notes:
-- Keep this focused on why `iTidy` is useful pressure for the project.
-
 ## Summary
 
 `iTidy` is a Workbench utility for AmigaOS 3.x that rearranges icon layouts, resizes drawer windows, scans recursively through folder trees, validates default-tool paths, and can create LhA-based backups before making changes [S11 L9-L32] [S12 L43-L50]. It is a strong first target because it is unmistakably a real GUI application, but its value lives in Workbench-facing behavior rather than in custom graphics or hardware tricks [S11 L107-L112] [S12 L5-L8].

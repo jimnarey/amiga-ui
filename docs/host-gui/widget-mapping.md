@@ -20,15 +20,6 @@ Needed for:
 - Keeping host GUI implementations consistent.
 - Avoiding repeated ad hoc widget selection.
 
-Depends on:
-- `qt-widgets-primer.md`
-- `../platform/gui-stack.md`
-
-Status: Draft.
-
-Notes:
-- These are project defaults, not claims of one-to-one historical identity.
-
 ## Summary
 
 Workbench and GadTools apps are built around windows, menus, gadgets, and requesters [S26 §Components of Intuition tbl.1] [S28 §Intuition Gadgets ¶1-3]. Qt Widgets provides the standard desktop widget families needed to express those concepts on the host side [S58 §Detailed Description ¶1-4] [S59] [S63]. The mapping below is therefore a project decision about default translation choices.

@@ -15,14 +15,6 @@ Purpose: Explain the Workbench startup message passed to launched applications.
 Needed for:
 - Correct handling of Workbench-launched apps.
 
-Depends on:
-- `../filesystem-and-launch.md`
-
-Status: Draft.
-
-Notes:
-- Include ownership rules for contained locks and common startup code behavior.
-
 ## Summary
 
 `WBStartup` is the Workbench launch message delivered to a newly started application. The NDK header defines it as a standard Exec message plus process, segment, argument-count, tool-window, and argument-list fields [S1 Include_H/workbench/startup.h L21-L28]. The Workbench library documentation adds the behavioral rule that compiler startup code often passes a pointer to this message through `argv` while setting `argc` to zero [S2 §WBStartup Message ¶1-2].

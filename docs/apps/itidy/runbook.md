@@ -25,20 +25,6 @@ Purpose: Define the exact procedure for running and debugging `iTidy`.
 Needed for:
 - Repeatable failure capture during development.
 
-Depends on:
-- `dependencies.md`
-- `../../workflows/error-driven-porting.md`
-- `../../runtime/tracing-and-debugging.md`
-- `../../runtime/vamos-path-mapping.md`
-- `../../runtime/workbench-integration-boundaries.md`
-- `../../host-gui/README.md`
-- `../../workflows/external-helpers-and-shellouts.md`
-
-Status: Draft.
-
-Notes:
-- Include expected assets, command lines, logs, and output artifacts.
-
 ## Summary
 
 The default investigation order for `iTidy` is:

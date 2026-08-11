@@ -16,15 +16,6 @@ Purpose: Explain the structure Workbench uses for AppIcon, AppWindow, and AppMen
 Needed for:
 - Any later support for drag and drop or Workbench app objects.
 
-Depends on:
-- `wbarg.md`
-- `../library-cards/workbench.library.md`
-
-Status: Draft.
-
-Notes:
-- Include which fields matter first for this project and which can wait.
-
 ## Summary
 
 `AppMessage` is the Workbench message structure used after application startup for running-app interactions such as AppIcons, AppWindows, and AppMenuItems. The NDK header defines it as an Exec `Message` plus app-object type, user data, ID, argument list, class, mouse coordinates, and timestamps [S1 Include_H/workbench/workbench.h L131-L147]. The Workbench docs explain that it is the vehicle Workbench uses to notify an application about those running-app events [S2 §The AppMessage Structure ¶1-9].

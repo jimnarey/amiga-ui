@@ -16,15 +16,6 @@ Purpose: Explain how Workbench passes file and directory arguments.
 Needed for:
 - Correct interpretation of Workbench selection and launch context.
 
-Depends on:
-- `../filesystem-and-launch.md`
-- `wbstartup.md`
-
-Status: Draft.
-
-Notes:
-- Pay special attention to `wa_Lock`, `wa_Name`, and null cases.
-
 ## Summary
 
 `WBArg` is the unit Workbench uses to describe one launched or selected object. The NDK header defines it as a pair:

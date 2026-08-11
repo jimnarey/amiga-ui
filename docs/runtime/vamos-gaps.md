@@ -23,16 +23,6 @@ Purpose: Track known `vamos` limitations relevant to GUI application support.
 Needed for:
 - Prioritizing implementation work and triaging failures.
 
-Depends on:
-- `vamos-overview.md`
-- `../architecture/compatibility-scope.md`
-- `../apps/itidy/dependencies.md`
-
-Status: Draft.
-
-Notes:
-- Organize by missing library behavior, GUI behavior, path behavior, and unsupported assumptions.
-
 ## Summary
 
 The project should treat `vamos` gaps as a practical compatibility backlog, not as a complaint that upstream is "missing features." Upstream already states that `vamos` is aimed mainly at console-style software, is not a full machine emulator, and is not the right base for direct hardware-access workloads [S7 L5-L17]. Those are design boundaries. The work here is to identify what must be added on top of that base so selected Workbench GUI applications can run usefully.

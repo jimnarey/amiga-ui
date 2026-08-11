@@ -18,16 +18,6 @@ Purpose: Explain how Workbench thinks about files, icons, tools, projects, and u
 Needed for:
 - Reproducing Workbench-facing behavior instead of only CLI behavior.
 
-Depends on:
-- `amiga-primer.md`
-- `icon-and-info-files.md`
-- `structs/wbstartup.md`
-
-Status: Draft.
-
-Notes:
-- Focus on the subset that real target apps rely on.
-
 ## Summary
 
 Workbench is not just a file browser. The Workbench manual presents it as the user's main icon-driven environment, built around icons, menus, windows, and requesters rather than typed commands [S3 §Welcome ¶2-5]. For this project, the important consequence is that a Workbench utility is typically operating on icon-represented objects and Workbench state, not just on filenames.

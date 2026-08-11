@@ -21,15 +21,6 @@ Needed for:
 - Reproducible GUI smoke tests.
 - Running Qt Widgets code without assuming a real desktop session.
 
-Depends on:
-- `vamos-overview.md`
-- `../architecture/runtime-model.md`
-
-Status: Draft.
-
-Notes:
-- Keep the standard path simple enough to work on a fresh Linux machine.
-
 ## Standard Choice
 
 The project-standard headless display server is `Xvfb`, not a headless Wayland compositor. On Linux, Qt uses the `xcb` QPA plugin to run Qt GUI and Qt Widgets applications against X11 [S18 §Platform Plugin Dependencies tbl.1]. `Xvfb` exists specifically to run an X server on machines with no display hardware or physical input devices, and it is explicitly described as useful for testing clients and running applications that insist on having an X server [S20 §Description ¶1-2].

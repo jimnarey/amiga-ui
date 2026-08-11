@@ -20,13 +20,6 @@ Needed for:
 - Keeping host GUI code consistent.
 - Discouraging short-term widget code that is hard to extend or test.
 
-Depends on:
-- `translation-obligations.md`
-- `menus-dialogs-and-requesters.md`
-- `testing-host-ui.md`
-
-Status: Draft.
-
 Notes:
 - This is a repository engineering standard, not a claim about the only valid Qt architecture.
 

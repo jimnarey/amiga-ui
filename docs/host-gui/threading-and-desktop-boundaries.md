@@ -15,12 +15,6 @@ Purpose: Record the default concurrency and desktop-integration boundaries for h
 Needed for:
 - Preventing local LLMs from making costly framework decisions implicitly.
 
-Depends on:
-- `qt-widgets-primer.md`
-- `../architecture/compatibility-scope.md`
-
-Status: Draft.
-
 Notes:
 - This document intentionally settles several framework choices early.
 

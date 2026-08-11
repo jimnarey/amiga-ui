@@ -15,14 +15,6 @@ Purpose: Document the Kickstart ROM files present in the tree and why they matte
 Needed for:
 - Reference comparisons and later emulator-based validation.
 
-Depends on:
-- `index.md`
-
-Status: Draft.
-
-Notes:
-- Explain model-specific naming and the limited role of ROMs in `vamos` itself.
-
 ## Summary
 
 The `assets/roms/` directory names a small set of Kickstart ROM references by operating-system version and machine family. Their current role is limited: they are useful for comparison and later fuller-emulation checks, but they are not the main prerequisite for the present `vamos`-based workflow. `Vamos` is an API-level emulator and can run binaries without needing a real Kickstart ROM when the needed library behavior is supplied through its runtime model [S8 L9-L15]. It is also explicitly not a full-system emulator [S7 L16-L17].

@@ -16,13 +16,6 @@ Purpose: Define how to triage missing external commands and helper programs.
 Needed for:
 - Handling feature dependencies such as `LhA` honestly.
 
-Depends on:
-- `error-driven-porting.md`
-- `../apps/itidy/dependencies.md`
-- `../runtime/subsystem-stop-rules.md`
-
-Status: Draft.
-
 Notes:
 - This is about helper-command policy, not host package management in general.
 

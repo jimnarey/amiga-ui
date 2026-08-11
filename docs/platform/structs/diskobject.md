@@ -17,15 +17,6 @@ Purpose: Explain the icon metadata structure used by `icon.library`.
 Needed for:
 - Workbench icon persistence and `iTidy`-style editing behavior.
 
-Depends on:
-- `../icon-and-info-files.md`
-- `../library-cards/icon.library.md`
-
-Status: Draft.
-
-Notes:
-- Identify the fields that affect layout, imagery, and tool behavior.
-
 ## Summary
 
 `DiskObject` is the in-memory representation of a Workbench `.info` file. The icon-library docs identify it as the core icon data structure, and the NDK header shows the fields that store icon type, layout, drawer data, default-tool behavior, and other metadata [S24 L13-L29] [S1 Include_H/workbench/workbench.h L82-L95].

@@ -18,12 +18,6 @@ Purpose: Summarize structured IFF parsing support relevant to target apps.
 Needed for:
 - Preference-file parsing and later metadata-oriented app support.
 
-Depends on:
-- `../data-types-and-conventions.md`
-- `../../apps/itidy/dependencies.md`
-
-Status: Draft.
-
 Notes:
 - Keep lower priority than the core GUI stack, but document the current `iTidy` touchpoints honestly.
 

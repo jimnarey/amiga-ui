@@ -17,14 +17,6 @@ Purpose: Summarize the core Amiga windowing and event model.
 Needed for:
 - Translating GUI event flow into host-side behavior.
 
-Depends on:
-- `../gui-stack.md`
-
-Status: Draft.
-
-Notes:
-- Focus on windows, IDCMP events, gadgets, and message processing.
-
 ## Summary
 
 `intuition.library` is the core native GUI layer beneath Workbench. The official Intuition overview describes it as the library and data-structure collection used to open windows, manage menus, monitor gadgets, read mouse position, and perform other user-interface work for Amiga applications [S26 §Intuition and the Amiga Graphical User Interface ¶1-3].

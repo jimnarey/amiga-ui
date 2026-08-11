@@ -17,15 +17,6 @@ Purpose: Define the default test strategy for host-side Qt Widgets code.
 Needed for:
 - Keeping host GUI tests useful, cheap, and reviewable.
 
-Depends on:
-- `threading-and-desktop-boundaries.md`
-- `../workflows/regression-checks.md`
-
-Status: Draft.
-
-Notes:
-- The goal is confidence, not a huge GUI-test framework.
-
 ## Summary
 
 Qt Widgets code is event-driven and GUI-thread-bound [S61 §Per-Thread Event Loop ¶1-4]. Widgets are ordinary Python objects in a parent/child tree with event handlers and paint hooks [S58 §Widgets ¶1-3] [S64]. That means the project can get good coverage from simple construction, state, and interaction tests without adopting a heavy UI-testing stack.

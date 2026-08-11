@@ -30,16 +30,6 @@ Purpose: Rank upstream sources so contributors know what to consult first.
 Needed for:
 - Efficient documentation writing and debugging.
 
-Depends on:
-- `../assets/documentation-sources.md`
-- `../runtime/vamos-overview.md`
-- `../apps/itidy/overview.md`
-
-Status: Draft.
-
-Notes:
-- Start with `vamos` docs, real app docs, fetched NDK material, and targeted official concept pages.
-
 ## Summary
 
 Not all upstream sources are equally useful for this repo. The project should read the most decision-shaping and most falsifiable sources first, and only then widen out into broader conceptual material. This is especially important for small-context models, where loading the wrong source family too early wastes both context and time.

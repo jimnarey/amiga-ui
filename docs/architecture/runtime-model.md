@@ -16,16 +16,6 @@ Purpose: Explain the moving pieces involved when an Amiga program runs under thi
 Needed for:
 - Understanding failure points and implementation boundaries.
 
-Depends on:
-- `overview.md`
-- `../runtime/vamos-overview.md`
-- `../runtime/headless-gui.md`
-
-Status: Draft.
-
-Notes:
-- Describe the relationship between emulated CPU state, library traps, file mapping, and host-side UI logic.
-
 ## Layers
 
 When a supported Amiga application runs in this project, the runtime should be thought of as a stack of cooperating layers:

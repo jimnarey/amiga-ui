@@ -15,14 +15,6 @@ Purpose: Explain `vamos`, `amiga`, `auto`, `fake`, and `off` library modes.
 Needed for:
 - Choosing the correct strategy when a library is missing or partially supported.
 
-Depends on:
-- `vamos-overview.md`
-
-Status: Draft.
-
-Notes:
-- Add guidance on when to fake a library and when that would hide real bugs.
-
 ## Summary
 
 `Vamos` can handle libraries in `off`, `auto`, `vamos`, `amiga`, and `fake` modes [S8 L40-L55]. Those modes are one of the main reasons this project is viable: they let a run mix Python-implemented libraries, original Amiga libraries, and temporary stub behavior while we discover what a real application actually needs [S8 L18-L32].

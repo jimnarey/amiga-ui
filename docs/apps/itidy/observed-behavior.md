@@ -20,14 +20,6 @@ Purpose: Record what `iTidy` appears to do from a user and system point of view.
 Needed for:
 - Defining compatibility targets before implementation details.
 
-Depends on:
-- `overview.md`
-
-Status: Draft.
-
-Notes:
-- Separate confirmed behavior from inferred behavior.
-
 ## Confirmed User-Facing Behavior
 
 The main workflow is straightforward: launch the app from Workbench, choose a target folder, pick ordering and recursion options, optionally enable backups, and start a run that rearranges icons and resizes drawers [S12 L79-L95]. The main window exposes the expected controls for folder selection, icon order, recursive cleanup, backup toggling, window-position policy, advanced settings, and settings save/load [S12 L99-L145] [S31 L121-L142].

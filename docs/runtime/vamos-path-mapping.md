@@ -16,15 +16,6 @@ Purpose: Explain how host paths are exposed as Amiga volumes and assigns.
 Needed for:
 - Correct asset layout and reproducible app runs.
 
-Depends on:
-- `vamos-overview.md`
-- `../platform/filesystem-and-launch.md`
-
-Status: Draft.
-
-Notes:
-- Include `sys:` expectations and any repo-specific mapping conventions.
-
 ## Summary
 
 `Vamos` exposes host directories as Amiga volumes, then uses assigns and command-path settings to make those directories look like an Amiga filesystem environment [S7 L100-L237]. That means raw ADF files and ROM images are not, by themselves, a runnable filesystem view. A volume mapping needs a host directory, not a disk-image filename [S7 L102-L117].

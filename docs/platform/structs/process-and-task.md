@@ -19,15 +19,6 @@ Purpose: Explain the difference between Amiga tasks and DOS processes at the lev
 Needed for:
 - Startup behavior, message handling, and execution flow analysis.
 
-Depends on:
-- `../library-cards/exec.library.md`
-- `../library-cards/dos.library.md`
-
-Status: Draft.
-
-Notes:
-- Keep the focus on practical consequences for app execution, not full kernel internals.
-
 ## Summary
 
 On AmigaOS, every process is built on the lower-level Exec task model, but not every task is a DOS-capable process. The NDK headers show this relationship directly: `struct Process` begins with an embedded `struct Task` and then adds DOS-specific fields such as current directory, CLI streams, CLI pointer, error window pointer, and startup arguments [S1 Include_H/exec/tasks.h L24-L47] [S1 Include_H/dos/dosextens.h L36-L69].
