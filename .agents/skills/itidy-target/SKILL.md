@@ -37,7 +37,7 @@ description: >
 2. Prepared runtime and assigns are accepted.
 3. The next missing library or API is identified honestly.
 4. The app progresses through startup.
-5. GUI and Workbench-specific expectations become the active blocker.
+5. GUI and Workbench-specific expectations become the active blocker. At this point, switch to the `qt-widgets-and-host-gui` skill and `docs/host-gui/` for host UI rules, and check `docs/runtime/workbench-integration-boundaries.md` for what counts as first-wave Workbench support.
 
 ## Guardrails
 - Prefer the first blocker in the current artifact set, not a later desired feature.
@@ -50,3 +50,6 @@ description: >
 - `docs/apps/itidy/run-log.md`
 - `docs/apps/itidy/dependencies.md`
 - `docs/apps/itidy/observed-behavior.md`
+- `docs/host-gui/README.md`
+- `docs/runtime/workbench-integration-boundaries.md`
+- `docs/workflows/external-helpers-and-shellouts.md`

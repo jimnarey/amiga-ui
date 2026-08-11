@@ -6,6 +6,9 @@ depends_on:
   - "../../workflows/error-driven-porting.md"
   - "../../runtime/tracing-and-debugging.md"
   - "../../runtime/vamos-path-mapping.md"
+  - "../../runtime/workbench-integration-boundaries.md"
+  - "../../host-gui/README.md"
+  - "../../workflows/external-helpers-and-shellouts.md"
 citations_used:
   - "S7"
   - "S9"
@@ -27,6 +30,9 @@ Depends on:
 - `../../workflows/error-driven-porting.md`
 - `../../runtime/tracing-and-debugging.md`
 - `../../runtime/vamos-path-mapping.md`
+- `../../runtime/workbench-integration-boundaries.md`
+- `../../host-gui/README.md`
+- `../../workflows/external-helpers-and-shellouts.md`
 
 Status: Draft.
 
@@ -150,11 +156,11 @@ Treat these as the natural checkpoint sequence:
 
 1. Binary loads under `vamos` with explicit mappings.
 2. No immediate failure on missing core libraries or bad assigns.
-3. Workbench-style launch metadata is accepted.
-4. Main window opens.
-5. Folder requester works.
+3. Workbench-style launch metadata is accepted. See `../../runtime/workbench-integration-boundaries.md` for which Workbench behaviors belong to this stage versus later-phase integration.
+4. Main window opens. See `../../host-gui/README.md` for host-side widget, menu, and translation rules once this becomes real UI work.
+5. Folder requester works. See `../../host-gui/menus-dialogs-and-requesters.md` for the project's requester defaults.
 6. A small test drawer is scanned and laid out.
 7. Default-tool analysis produces plausible results.
-8. Backup and restore work with `LhA`.
+8. Backup and restore work with `LhA`. See `../../workflows/external-helpers-and-shellouts.md` for how to triage this dependency.
 
 The milestone order matters because later features build on earlier ones. For example, backup success is not a good next goal if the app cannot yet open its main window or find folders to process.

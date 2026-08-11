@@ -5,6 +5,9 @@ depends_on:
   - "runbook.md"
   - "../../runtime/vamos-gaps.md"
   - "run-log.md"
+  - "../../runtime/workbench-integration-boundaries.md"
+  - "../../host-gui/README.md"
+  - "../../workflows/external-helpers-and-shellouts.md"
 citations_used:
   - "S11"
   - "S12"
@@ -28,6 +31,9 @@ Depends on:
 - `runbook.md`
 - `../../runtime/vamos-gaps.md`
 - `run-log.md`
+- `../../runtime/workbench-integration-boundaries.md`
+- `../../host-gui/README.md`
+- `../../workflows/external-helpers-and-shellouts.md`
 
 Status: Draft.
 
@@ -62,7 +68,7 @@ The following areas should be treated as blocked until the runtime can supply ge
 - correct current-directory behavior during Workbench launch [S30 L330-L335]
 - stable use of Workbench/public-screen UI resources, menus, and requesters [S31 L174-L227] [S31 L470-L518]
 
-If an investigation is still at plain Shell launch, failures in these areas are expected rather than surprising.
+If an investigation is still at plain Shell launch, failures in these areas are expected rather than surprising. See `../../runtime/workbench-integration-boundaries.md` for which of these are first-wave versus later-phase, and `../../host-gui/README.md` for how the UI-facing items should be implemented on the host side.
 
 ## Behaviors That Are Probably Optional Or Second-Phase
 
@@ -73,7 +79,7 @@ These features matter, but they should not be allowed to block the very first ru
 - higher-fidelity icon handling that depends on icon-library v44 features [S12 L207-L209] [S34 L803-L825]
 - scan-time exclusions such as left-out icons and disk icons [S35 L366-L395]
 
-They are important compatibility targets, but they sit behind "the app launches and can inspect a small test folder" in the delivery order.
+They are important compatibility targets, but they sit behind "the app launches and can inspect a small test folder" in the delivery order. See `../../workflows/external-helpers-and-shellouts.md` for how to triage the `LhA` dependency specifically.
 
 ## Source-Release Drift To Keep In Mind
 

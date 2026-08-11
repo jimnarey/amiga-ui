@@ -7,6 +7,8 @@ depends_on:
   - "../../platform/library-cards/icon.library.md"
   - "../../platform/library-cards/intuition.library.md"
   - "../../platform/library-cards/workbench.library.md"
+  - "../../host-gui/README.md"
+  - "../../workflows/external-helpers-and-shellouts.md"
 citations_used:
   - "S11"
   - "S12"
@@ -32,6 +34,8 @@ Depends on:
 - `../../platform/library-cards/icon.library.md`
 - `../../platform/library-cards/intuition.library.md`
 - `../../platform/library-cards/workbench.library.md`
+- `../../host-gui/README.md`
+- `../../workflows/external-helpers-and-shellouts.md`
 
 Status: Draft.
 
@@ -85,6 +89,8 @@ The main window is built directly on native UI libraries rather than on MUI or a
 - public-screen access,
 - and drawer-only file requesters.
 
+See `../../host-gui/README.md` for how these map onto the host-side Qt Widgets implementation.
+
 ### Workbench Services
 
 The app is deeply Workbench-oriented even when it is not calling `workbench.library` functions directly. It expects Workbench startup data, Workbench screen naming, and Workbench-style icon semantics throughout the run [S30 L108-L109] [S30 L623-L687] [S31 L177-L227].
@@ -99,6 +105,8 @@ At runtime, `iTidy` expects several concrete path classes to exist:
 - writable storage under `PROGDIR:` for logs and backup archives [S12 L294-L299] [S32 L217-L247]
 
 The recursive pre-scan also depends on folder icons being present if the "skip hidden folders" behavior is left enabled, because hidden folders are identified by the absence of the folder's own `.info` file [S12 L354-L358] [S33 L198-L214].
+
+See `../../workflows/external-helpers-and-shellouts.md` for how to triage the `LhA` dependency specifically.
 
 ## Build-Time Dependencies
 

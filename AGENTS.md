@@ -38,4 +38,4 @@ Read `openhands-onboarding.md` first for the standard bootstrap and autonomous d
 - When editing technical docs, keep citations and source references aligned with `docs/sources.md`.
 
 ## Optional Skills
-- Use the on-demand skills in `.agents/skills/` for specialized workflows such as error-driven porting, launcher work, code style, committing, assets, and documentation.
+- Use the on-demand skills in `.agents/skills/` for specialized workflows such as error-driven porting, launcher work, host GUI implementation, scope and boundary triage, code style, committing, assets, and documentation.

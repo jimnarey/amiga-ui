@@ -112,7 +112,7 @@ The repository stop hook is intended to enforce the minimum quality gate automat
 
 Start with `AGENTS.md`, then follow the reading order in `docs/README.md`. Do not duplicate that order here; keep `docs/README.md` as the single canonical list so it only needs updating in one place.
 
-Use `.agents/skills/` for focused guidance on launcher work, path setup, testing, assets, citations, and the error-driven porting loop.
+Use `.agents/skills/` for focused guidance on launcher work, path setup, host GUI implementation, scope and boundary triage, testing, assets, citations, and the error-driven porting loop.
 
 ## Important Repo Rules
 
