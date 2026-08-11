@@ -29,7 +29,8 @@ Move the target app forward by fixing the earliest meaningful blocker, then reru
    - path/runtime-tree problem
    - missing library or missing function
    - launcher or bridge problem
-   - out-of-scope hardware/full-emulator problem
+   - helper-command or optional dependency problem
+   - out-of-scope hardware/full-emulator/subsystem problem
 5. Implement the smallest repo-owned change that addresses that blocker.
 6. Rerun the same probe as soon as the change is in place.
 7. Stop once the app advances to a new blocker or the current blocker is resolved.
@@ -39,7 +40,8 @@ Move the target app forward by fixing the earliest meaningful blocker, then reru
 - Do not hide a real failure behind a broad fake unless the fake is explicitly temporary and documented.
 - Do not treat a later symptom as the target if an earlier blocker is already visible.
 - Do not patch installed packages under `.venv/`; keep changes in the repository.
-- If the failure points to direct hardware access or full-system emulation needs, stop and mark it clearly.
+- If the failure points to direct hardware access, broad audio/peripheral/device emulation, or another full-system concern, stop and mark it clearly.
+- If the failure should produce visible UI behavior, do not bypass it with an invented success result.
 
 ## Preferred Commands
 - `uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy`
@@ -51,4 +53,7 @@ Move the target app forward by fixing the earliest meaningful blocker, then reru
 - `src/amiga_ui/vamos/launcher.py`
 - `src/amiga_ui/vamos/extensions.py`
 - `docs/workflows/error-driven-porting.md`
+- `docs/workflows/fake-and-deferred-implementations.md`
+- `docs/workflows/external-helpers-and-shellouts.md`
+- `docs/runtime/subsystem-stop-rules.md`
 - `docs/apps/itidy/runbook.md`

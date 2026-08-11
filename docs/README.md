@@ -17,10 +17,12 @@ This directory contains the project-authored documentation intended to be read b
 4. `platform/amiga-primer.md`
 5. `runtime/vamos-overview.md`
 6. `runtime/headless-gui.md`
-7. `host-gui/README.md`
-8. `workflows/branching-and-merging.md`
-9. `workflows/error-driven-porting.md`
-10. `apps/itidy/runbook.md` for the current target application, then other relevant notes under `apps/` as more targets are added
+7. `runtime/subsystem-stop-rules.md`
+8. `host-gui/README.md`
+9. `workflows/fake-and-deferred-implementations.md`
+10. `workflows/branching-and-merging.md`
+11. `workflows/error-driven-porting.md`
+12. `apps/itidy/runbook.md` for the current target application, then other relevant notes under `apps/` as more targets are added
 
 ## Sections
 
@@ -29,7 +31,7 @@ This directory contains the project-authored documentation intended to be read b
 - `platform/`: AmigaOS concepts, libraries, and structures relevant to this project.
 - `runtime/`: how `vamos` fits into the implementation and debugging loop.
 - `host-gui/`: host-side PySide6/Qt Widgets design rules and testing guidance.
-- `workflows/`: repeatable setup, porting, and regression routines.
+- `workflows/`: repeatable setup, porting, regression, and implementation-boundary routines.
 - `assets/`: the resource inventory section explaining what resource classes exist and why they matter to the project.
 - `apps/`: app-specific notes, beginning with `iTidy`.
 - `research/`: open questions, deferred decisions, and source priorities.

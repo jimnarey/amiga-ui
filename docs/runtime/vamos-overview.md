@@ -87,6 +87,10 @@ The existing `amitools` test helper code shows a practical execution pattern for
 
 Software that depends on direct hardware register access is explicitly outside `vamos`’s intended use case [S7 L12-L14]. The project should preserve that boundary in its own target selection.
 
+### Broad Subsystem Emulation
+
+`Vamos` documents CPU execution, memory structures, path modeling, configurable libraries, and some hardware-access handling modes, but it does not present itself as a broad audio, peripheral, or desktop-session emulation layer [S7 L64-L77] [S7 L282-L288] [S7 L467-L488]. The project should therefore be careful not to infer support for whole subsystems from the mere fact that some feature can be named through an API boundary.
+
 ## Why Vamos Is Still The Right Base
 
 Although `vamos` is not enough by itself for Workbench GUI compatibility, it is still the correct foundation because it already provides:

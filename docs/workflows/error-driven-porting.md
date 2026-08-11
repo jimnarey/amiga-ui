@@ -28,6 +28,7 @@ Status: Draft.
 
 Notes:
 - Capture the loop: run app, capture failure, identify missing behavior, implement one fix, rerun, document result.
+- Use the dedicated stop-rule and fake/defer policy docs when a blocker points outside normal library/UI/runtime-tree work.
 
 ## Summary
 
@@ -74,6 +75,8 @@ Before changing code, classify the failure into one of a small number of buckets
 - missing function or incorrect return value
 - incorrect struct or message handling
 - requester/window/layout behavior mismatch
+- helper-command or optional dependency problem
+- subsystem-boundary problem
 - host integration problem
 - unsupported out-of-scope behavior
 
@@ -90,6 +93,8 @@ Implement the narrowest change that plausibly resolves the classified failure:
 - translate one UI behavior into the host layer
 
 Do not combine unrelated fixes in the same iteration unless the first defect cannot even be observed without them. The point of the loop is to keep cause and effect legible.
+
+If the classified failure is really a subsystem-boundary problem, do not "resolve" it by quietly widening the project into broad device, audio, peripheral, or desktop emulation. Follow the stop-rule docs instead and record the boundary honestly.
 
 ### 6. Rerun Immediately
 
@@ -141,6 +146,8 @@ For `iTidy`, these visible milestones are especially useful because the app expl
 ### Stop At Out-Of-Scope Boundaries
 
 If the first blocker is actually direct hardware dependence or another full-emulation problem, stop and mark it clearly. `Vamos` itself documents that direct hardware-access software is outside its intended model [S7 L12-L17], and the project should not hide that by piling abstraction on top of the wrong target.
+
+The same applies when the blocker turns out to be broad subsystem pressure rather than one narrow compatibility feature. A documented API-level edge such as a small helper-device or alert path may still be in scope, but the repo should stop when the implementation burden is really becoming "add sound support", "add peripheral emulation", or "add desktop integration" in the abstract.
 
 ## Success Condition For One Iteration
 

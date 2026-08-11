@@ -27,7 +27,7 @@ Notes:
 
 ## Summary
 
-This project targets classic Amiga Workbench applications whose value primarily comes from filesystem, icon, configuration, requester, and window-management behavior. It does not target applications whose core behavior depends on direct chipset access, cycle-accurate timing, custom blitters, audio hardware, or a full emulated Amiga desktop.
+This project targets classic Amiga Workbench applications whose value primarily comes from filesystem, icon, configuration, requester, and window-management behavior. It does not target applications whose core behavior depends on direct chipset access, cycle-accurate timing, custom blitters, heavy hardware-facing audio or peripheral behavior, or a full emulated Amiga desktop.
 
 ## In Scope
 
@@ -40,6 +40,14 @@ The primary target class is desktop software that behaves like a normal Workbenc
 ### Standard AmigaOS Library Use
 
 Software is in scope when it mainly expects documented operating-system services: path handling, locks, file I/O, message passing, Workbench startup, standard requesters, and common GUI libraries. `Vamos` already provides an API-level execution environment built around library trapping and emulated public system structures, which makes this kind of software a realistic target class [S7 L21-L31] [S8 L18-L32].
+
+### API-Level Access To Secondary OS Features
+
+Not every non-filesystem feature is automatically out of scope. If a target uses documented operating-system APIs for secondary features such as alerts, helper devices, or limited audio-facing behavior, that does not by itself disqualify the software. What matters is whether the feature is:
+
+- API-level rather than hardware-facing,
+- secondary rather than the app's main value,
+- and narrow enough to be documented honestly within the project's compatibility model.
 
 ### Workbench Metadata and Layout Behavior
 
@@ -65,13 +73,21 @@ The project is not trying to reproduce an entire Amiga desktop session, ROM boot
 
 ### Demo, Game, And Custom Rendering Workloads
 
-Software whose main value depends on custom graphics pipelines, direct audio hardware use, or timing-sensitive rendering is out of scope for the same reason. Even if such software presents a window or menu, it is not the project’s intended class unless its core behavior is still expressible through Workbench- and library-level semantics.
+Software whose main value depends on custom graphics pipelines, direct audio hardware use, timing-sensitive rendering, or broad peripheral emulation is out of scope for the same reason. Even if such software presents a window or menu, it is not the project’s intended class unless its core behavior is still expressible through Workbench- and library-level semantics.
+
+### Hardware-Centric Device And Peripheral Behavior
+
+Applications whose useful behavior depends on broad device emulation, real-time audio behavior, serial or printer workflows as a central feature, joystick-like input devices, or other external-peripheral semantics should be treated as out of scope unless a later doc explicitly narrows the requirement to a small documented API-level slice.
 
 ## Conditional Scope
 
 ### Add-On GUI Toolkits
 
 Add-on GUI layers such as ClassAct are conditionally in scope. They are not part of the project’s minimum promise, but they become relevant if a real target application requires them and the dependency can be documented and acquired cleanly. The presence of ClassAct in the project assets is therefore best understood as preparatory support, not as a commitment to broad toolkit compatibility from day one.
+
+### Narrow API-Level Sound Or Device Use
+
+Small documented uses of secondary OS services are conditionally in scope when they are not the main point of the application. For example, a simple alert/beep path reached through a normal API boundary is a very different problem from reproducing an application's audio subsystem. The working rule is to judge these features by centrality and implementation shape, not by the mere presence of sound- or device-related names.
 
 ### Later AmigaOS Releases
 

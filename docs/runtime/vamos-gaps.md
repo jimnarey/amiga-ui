@@ -101,6 +101,15 @@ These are especially important because they are often feature-specific rather th
 - they may be postponed intentionally,
 - but they still need to be documented as real compatibility gaps rather than ignored.
 
+### Device, Peripheral, And Secondary Subsystem Pressure
+
+The sixth gap class is pressure from subsystems that are adjacent to the OS API surface but can easily widen into broad emulation work. `Vamos` does not present itself as a general device or desktop-session emulator; it presents itself as an API-level runtime with explicit direct-hardware boundaries [S7 L5-L17]. The project therefore needs to distinguish carefully between:
+
+- a narrow API-level feature reached through normal libraries or devices,
+- and a blocker that is really asking for broad audio, printer, serial, peripheral, or desktop integration support.
+
+The presence of a sound- or device-related API name does not automatically make a feature out of scope. What matters is whether the feature is secondary and API-level, or whether it is expanding into subsystem emulation as a real implementation obligation.
+
 ## Current Triage Order
 
 The repo should treat the present gap order as:
@@ -109,7 +118,8 @@ The repo should treat the present gap order as:
 2. visible window/menu/requester/event behavior,
 3. non-core library choices forced by the current app,
 4. secondary prefs and polish paths such as font/theme parsing,
-5. feature-specific helpers such as backup tooling.
+5. feature-specific helpers such as backup tooling,
+6. stop-rule triage for device/peripheral/subsystem pressure.
 
 That ordering matches both upstream `vamos` scope and the concrete way the first target app is written.
 
