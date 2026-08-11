@@ -33,7 +33,9 @@ Move the target app forward by fixing the earliest meaningful blocker, then reru
    - out-of-scope hardware/full-emulator/subsystem problem
 5. Implement the smallest repo-owned change that addresses that blocker.
 6. Rerun the same probe as soon as the change is in place.
-7. Stop once the app advances to a new blocker or the current blocker is resolved.
+7. Record the outcome in the relevant docs.
+8. If the rerun shows a new later blocker and the current branch now represents one coherent completed fix, run the quality gates, commit it, merge it into `development`, and start the next blocker from a fresh branch created from the updated `development` branch.
+9. Stop without merge only when the work is intentionally draft, the user asked to leave it unmerged, the blocker is out of scope, or a merge/state problem needs human input.
 
 ## Guardrails
 - Do not bundle multiple unrelated fixes into one change.
@@ -42,6 +44,7 @@ Move the target app forward by fixing the earliest meaningful blocker, then reru
 - Do not patch installed packages under `.venv/`; keep changes in the repository.
 - If the failure points to direct hardware access, broad audio/peripheral/device emulation, or another full-system concern, stop and mark it clearly.
 - If the failure should produce visible UI behavior, do not bypass it with an invented success result.
+- Do not carry the next blocker forward on the same branch after the current blocker branch has been merged.
 
 ## Preferred Commands
 - `uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy`

@@ -28,9 +28,18 @@ if [[ "$command" == git\ commit* ]]; then
   fi
 fi
 
+if [[ "$command" == git\ checkout\ -b* ]]; then
+  if [[ -n "$current_branch" && "$current_branch" != "development" ]]; then
+    deny "Create new feature branches from development. If the previous blocker branch is complete, merge it into development first, then create the next branch from there."
+  fi
+fi
+
 if [[ "$command" == git\ merge* ]]; then
   if [[ "$current_branch" == "main" ]]; then
     deny "Do not merge work into main during routine development. Merge accepted work into development instead."
+  fi
+  if [[ -n "$current_branch" && "$current_branch" != "development" && "$current_branch" != "main" ]]; then
+    deny "Finish routine merges by checking out development and merging the accepted feature branch there."
   fi
 fi
 

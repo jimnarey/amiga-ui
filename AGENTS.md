@@ -14,10 +14,12 @@ Read `openhands-onboarding.md` first for the standard bootstrap and autonomous d
 ## Git Workflow
 - `main` is not the working branch for routine OpenHands development.
 - OpenHands should start on `development`.
-- Each distinct feature, fix, or doc task should use its own branch created from `development`.
+- Each distinct feature, fix, doc task, or blocker-fix iteration should use its own branch created from `development`.
 - Do not commit directly on `main` or `development`.
 - Do not merge routine work into `main`.
 - Merge feature branches into `development` only after the repo quality gates pass.
+- If a feature branch satisfies the merge conditions and the user has not asked to keep it unmerged, merge it into `development` before finishing the task.
+- After a blocker-level branch has been merged, start the next blocker from a fresh branch created from the updated `development` branch rather than continuing on the old branch.
 - Do not delete branches after merge.
 
 ## Runtime And GUI

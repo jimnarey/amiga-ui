@@ -12,9 +12,10 @@ description: >
 - The user asks you to create a commit.
 - You need to decide whether the working tree is ready to commit.
 - You need to write a commit message for the current changes.
+- You need to decide whether the branch should now be merged into `development`.
 
 ## Goal
-Create commits at the right time which adhere to the standards required in this project.
+Create commits at the right time and finish accepted blocker-level work in the repository's intended branch flow.
 
 ## Commit Rules
 - Commit each time a distinct problem has been solved, for example implementation of a single missing Amiga OS function.
@@ -24,6 +25,7 @@ Create commits at the right time which adhere to the standards required in this 
 - Do not revert or discard user changes to make committing easier.
 - Do not amend an existing commit unless the user explicitly asks for it.
 - Prefer non-interactive git commands.
+- Do not treat commit as the normal stopping point for accepted feature-branch work; evaluate merge readiness immediately afterwards.
 
 ## Commit Selection Workflow
 1. Check the working tree.
@@ -31,6 +33,14 @@ Create commits at the right time which adhere to the standards required in this 
 3. Exclude unrelated modifications.
 4. If the change boundary is ambiguous, stop and ask rather than guessing.
 5. Commit only the intended files.
+
+## Post-Commit Rule
+If the branch now represents one coherent completed blocker, fix, or decision, and the quality gates pass, merge it into `development` unless:
+- the user explicitly asked to leave it unmerged,
+- the work is intentionally draft,
+- or a merge/state problem needs human input.
+
+After that merge, start the next blocker on a fresh branch created from the updated `development` branch. Do not keep extending the old feature branch once it has been merged.
 
 ## Commit Message Style
 - Use a short imperative subject line.

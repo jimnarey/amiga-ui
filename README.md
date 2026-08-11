@@ -76,8 +76,10 @@ For the full autonomous development loop and recommended command order, see [ope
 Routine development should flow through `development`, not `main`.
 
 - Start from `development`
-- Create a task-specific branch for each feature, fix, or docs change
-- Merge accepted branches back into `development`
+- Create a task-specific branch for each feature, fix, docs change, or blocker-fix iteration
+- Keep one coherent blocker or decision per branch
+- Merge accepted branches back into `development` when the quality gates pass
+- Start the next blocker from a fresh branch created from the updated `development`
 - Keep branches after merge
 
 The authoritative branch policy lives in [docs/workflows/branching-and-merging.md](docs/workflows/branching-and-merging.md).

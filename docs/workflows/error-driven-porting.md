@@ -125,6 +125,17 @@ Treat `artifacts/runs/` as transient local evidence from recent runs, not as the
 
 Newest entry last. Do not rewrite or delete earlier entries; the log is a history, not a single mutable status field. If the log's most recent entry already shows the app past a previously-recorded blocker, treat that as confirmation the earlier fix held, not as something to silently overwrite.
 
+### 8. Finalize The Branch If The Iteration Is Complete
+
+If the rerun shows that the current blocker has been improved or resolved and the branch now represents one coherent completed change, do not treat "the next blocker is visible" as the end of the repository workflow by itself. Finish the branch properly:
+
+- run the relevant quality gates,
+- commit the blocker-level change,
+- merge the feature branch into `development`,
+- and start the next blocker from a fresh branch created from the updated `development` branch.
+
+Only stop before merge when the work is intentionally draft, the user asked to leave it unmerged, the blocker turned out to be out of scope, or a merge/state problem needs human input.
+
 ## Working Rules
 
 ### Prefer Real App Pressure Over Abstract Completeness
@@ -157,5 +168,6 @@ An iteration is successful when all of the following are true:
 2. The implemented change was narrow enough to explain.
 3. The rerun produced a better result or a clearer next blocker.
 4. The new state was documented.
+5. If the iteration was complete and in scope, the branch was committed and merged into `development`, or a clear reason was recorded for not doing so.
 
 If those conditions are met, the project can make steady forward progress even when the overall compatibility target is still far away.
