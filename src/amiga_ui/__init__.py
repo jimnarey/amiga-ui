@@ -1,2 +1,1 @@
 """amiga-ui package."""
-

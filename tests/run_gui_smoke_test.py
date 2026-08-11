@@ -28,9 +28,8 @@ def _apply_session_environment(session: XvfbSession):
 
 
 def main() -> int:
-    with start_xvfb() as session:
-        with _apply_session_environment(session):
-            return run_smoke_gui()
+    with start_xvfb() as session, _apply_session_environment(session):
+        return run_smoke_gui()
 
 
 if __name__ == "__main__":

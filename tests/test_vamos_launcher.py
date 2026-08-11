@@ -1,12 +1,12 @@
 import re
 import tempfile
-from pathlib import Path
 import unittest
+from pathlib import Path
+
+from amitools.vamos.main import RET_CODE_CONFIG_ERROR
 
 from amiga_ui.config import PROJECT_ROOT
 from amiga_ui.vamos.launcher import run_vamos_in_process
-from amitools.vamos.main import RET_CODE_CONFIG_ERROR
-
 
 _ICON_LIBRARY_OPEN_RE = re.compile(r"OpenLibrary: 'icon\.library' V0 -> [0-9a-fA-F]{6}")
 

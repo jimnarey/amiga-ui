@@ -48,4 +48,3 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     """Write indented JSON with a trailing newline."""
 
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-

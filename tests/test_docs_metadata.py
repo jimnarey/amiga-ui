@@ -1,9 +1,8 @@
 import re
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from tests.docs_metadata_helper import parse_front_matter
-
 
 _SOURCE_ID_RE = re.compile(r"^\|\s*`(S\d+)`\s*\|")
 

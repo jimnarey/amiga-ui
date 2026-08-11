@@ -1,9 +1,13 @@
 import subprocess
 import tempfile
-from pathlib import Path
 import unittest
+from pathlib import Path
 
-from amiga_ui.host.xvfb import XvfbSession, _normalize_cli_command, validate_x11_socket_dir
+from amiga_ui.host.xvfb import (
+    XvfbSession,
+    _normalize_cli_command,
+    validate_x11_socket_dir,
+)
 
 
 class XvfbHelpersTest(unittest.TestCase):

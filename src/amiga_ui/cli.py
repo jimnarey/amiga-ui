@@ -186,10 +186,7 @@ def _build_check_payload(checks: list[CheckResult], inventories: list[Any]) -> d
     return {
         "ok": all(check.ok for check in checks),
         "checks": [asdict(check) for check in checks],
-        "inventory": [
-            asdict(entry) | {"directory": project_relative(entry.directory)}
-            for entry in inventories
-        ],
+        "inventory": [asdict(entry) | {"directory": project_relative(entry.directory)} for entry in inventories],
     }
 
 

@@ -32,4 +32,3 @@ def get_probe_target(name: str) -> ProbeTarget:
         host_binary_path=app_volume_root / "iTidy",
         app_volume_root=app_volume_root,
     )
-

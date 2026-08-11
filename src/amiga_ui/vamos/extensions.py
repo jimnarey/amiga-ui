@@ -7,4 +7,3 @@ def get_library_impl_overrides() -> dict[str, type]:
     """Return local vamos library implementations keyed by Amiga library name."""
 
     return {}
-

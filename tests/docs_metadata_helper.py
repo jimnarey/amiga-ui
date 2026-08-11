@@ -1,6 +1,5 @@
 """Private helpers used by the docs metadata tests."""
 
-
 _FRONT_MATTER_DELIMITER = "---"
 
 

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from contextlib import nullcontext
-from typing import ContextManager
+from contextlib import AbstractContextManager, nullcontext
 
 
-def apply_runtime_patches() -> ContextManager[None]:
+def apply_runtime_patches() -> AbstractContextManager[None]:
     """Return a context manager for temporary monkey patches.
 
     Prefer subclassing and registry-based overrides first. This hook exists so
@@ -15,4 +14,3 @@ def apply_runtime_patches() -> ContextManager[None]:
     """
 
     return nullcontext()
-

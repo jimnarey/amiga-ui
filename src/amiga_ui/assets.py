@@ -81,4 +81,3 @@ def asset_inventory() -> list[AssetInventory]:
             )
         )
     return inventories
-

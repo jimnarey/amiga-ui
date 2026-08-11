@@ -9,12 +9,12 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from ..config import PROJECT_ROOT
-
 
 DEFAULT_SCREEN_SPEC = "1280x1024x24"
 DEFAULT_QT_QPA_PLATFORM = "xcb"
@@ -138,9 +138,7 @@ def ensure_xvfb_available() -> None:
     """Raise if Xvfb is not available on the host."""
 
     if shutil.which("Xvfb") is None:
-        raise XvfbUnavailableError(
-            "Xvfb is not available. Run ./check_optional_deps.sh for guidance."
-        )
+        raise XvfbUnavailableError("Xvfb is not available. Run ./check_optional_deps.sh for guidance.")
 
 
 def validate_x11_socket_dir(path: Path = X11_SOCKET_DIR) -> None:
@@ -158,8 +156,7 @@ def validate_x11_socket_dir(path: Path = X11_SOCKET_DIR) -> None:
         )
     if socket_mode != "1777":
         raise XvfbSocketError(
-            f"{path} has mode {socket_mode}, but Xvfb expects 1777.\n"
-            f"Suggested host fix: sudo chmod 1777 {path}"
+            f"{path} has mode {socket_mode}, but Xvfb expects 1777.\nSuggested host fix: sudo chmod 1777 {path}"
         )
 
 
@@ -206,9 +203,7 @@ def _start_on_candidate(
     if not _wait_for_xvfb_start(process, log_path):
         failure_message = _read_start_failure_message(log_path)
         process.wait(timeout=5)
-        raise XvfbStartError(
-            f"Unable to start Xvfb on display {candidate}.\nXvfb output: {failure_message}"
-        )
+        raise XvfbStartError(f"Unable to start Xvfb on display {candidate}.\nXvfb output: {failure_message}")
 
     return XvfbSession(
         display=candidate,

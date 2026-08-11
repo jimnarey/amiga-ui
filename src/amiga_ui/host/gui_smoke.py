@@ -37,14 +37,10 @@ def run_smoke_gui(duration_ms: int = DEFAULT_SMOKE_GUI_DURATION_MS) -> int:
     print(f"- display: {os.environ.get('DISPLAY', '<unset>')}")
     print(f"- qt_qpa_platform: {os.environ.get('QT_QPA_PLATFORM', '<unset>')}")
     print(f"- title: {label.windowTitle()}")
-    print(
-        "- frame_geometry: "
-        f"{geometry.width()}x{geometry.height()}@({geometry.x()},{geometry.y()})"
-    )
+    print(f"- frame_geometry: {geometry.width()}x{geometry.height()}@({geometry.x()},{geometry.y()})")
     print(f"- visible: {label.isVisible()}")
     print(f"- screen: {screen_name}")
     print(f"- screen_geometry: {screen_geometry}")
 
     QTimer.singleShot(duration_ms, app.quit)
     return app.exec()
-
