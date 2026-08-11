@@ -6,9 +6,19 @@ from pathlib import Path
 from amitools.vamos.main import RET_CODE_CONFIG_ERROR
 
 from amiga_ui.config import PROJECT_ROOT
+from amiga_ui.vamos.extensions import get_library_impl_overrides
+from amiga_ui.vamos.icon_library import IconLibrary
 from amiga_ui.vamos.launcher import run_vamos_in_process
 
-_ICON_LIBRARY_OPEN_RE = re.compile(r"OpenLibrary: 'icon\.library' V0 -> [0-9a-fA-F]{6}")
+_ICON_LIBRARY_OPEN_RE = re.compile(r"OpenLibrary: 'icon\.library' V0 -> ([0-9a-fA-F]{6})")
+
+
+class LibraryOverrideRegistryTest(unittest.TestCase):
+    def test_registers_repo_owned_icon_library(self) -> None:
+        overrides = get_library_impl_overrides()
+
+        self.assertIn("icon.library", overrides)
+        self.assertIs(overrides["icon.library"], IconLibrary)
 
 
 class VamosLauncherIntegrationTest(unittest.TestCase):
@@ -38,7 +48,9 @@ class VamosLauncherIntegrationTest(unittest.TestCase):
             log_text = vamos_log_path.read_text(encoding="utf-8")
             self.assertIn("setup exec.library", log_text)
             self.assertIn("setup dos.library", log_text)
-            self.assertRegex(log_text, _ICON_LIBRARY_OPEN_RE)
+            icon_open_match = _ICON_LIBRARY_OPEN_RE.search(log_text)
+            self.assertIsNotNone(icon_open_match, "expected icon.library to open during startup")
+            self.assertNotEqual(icon_open_match.group(1), "000000")
 
 
 class _LauncherRuntimeFixture:

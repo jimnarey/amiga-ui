@@ -27,3 +27,9 @@ Newest entry last. Do not edit or delete earlier entries.
 - Observed: repeated same-day probe runs converged on the same first app-level blocker: startup advanced past earlier launcher issues, then stopped because `icon.library` was missing during initial library setup.
 - Change: none — recorded for triage.
 - Next: implement `icon.library` (or the part of it `iTidy` needs first) per `../../runtime/writing-a-library-impl.md`, then rerun and add a new entry here.
+
+### 2026-08-11 — Repo-owned `icon.library` seam advances startup to `graphics.library`
+
+- Observed: a direct probe run now opens `icon.library` successfully and gets past the earlier missing-library failure. The next first blocker is `graphics.library`, which means the new `icon.library` override is being picked up by the in-process launcher.
+- Change: added a minimal repo-owned `IconLibrary` implementation in `src/amiga_ui/vamos/icon_library.py`, registered it in `src/amiga_ui/vamos/extensions.py`, and tightened the launcher integration test so it asserts that `icon.library` opens at a non-zero address.
+- Next: add the smallest honest `graphics.library` implementation needed for the next startup sequence, then rerun and record the next blocker rather than speculating ahead into wider drawing support.

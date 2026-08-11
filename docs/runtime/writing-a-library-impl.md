@@ -17,6 +17,7 @@ Needed for:
 Notes:
 - This page describes internal `amitools` mechanics, not upstream Amiga API facts, so it does not use the `docs/sources.md` numbered citation system. Instead it points directly at file paths inside the installed dependency. Those paths are correct for the `amitools` version pinned in `uv.lock` at the time this page was written; if a function or file has moved, re-derive the pattern from the installed package rather than trusting this page blindly — `grep -rn "class LibImpl" .venv/lib/python*/site-packages/amitools/` is the fastest way to relocate it.
 - The worked example below uses `icon.library` because it is a concrete, real function set. It is an illustration of the mechanism, not a claim about what the project's current blocker is — check `docs/apps/<app>/compatibility-notes.md` for that.
+- The repository now includes a live minimal example at `src/amiga_ui/vamos/icon_library.py`. Use it as the first reference for "how do we make a missing library open at all?" before adding any function traps.
 
 ## Summary
 
@@ -61,6 +62,8 @@ class IconLibrary(LibImpl):
         name = ctx.mem.r_cstr(name_ptr)
         # ... build and return a DiskObject pointer ...
 ```
+
+For the "library is missing entirely" stage, a class with only `get_version()` can already be useful if the real goal is to make `OpenLibrary()` succeed and let the next probe expose the first required function call. The repo's current `icon.library` override demonstrates that narrower first step.
 
 Method names must match the `.fd` entry exactly, including case. `amitools` scans your class with `inspect.getmembers` and matches by name against the `.fd` table (`amitools/vamos/libcore/impl.py`, `LibImplScanner.scan`); a method whose name isn't in the `.fd` file is simply not wired up as a trap, not an error, so a typo fails silently rather than loudly. If a run still reports the library as missing after adding an implementation, first confirm the method name matches the `.fd` file exactly.
 

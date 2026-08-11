@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from .icon_library import IconLibrary
+
 
 def get_library_impl_overrides() -> dict[str, type]:
     """Return local vamos library implementations keyed by Amiga library name.
@@ -12,4 +14,4 @@ def get_library_impl_overrides() -> dict[str, type]:
     See docs/runtime/writing-a-library-impl.md for how to write one.
     """
 
-    return {}
+    return {"icon.library": IconLibrary}
