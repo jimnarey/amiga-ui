@@ -129,13 +129,10 @@ If the rerun shows that the current blocker has been improved or resolved and th
 
 Only stop before merge when the work is intentionally draft, the user asked to leave it unmerged, the blocker turned out to be out of scope, or a merge/state problem needs human input.
 
-<<<<<<< HEAD
-=======
 For OpenHands-driven autonomous runs, plain narration such as "now I'll fix that next" is not a safe stopping shape because the host may interpret a text-only response as task completion. If more work remains, make the next tool call in the same response. Before any intentional final stop, create the explicit stop marker with `./tools/openhands_allow_stop.sh complete`, `needs-user`, or `blocked` as appropriate.
 
 There is a concrete example of this workflow producing one completed unit of work in commit `c097fbb` on the `development` branch (`Add minimal icon.library override`). It is a useful reference for the expected size and shape of one blocker-level iteration.
 
->>>>>>> 25ca4cb (Try to prevent OpenHands stalling)
 ## Working Rules
 
 ### Prefer Real App Pressure Over Abstract Completeness
