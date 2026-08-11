@@ -19,3 +19,10 @@ amiga-ui-xvfb = "amiga_ui.host.xvfb:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/amiga_ui"]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.2",
+    "pyright>=1.1.411",
+    "ruff>=0.16.2",
+]
