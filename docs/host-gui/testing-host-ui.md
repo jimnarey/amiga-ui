@@ -62,6 +62,8 @@ Do not default to testing:
 
 Those tend to be brittle, expensive, and low-signal for this repository.
 
+Also do not let tests normalise fake UI behavior. A test should not bless an implementation that "succeeds" only because it bypasses a missing visible interaction with invented values. If the real obligation is to show a dialog, menu path, or visible state change, tests should reinforce that boundary rather than encoding the shortcut as expected behavior.
+
 ## Project Testing Style
 
 Default testing style:

@@ -19,15 +19,18 @@ Qt Widgets are the project-standard host GUI technology. The Qt docs describe th
 
 1. `qt-widgets-primer.md`
 2. `widget-mapping.md`
-3. `menus-dialogs-and-requesters.md`
-4. `painting-styling-and-layout.md`
-5. `threading-and-desktop-boundaries.md`
-6. `testing-host-ui.md`
+3. `translation-obligations.md`
+4. `component-implementation-standard.md`
+5. `menus-dialogs-and-requesters.md`
+6. `painting-styling-and-layout.md`
+7. `threading-and-desktop-boundaries.md`
+8. `testing-host-ui.md`
 
 ## Project Rules
 
 - Use Qt Widgets, not Qt Quick or QML, for normal host GUI work.
 - Prefer built-in widgets and layouts first.
+- Translate visible Amiga UI behavior into real host UI behavior or fail honestly; do not satisfy it with fabricated success values by default.
 - Use custom `QWidget` painting only when standard widgets would erase required Workbench semantics.
 - Keep menus inside the app window rather than treating Workbench's screen-top menu bar as a desktop-global integration point.
 - Keep GUI code simple enough to run consistently both in a normal Linux desktop session and under the project `Xvfb` path.
