@@ -21,6 +21,7 @@ This directory contains the project-authored documentation intended to be read b
 
 ## Sections
 
+- `archive`: information on how this repository was set up and unlikely to be relevant
 - `architecture/`: project goals, boundaries, and high-level design.
 - `platform/`: AmigaOS concepts, libraries, and structures relevant to this project.
 - `runtime/`: how `vamos` fits into the implementation and debugging loop.
