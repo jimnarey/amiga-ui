@@ -106,4 +106,4 @@ git merge --no-ff fix/<first-blocker>
 git checkout -b fix/<next-blocker>
 ```
 
-For a concrete repository example of a blocker-sized change that was completed and integrated, inspect commit `c097fbb` on the `development` branch (`Add minimal icon.library override`).
+For a concrete repository example of a blocker-sized change that was completed and integrated, inspect commit `c097fbb` in `main` history (`Add minimal icon.library override`).

@@ -111,7 +111,7 @@ See `docs/workflows/branching-and-merging.md` for the authoritative policy.
 
 Do not patch installed packages inside `.venv/`. Keep project behavior in this repository.
 
-There is a concrete example of this loop producing one completed unit of work in commit `c097fbb` on the `development` branch (`Add minimal icon.library override`) — a useful reference for the expected size and shape of one blocker-level iteration: narrow code change, focused verification, docs update, and merge-ready branch closure.
+There is a concrete example of this loop producing one completed unit of work in commit `c097fbb` in `main` history (`Add minimal icon.library override`) — a useful reference for the expected size and shape of one blocker-level iteration: narrow code change, focused verification, docs update, and merge-ready branch closure.
 
 ## Commit And Merge Conditions
 
@@ -134,7 +134,7 @@ Do not merge a feature branch back into `development` unless all of the followin
 The repository stop hook is intended to enforce the minimum quality gate automatically before OpenHands finishes a task.
 It also rejects accidental narration-only stop attempts unless an explicit stop marker has been created immediately beforehand.
 
-There is a concrete example of a completed blocker-sized unit of work in commit `c097fbb` on the `development` branch (`Add minimal icon.library override`). Use it as a model for the expected shape of one coherent implementation step: narrow code change, focused verification, docs update, and merge-ready branch closure.
+There is a concrete example of a completed blocker-sized unit of work in commit `c097fbb` in `main` history (`Add minimal icon.library override`). Use it as a model for the expected shape of one coherent implementation step: narrow code change, focused verification, docs update, and merge-ready branch closure.
 
 ## Where To Read Next
 
