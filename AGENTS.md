@@ -14,6 +14,14 @@ Read `openhands-onboarding.md` first for the standard bootstrap and autonomous d
 - During autonomous work, do not emit narration-only turns if more work remains. If you say "next I will X", invoke the tool for `X` in the same response.
 - Only end an autonomous run intentionally after creating a stop marker with `./tools/openhands_allow_stop.sh complete`, `needs-user`, or `blocked`.
 
+## OpenHands Tool Contract
+- Use the OpenHands `terminal` tool for every shell command.
+- There is no OpenHands `shell`, `find`, or `search` tool. Treat `find`, `rg`, `grep`, and `git grep` as commands to run inside `terminal`.
+- Use `file_editor` only for direct text-file operations. Its valid commands are `view`, `create`, `str_replace`, `insert`, and `undo_edit`.
+- Always pass an absolute path to `file_editor`, starting with `/projects/amiga-ui/`.
+- Do not pass `line_start`, `line_end`, `depth`, or `query` to `file_editor`.
+- Do not use `file_editor` with `command: open` or `command: search`; use `view` for files/directories and `terminal` with `rg` or `find` for searches.
+
 ## Git Workflow
 - `main` is not the working branch for routine OpenHands development.
 - OpenHands should start on `development`.

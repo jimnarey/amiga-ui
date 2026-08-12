@@ -56,6 +56,23 @@ Read in full according to task shape:
 
 Do not treat the inventory step as a replacement for reading the important docs in full. Its purpose is to choose the right small set first.
 
+## OpenHands Tool Contract
+
+Use the OpenHands tool names exactly:
+
+- Use `terminal` for every shell command.
+- There is no OpenHands `shell`, `find`, or `search` tool.
+- Treat `find`, `rg`, `grep`, and `git grep` as shell commands to run inside `terminal`.
+
+Use `file_editor` only for direct text-file operations:
+
+- Valid `file_editor` commands are `view`, `create`, `str_replace`, `insert`, and `undo_edit`.
+- Always pass an absolute path, starting with `/projects/amiga-ui/`.
+- Do not pass `line_start`, `line_end`, `depth`, or `query`.
+- Do not use `command: open` or `command: search`.
+- Use `file_editor` with `command: view` for files or directories.
+- Use `terminal` with `rg`, `find`, or `git grep` when searching file contents or paths.
+
 ## Canonical Commands
 
 Use these commands by default:
