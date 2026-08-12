@@ -30,6 +30,32 @@ If the repo check reports missing required binary assets, stop and ask for them 
 
 The setup script is intended to leave the repository on `development`. Before making a real change, create or switch to a task-specific feature branch from there.
 
+## Documentation Triage
+
+Before substantial work, quickly assess what documentation exists without reading the whole tree in full.
+
+Preferred lightweight inventory commands:
+
+```bash
+uv run python tools/docs_triage.py
+uv run python tools/docs_triage.py --section runtime
+uv run python tools/docs_triage.py --suggest launcher probe
+uv run python tools/docs_triage.py --suggest host gui menu
+find docs -type f -name '*.md' | sort
+```
+
+The `docs_triage.py` helper inspects markdown paths and YAML front matter only. Use it to decide what to read in full for the immediate task, rather than opening many docs speculatively.
+
+Read in full according to task shape:
+
+- Always start with `docs/README.md` after inventorying the tree.
+- For launcher, probe, path, library, or `vamos` work: read the relevant files under `docs/runtime/` and `docs/workflows/`, then the relevant app notes under `docs/apps/`.
+- For host UI work: read `docs/host-gui/README.md` and the small set of matching host-gui docs suggested by filenames/titles.
+- For app-specific work on `iTidy`: read `docs/apps/itidy/runbook.md`, `compatibility-notes.md`, `dependencies.md`, and the latest `run-log.md`.
+- For docs edits: read `docs/README.md`, `docs/sources.md`, and the specific target docs you plan to change.
+
+Do not treat the inventory step as a replacement for reading the important docs in full. Its purpose is to choose the right small set first.
+
 ## Canonical Commands
 
 Use these commands by default:
@@ -138,7 +164,7 @@ There is a concrete example of a completed blocker-sized unit of work in commit 
 
 ## Where To Read Next
 
-Start with `AGENTS.md`, then follow the reading order in `docs/README.md`. Do not duplicate that order here; keep `docs/README.md` as the single canonical list so it only needs updating in one place.
+Start with `AGENTS.md`, then assess the docs tree with `uv run python tools/docs_triage.py` or a filename-only scan, then follow the reading order in `docs/README.md` for the small set of docs relevant to the immediate task. Do not duplicate that order here; keep `docs/README.md` as the single canonical list so it only needs updating in one place.
 
 Use `.agents/skills/` for focused guidance on launcher work, path setup, host GUI implementation, scope and boundary triage, testing, assets, citations, and the error-driven porting loop.
 

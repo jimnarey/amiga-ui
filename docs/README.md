@@ -9,6 +9,21 @@ citations_used: []
 
 This directory contains the project-authored documentation intended to be read before raw upstream material in the fetched documentation cache.
 
+## Triage First
+
+Before reading many docs in full, take a lightweight inventory pass so you can choose the relevant small set first.
+
+Preferred commands:
+
+```bash
+uv run python tools/docs_triage.py
+uv run python tools/docs_triage.py --section runtime
+uv run python tools/docs_triage.py --suggest launcher probe
+find docs -type f -name '*.md' | sort
+```
+
+The helper inspects markdown paths and front matter only. Use it to discover what exists and then open only the docs that match the immediate task.
+
 ## Read First
 
 1. `architecture/overview.md`
