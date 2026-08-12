@@ -45,6 +45,26 @@ uv run amiga-ui-xvfb -- <command> [args...]
 
 `probe` is the main autonomous loop entrypoint. Prefer it over ad hoc `vamos` invocations.
 
+## Autonomous Stop Protocol
+
+OpenHands can treat a text-only assistant response as the end of an autonomous run, even when the text is only narration such as "now I'll fix that next". To avoid accidental stops:
+
+- Do not emit narration-only progress turns during autonomous work.
+- If more work remains, make the next tool call in the same response.
+- Do not say "next I will X" unless you are also invoking the tool for `X`.
+- Only stop intentionally after creating a stop marker with `./tools/openhands_allow_stop.sh`.
+
+Allowed stop reasons:
+
+- `./tools/openhands_allow_stop.sh complete`
+  Use only when the current task is genuinely complete and ready for final plain-text reporting.
+- `./tools/openhands_allow_stop.sh needs-user "short reason"`
+  Use only when specific user input is genuinely required before more repo work can continue.
+- `./tools/openhands_allow_stop.sh blocked "short reason"`
+  Use only when continuing would require an unsupported assumption, an unavailable external dependency, or another real external blocker.
+
+The stop guard consumes this marker automatically. Create it immediately before the intentional final response; do not create it early and keep working.
+
 ## Branch Strategy
 
 Treat Git workflow as part of the development loop, not as cleanup at the end.
@@ -87,6 +107,7 @@ See `docs/workflows/branching-and-merging.md` for the authoritative policy.
 6. If the app advances to a new blocker and the current branch now represents one coherent completed fix, run the quality gates, commit it, merge it into `development`, and record the result.
 7. Start the next blocker from a fresh feature branch created from the updated `development` branch. Do not continue working on a branch that has already been merged; treat it as completed history, not a rolling workspace.
 8. Stop without merging only when the blocker is out of scope, the work is intentionally draft, the user asked to leave it unmerged, or a merge issue needs human input.
+9. Before any intentional stop, create the appropriate stop marker with `./tools/openhands_allow_stop.sh`.
 
 Do not patch installed packages inside `.venv/`. Keep project behavior in this repository.
 
@@ -111,6 +132,7 @@ Do not merge a feature branch back into `development` unless all of the followin
 5. the branch remains within project scope.
 
 The repository stop hook is intended to enforce the minimum quality gate automatically before OpenHands finishes a task.
+It also rejects accidental narration-only stop attempts unless an explicit stop marker has been created immediately beforehand.
 
 ## Where To Read Next
 

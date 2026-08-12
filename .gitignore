@@ -3,6 +3,7 @@ __pycache__/
 /amitools/
 .venv/
 /artifacts/
+.openhands/state/
 assets/**
 !assets/**/
 !assets/**/*.placeholder

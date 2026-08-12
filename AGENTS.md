@@ -10,6 +10,8 @@ Read `openhands-onboarding.md` first for the standard bootstrap and autonomous d
 - Prefer one real blocker at a time: run, inspect artifacts, make the smallest useful fix, rerun.
 - Keep compatibility changes in the repository, not in `.venv/` or other installed-package locations.
 - Prefer subclassing or explicit extension points over monkey patching. If a patch is necessary, keep it narrow and local.
+- During autonomous work, do not emit narration-only turns if more work remains. If you say "next I will X", invoke the tool for `X` in the same response.
+- Only end an autonomous run intentionally after creating a stop marker with `./tools/openhands_allow_stop.sh complete`, `needs-user`, or `blocked`.
 
 ## Git Workflow
 - `main` is not the working branch for routine OpenHands development.

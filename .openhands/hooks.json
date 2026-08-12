@@ -15,7 +15,7 @@
       "matcher": "*",
       "hooks": [
         {
-          "command": ".openhands/hooks/quality_gate.sh",
+          "command": ".openhands/hooks/stop_guard.sh",
           "timeout": 300
         }
       ]
