@@ -1,8 +1,10 @@
+vamos.log
+artifacts/runs/
+*.pyc
 __pycache__/
 *.pyc
 /amitools/
 .venv/
-/artifacts/
 .openhands/state/
 .goose/state/
 assets/**

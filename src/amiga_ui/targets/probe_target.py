@@ -30,3 +30,13 @@ def resolve_probe_target(binary_path: Path) -> ProbeTarget:
         host_binary_path=resolved,
         app_volume_root=resolved.parent,
     )
+
+
+def resolve_host_binary(binary_path: Path) -> tuple[str, str]:
+    """Return the same binary with both an absolute and a relative path.
+
+    This helper supports probe args that need the volume name but want to
+    pass system paths to vamos.
+    """
+    resolved = binary_path.resolve()
+    return (str(resolved), binary_path.as_posix())

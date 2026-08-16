@@ -1,18 +1,26 @@
+from .asllibrary import ASLLibrary
+from .diskfont_library import DiskFontLibrary
+from .gadtools_library import GadToolsLibrary
 from .graphics_library import GraphicsLibrary
 from .icon_library import IconLibrary
+from .iffparse_library import IffParseLibrary
+from .workbench_library import WorkbenchLibrary
 
 
 def get_library_impl_overrides() -> dict[str, type]:
-    """Return a mapping of library names to their repo‐owned Python implementations.
+    """Return a mapping of library names to their repo–owned Python implementations.
 
     The launcher will query this function to see if any library implementations
-    should override the default loading mechanism.  At present we only expose the
-    IconLibrary implementation.
-
-    This function must be idempotently merge the GraphicsLibrary map into the
-    existing IconLibrary map.
+    should override the default loading mechanism.  At present we expose the
+    ASLLibrary, DiskFontLibrary, GadToolsLibrary, GraphicsLibrary, IconLibrary,
+    IffParseLibrary, and WorkbenchLibrary implementations.
     """
     return {
+        "asl.library": ASLLibrary,
+        "diskfont.library": DiskFontLibrary,
+        "gadtools.library": GadToolsLibrary,
         "icon.library": IconLibrary,
         "graphics.library": GraphicsLibrary,
+        "iffparse.library": IffParseLibrary,
+        "workbench.library": WorkbenchLibrary,
     }
