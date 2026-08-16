@@ -1,17 +1,18 @@
-"""Registry for repo-owned vamos library implementations."""
-
-from __future__ import annotations
-
+from .graphics_library import GraphicsLibrary
 from .icon_library import IconLibrary
 
 
 def get_library_impl_overrides() -> dict[str, type]:
-    """Return local vamos library implementations keyed by Amiga library name.
+    """Return a mapping of library names to their repo‐owned Python implementations.
 
-    Once a library implementation exists, register it here, for example:
-        return {"icon.library": IconLibrary}
+    The launcher will query this function to see if any library implementations
+    should override the default loading mechanism.  At present we only expose the
+    IconLibrary implementation.
 
-    See docs/runtime/writing-a-library-impl.md for how to write one.
+    This function must be idempotently merge the GraphicsLibrary map into the
+    existing IconLibrary map.
     """
-
-    return {"icon.library": IconLibrary}
+    return {
+        "icon.library": IconLibrary,
+        "graphics.library": GraphicsLibrary,
+    }
