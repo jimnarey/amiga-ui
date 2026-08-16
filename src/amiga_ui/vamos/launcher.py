@@ -57,18 +57,18 @@ class VamosSessionRunner:
         return VamosMainParser()
 
     @staticmethod
-    def parse_main_parser(mp:VamosMainParser, args:`list[str]`) -> bool:
+    def parse_main_parser(mp: VamosMainParser, args: list[str]) -> bool:
         """Parse the provided vamos CLI arguments.
         
         Auto-registers PROGDIR: volume pointing to extracted binary artifacts
         so das.library can create 'PROGDIR:logs/' successfully.
         """
         app_root = VamosSessionRunner.get_app_root_for_probe()
-        ifapp_root and os.path.isdir(app_root):
+        if app_root and os.path.isdir(app_root):
             mp.parse(paths=[f"prog:{app_root}"], args=args, cfg_dict=None)
         else:
             mp.parse(paths=None, args=args, cfg_dict=None)
-        returnTrue
+        return True
 
     @staticmethod
     def setup_logging(mp:`.VamosMainParser`) -> bool:
