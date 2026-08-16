@@ -1,0 +1,52 @@
+# Amiga UI — Goose Project Hints
+
+This repository builds a Python compatibility layer for selected classic Amiga
+Workbench GUI applications, run under an in-process `vamos` launcher. The
+first real target is `iTidy`.
+
+This file is loaded automatically for every Goose session (interactive or
+`goose run`). Keep it short; the substance lives in the docs below.
+
+## Read First
+
+- `AGENTS.md` — core repository rules (dependency management via `uv`, the
+  `vamos` launcher as the standard execution path, subclass-over-monkeypatch,
+  scope boundaries). Its line pointing to `openhands-onboarding.md` is for the
+  OpenHands harness only — skip it.
+- `docs/README.md` — documentation index. Run the triage helper before
+  reading docs in full:
+  ```bash
+  uv run python tools/docs_triage.py
+  uv run python tools/docs_triage.py --section runtime
+  ```
+- `.goose/README.md` — how to invoke the autonomous development recipe with
+  `goose run`, and what its completion gate checks.
+
+## Working Loop
+
+Follow `docs/workflows/error-driven-porting.md`: run a real app under
+`vamos`, capture the first meaningful failure, implement the smallest fix,
+rerun. Follow `docs/workflows/branching-and-merging.md` for branch and merge
+rules. Both docs describe their stop-marker mechanics in OpenHands terms —
+for Goose, use `tools/goose_allow_stop.sh` instead (see `.goose/README.md`).
+
+## Canonical Commands
+
+```bash
+uv run amiga-ui check
+uv run amiga-ui smoke-gui
+uv run amiga-ui smoke-gui --direct
+uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy
+uv run amiga-ui-xvfb -- <command> [args...]
+uv run ruff check .
+uv run pyright
+uv run python -m unittest
+uv run python tests/run_gui_smoke_test.py
+```
+
+## Optional Skills
+
+`.agents/skills/` holds on-demand guidance for launcher work, host GUI
+implementation, scope/boundary triage, code style, committing, assets, and
+the error-driven porting loop. Read the relevant skill file when a task
+matches its topic.

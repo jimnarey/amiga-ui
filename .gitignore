@@ -4,8 +4,10 @@ __pycache__/
 .venv/
 /artifacts/
 .openhands/state/
+.goose/state/
 assets/**
 !assets/**/
 !assets/**/*.placeholder
 !assets/libs/download_classact33.sh
 !assets/docs/download_required_docs.sh
+.claude/

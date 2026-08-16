@@ -22,3 +22,9 @@ repos:
         pass_filenames: false
         files: ^(src|tests)/.*\\.py$
         require_serial: true
+
+      - id: check-yaml
+        name: check yaml
+        entry: uv run python tools/check_yaml.py
+        language: unsupported
+        types: [yaml]

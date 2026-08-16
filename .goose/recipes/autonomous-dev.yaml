@@ -1,0 +1,103 @@
+version: "1.0.0"
+title: "Amiga UI Autonomous Development Loop"
+description: >-
+  Runs this repository's error-driven porting loop (probe under vamos,
+  classify the first blocker, implement the smallest fix, rerun) unattended
+  via `goose run`, following AGENTS.md and docs/workflows/error-driven-porting.md.
+author:
+  contact: amiga-ui
+
+instructions: |
+  You are doing autonomous development work in the amiga-ui repository, a
+  Python compatibility layer for classic Amiga Workbench GUI applications
+  run under an in-process `vamos` launcher.
+
+  Before anything else, read in this order:
+  1. `.goosehints` (already loaded into your context).
+  2. `AGENTS.md` for core repository rules. Ignore its pointer to
+     `openhands-onboarding.md` — that file is for a different harness.
+  3. `docs/README.md`, then run `uv run python tools/docs_triage.py` and read
+     only the docs it points you to for the task at hand.
+  4. `docs/workflows/error-driven-porting.md` for the development loop and
+     `docs/workflows/branching-and-merging.md` for branch/merge policy. Both
+     describe their stop-marker mechanics in terms of a different harness
+     (OpenHands) — for this run, use `./tools/goose_allow_stop.sh` instead,
+     as described below.
+  5. If `.goose/state/last-rejection.md` exists, read it now: it explains why
+     your previous attempt at this task was not accepted.
+
+  Work on: {{ focus }}
+  Primary probe target: {{ target_binary }}
+
+  Standard loop, repeated until a real stopping condition is reached:
+  1. `uv run amiga-ui probe {{ target_binary }}` (or the relevant narrower
+     check for the current blocker).
+  2. Read the resulting artifacts under `artifacts/runs/`.
+  3. Classify the first blocker per `docs/workflows/error-driven-porting.md`
+     (path/assign, missing library, struct/message handling, GUI/requester
+     behavior, helper dependency, or out-of-scope boundary).
+  4. Implement the smallest repo-owned fix for that one blocker.
+  5. Rerun immediately.
+  6. When a blocker is resolved and verified, append an entry to
+     `docs/apps/<app>/run-log.md`, run the quality checks, commit on a
+     feature branch created from `development`, and merge into `development`
+     per `docs/workflows/branching-and-merging.md`. Start the next blocker
+     from a fresh branch off the updated `development`.
+
+  Do not end a turn on narration alone. If you write "next I will do X", the
+  tool call for X must be in the same response — a run that stops just to
+  announce a plan wastes the whole attempt, because ending without a stop
+  marker is treated as unfinished work and the run restarts from scratch.
+
+  Only end the run intentionally by calling one of:
+  - `./tools/goose_allow_stop.sh complete "<short summary>"` — the task (or
+    the current unit of work within it) is genuinely finished, verified, and
+    merge-ready. This triggers a full quality gate (pre-commit, unit tests,
+    GUI smoke test, branch hygiene) before the run is allowed to end; if the
+    gate rejects it, you will get a fresh attempt with the reason recorded
+    in `.goose/state/last-rejection.md`.
+  - `./tools/goose_allow_stop.sh blocked "<short reason>"` — continuing would
+    require an unsupported assumption, an unavailable external dependency,
+    or crosses a documented out-of-scope boundary.
+  - `./tools/goose_allow_stop.sh needs-user "<short reason>"` — you need
+    specific input from the user before more repo work can continue.
+
+  Create the marker as your last action, immediately before your final
+  response — not earlier, and not as a promise to do it later.
+
+prompt: |
+  Begin the autonomous development loop now. Orient yourself with the docs
+  triage helper and the branch state, then work the loop until you hit a
+  real stopping condition, and end with the appropriate
+  ./tools/goose_allow_stop.sh call.
+
+parameters:
+  - key: target_binary
+    input_type: string
+    requirement: optional
+    default: "amiga_apps/itidy1classic/binary/extracted/iTidy"
+    description: "Amiga binary to probe as the primary development target."
+  - key: focus
+    input_type: string
+    requirement: optional
+    default: "the next unresolved blocker recorded in docs/apps/itidy/run-log.md"
+    description: "What this run should work on."
+
+extensions:
+  - type: builtin
+    name: developer
+    display_name: Developer
+    timeout: 600
+    bundled: true
+    description: >-
+      Shell commands and file edits needed to build, probe, and modify the
+      repository.
+
+retry:
+  max_retries: 5
+  timeout_seconds: 900
+  on_failure_timeout_seconds: 60
+  checks:
+    - type: shell
+      command: "bash tools/goose_quality_gate.sh"
+  on_failure: "rm -f .goose/state/allow-stop.json"

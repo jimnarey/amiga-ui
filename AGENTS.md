@@ -2,7 +2,7 @@
 
 This repository develops a Python-based compatibility layer for selected classic Amiga Workbench applications.
 
-Read `openhands-onboarding.md` first for the standard bootstrap and autonomous development loop.
+Read `openhands-onboarding.md` first for the standard bootstrap and autonomous development loop. (OpenHands only — Goose sessions should read `.goosehints` and `.goose/README.md` instead.)
 
 ## Core Rules
 - Use `uv` for Python commands and dependency management.
