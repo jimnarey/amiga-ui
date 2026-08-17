@@ -18,6 +18,8 @@ Read `openhands-onboarding.md` first for the standard bootstrap and autonomous d
 - Use only tools that are actually exposed by the current agent harness. Do not invent tool names.
 - Treat `find`, `rg`, `grep`, `git grep`, `sed`, `cat`, and `ls` as shell commands to run through the harness's available shell/command tool.
 - If a tool call fails because the tool does not exist or the arguments are invalid, do not repeat the same call; choose a valid tool or inspect files through shell commands.
+- If a command-line program is missing from the container, install the small required package with passwordless `sudo` instead of inventing a tool or repeatedly working around the missing dependency.
+- Do not create, edit, overwrite, delete, chmod, or chown `.git/`, `.goose/`, `.openhands/`, `.codex/`, `.config/`, `.local/`, `.cache/`, or other tool, VCS, editor, credential, or agent configuration directories unless the user explicitly asks for that exact config change.
 
 ## OpenHands Tool Contract
 - This section applies only to OpenHands sessions. Goose/Ornith sessions should follow `.goosehints` and `.goose/README.md` instead.

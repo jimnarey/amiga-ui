@@ -38,7 +38,12 @@ invent standalone `shell`, `find`, or `search` tools. Treat `find`, `rg`,
 `grep`, `git grep`, `sed`, `cat`, and `ls` as shell commands to run through the
 available Goose command/shell tool. If a tool call fails because the tool does
 not exist or the arguments are invalid, change tools or arguments immediately
-instead of repeating the same call.
+instead of repeating the same call. If a command-line program is missing from
+the container, install the small required package with passwordless `sudo`.
+Do not create, edit, overwrite, delete, chmod, or chown `.git/`, `.goose/`,
+`.openhands/`, `.codex/`, `.config/`, `.local/`, `.cache/`, or other tool,
+VCS, editor, credential, or agent configuration directories unless the user
+explicitly asks for that exact config change.
 
 ## Canonical Commands
 

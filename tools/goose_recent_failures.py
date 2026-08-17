@@ -142,11 +142,16 @@ def recovery_hint(tool_name: str, error_text: str) -> str | None:
         )
     if "rg: command not found" in lower:
         return (
-            "`rg` is unavailable in this container. Use `git grep`, `grep -R`, "
-            "or `find` through `shell`."
+            "`rg` is unavailable in this container. Install it with "
+            "`sudo apt-get update && sudo apt-get install -y ripgrep`, or use "
+            "`git grep`, `grep -R`, or `find` through `shell` until installed."
         )
     if "python: command not found" in lower:
-        return "Use `python3` or the repo-standard `uv run python`, not bare `python`."
+        return (
+            "Use `python3` or the repo-standard `uv run python`, not bare `python`. "
+            "If a small missing command-line dependency blocks progress, install "
+            "the required package with passwordless `sudo`."
+        )
     if "no such file or directory" in lower:
         return (
             "Verify the path with `pwd`, `ls`, `find`, or `git ls-files` "
