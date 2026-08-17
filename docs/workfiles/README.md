@@ -1,3 +1,10 @@
+---
+title: "Workfiles"
+status: note
+depends_on: []
+citations_used: []
+---
+
 # Workfiles
 
 Temporary workfiles that do not belong in source control. See:
