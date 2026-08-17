@@ -26,15 +26,20 @@ max_age_seconds=1800
 mkdir -p "$state_dir"
 
 reject() {
+  local reason="$1"
   {
     echo "# Previous Goose run rejected"
     echo
-    echo "$1"
+    echo "$reason"
     echo
-    echo "Read this before continuing, then fix the issue described above."
+    if [[ -x tools/goose_recent_failures.py ]]; then
+      tools/goose_recent_failures.py --limit 6 || true
+      echo
+    fi
+    echo "Read this before continuing. If recent tool failures are listed above, change tools or arguments instead of repeating the failed call."
   } > "$rejection_path"
   rm -f "$marker_path"
-  echo "$1" >&2
+  echo "$reason" >&2
   exit 1
 }
 

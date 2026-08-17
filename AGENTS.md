@@ -14,7 +14,13 @@ Read `openhands-onboarding.md` first for the standard bootstrap and autonomous d
 - During autonomous work, do not emit narration-only turns if more work remains. If you say "next I will X", invoke the tool for `X` in the same response.
 - Only end an autonomous run intentionally after creating a stop marker with `./tools/openhands_allow_stop.sh complete`, `needs-user`, or `blocked`.
 
+## General Tool Contract
+- Use only tools that are actually exposed by the current agent harness. Do not invent tool names.
+- Treat `find`, `rg`, `grep`, `git grep`, `sed`, `cat`, and `ls` as shell commands to run through the harness's available shell/command tool.
+- If a tool call fails because the tool does not exist or the arguments are invalid, do not repeat the same call; choose a valid tool or inspect files through shell commands.
+
 ## OpenHands Tool Contract
+- This section applies only to OpenHands sessions. Goose/Ornith sessions should follow `.goosehints` and `.goose/README.md` instead.
 - Use the OpenHands `terminal` tool for every shell command.
 - There is no OpenHands `shell`, `find`, or `search` tool. Treat `find`, `rg`, `grep`, and `git grep` as commands to run inside `terminal`.
 - Use `file_editor` only for direct text-file operations. Its valid commands are `view`, `create`, `str_replace`, `insert`, and `undo_edit`.

@@ -30,6 +30,16 @@ rerun. Follow `docs/workflows/branching-and-merging.md` for branch and merge
 rules. Both docs describe their stop-marker mechanics in OpenHands terms —
 for Goose, use `tools/goose_allow_stop.sh` instead (see `.goose/README.md`).
 
+## Goose/Ornith Tool Discipline
+
+Use only tools that Goose actually exposes in the current session. Do not copy
+OpenHands-specific tool names such as `terminal` or `file_editor`, and do not
+invent standalone `shell`, `find`, or `search` tools. Treat `find`, `rg`,
+`grep`, `git grep`, `sed`, `cat`, and `ls` as shell commands to run through the
+available Goose command/shell tool. If a tool call fails because the tool does
+not exist or the arguments are invalid, change tools or arguments immediately
+instead of repeating the same call.
+
 ## Canonical Commands
 
 ```bash

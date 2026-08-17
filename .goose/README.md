@@ -40,7 +40,11 @@ GOOSE_MODE=auto goose run \
 ```
 
 `--max-turns` bounds a single attempt (default 1000 if omitted); raise it for
-a longer unattended run. Validate the recipe after editing it:
+a longer unattended run. Avoid setting a low `--max-tool-repetitions` for normal
+autonomous work: it is a circuit breaker, so Goose stops when the limit is hit
+instead of making the model choose another approach. Use it only as an emergency
+runaway-loop guard, and keep the value high enough that ordinary repeated shell
+inspection is not interrupted. Validate the recipe after editing it:
 
 ```bash
 goose recipe validate .goose/recipes/autonomous-dev.yaml
@@ -67,8 +71,9 @@ the recipe uses Goose's `retry` field as the closest equivalent:
 3. On failure, Goose resets the agent's message history and restarts the
    recipe from `prompt` — the git working tree is untouched, so the next
    attempt resumes from the same repo state. The rejection reason is written
-   to `.goose/state/last-rejection.md`, which the recipe instructs the agent
-   to read first on the next attempt.
+   to `.goose/state/last-rejection.md`, along with recent failed tool calls
+   when Goose's session database is available; the recipe instructs the agent
+   to read that file first on the next attempt.
 4. `retry.max_retries` (5) bounds how many restarts this buys before
    `goose run` gives up and returns control with a failure — treat that as
    the point needing human attention.

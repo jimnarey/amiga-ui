@@ -29,6 +29,23 @@ instructions: |
   Work on: {{ focus }}
   Primary probe target: {{ target_binary }}
 
+  Tool discipline for Goose:
+  - Use only tools that are actually listed in the current Goose session. Do not
+    invent OpenHands tool names such as `terminal`, `file_editor`, `shell`,
+    `find`, or `search` unless Goose explicitly exposes a tool with that exact
+    name.
+  - Treat `find`, `rg`, `grep`, `git grep`, `sed`, `cat`, and `ls` as shell
+    commands to run through the available Goose shell/command tool, not as
+    standalone tools.
+  - For text files, prefer shell commands such as `sed -n`, `cat`, and `rg`, or
+    the actual text-editing tool exposed by Goose.
+  - Use image-reading tools only for `.png`, `.jpg`, `.jpeg`, `.gif`, or `.webp`
+    paths. If an image tool reports `unsupported image format`, retry with text
+    inspection instead.
+  - If a tool call fails because the tool does not exist or the arguments are
+    invalid, do not repeat the same call. Re-read the available tool list from
+    the session UI/context and choose the closest valid tool.
+
   Standard loop, repeated until a real stopping condition is reached:
   1. `uv run amiga-ui probe {{ target_binary }}` (or the relevant narrower
      check for the current blocker).
@@ -94,7 +111,7 @@ extensions:
       repository.
 
 retry:
-  max_retries: 5
+  max_retries: 10
   timeout_seconds: 900
   on_failure_timeout_seconds: 60
   checks:
