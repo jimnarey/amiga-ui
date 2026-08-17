@@ -22,6 +22,12 @@ Read `openhands-onboarding.md` first for the standard bootstrap and autonomous d
 - Do not pass `line_start`, `line_end`, `depth`, or `query` to `file_editor`.
 - Do not use `file_editor` with `command: open` or `command: search`; use `view` for files/directories and `terminal` with `rg` or `find` for searches.
 
+## Image Tool Contract
+- Use image-reading tools such as `read_image` only for files whose path ends in `.png`, `.jpg`, `.jpeg`, `.gif`, or `.webp`.
+- Never use `read_image` for source code, Markdown, JSON, YAML, TOML, text files, logs, directories, paths without an image extension, or unknown file types.
+- Treat non-image paths as text by default. Use the available text/file-viewing tool, or run `sed`, `cat`, `rg`, `find`, or `git grep` inside the shell/terminal tool.
+- If an image-reading tool reports `unsupported image format`, immediately retry with a text-file inspection method instead of repeating the image tool call.
+
 ## Git Workflow
 - `main` is not the working branch for routine OpenHands development.
 - OpenHands should start on `development`.

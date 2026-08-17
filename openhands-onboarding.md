@@ -73,6 +73,13 @@ Use `file_editor` only for direct text-file operations:
 - Use `file_editor` with `command: view` for files or directories.
 - Use `terminal` with `rg`, `find`, or `git grep` when searching file contents or paths.
 
+Image-reading tools are only for real image files:
+
+- Use `read_image` or equivalent image-inspection tools only for paths ending in `.png`, `.jpg`, `.jpeg`, `.gif`, or `.webp`.
+- Never use image tools for source code, Markdown, JSON, YAML, TOML, plain text, logs, directories, paths without an image extension, or unknown file types.
+- Treat non-image paths as text and inspect them with `file_editor view` or terminal commands such as `sed`, `cat`, `rg`, `find`, or `git grep`.
+- If an image tool returns `unsupported image format`, retry immediately with a text inspection method.
+
 ## Canonical Commands
 
 Use these commands by default:
