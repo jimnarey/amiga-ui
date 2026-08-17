@@ -74,7 +74,7 @@ the recipe uses Goose's `retry` field as the closest equivalent:
    to `.goose/state/last-rejection.md`, along with recent failed tool calls
    when Goose's session database is available; the recipe instructs the agent
    to read that file first on the next attempt.
-4. `retry.max_retries` (5) bounds how many restarts this buys before
+4. `retry.max_retries` (10) bounds how many restarts this buys before
    `goose run` gives up and returns control with a failure — treat that as
    the point needing human attention.
 

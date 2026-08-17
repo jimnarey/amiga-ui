@@ -2,7 +2,7 @@
 
 This repository develops a Python-based compatibility layer for selected classic Amiga Workbench applications.
 
-Read `openhands-onboarding.md` first for the standard bootstrap and autonomous development loop. (OpenHands only — Goose sessions should read `.goosehints` and `.goose/README.md` instead.)
+Read `.openhands/onboarding.md` first for the standard bootstrap and autonomous development loop. (OpenHands only — Goose sessions should read `.goosehints` and `.goose/README.md` instead.)
 
 ## Core Rules
 - Use `uv` for Python commands and dependency management.
@@ -11,30 +11,9 @@ Read `openhands-onboarding.md` first for the standard bootstrap and autonomous d
 - Keep compatibility changes in the repository, not in `.venv/` or other installed-package locations.
 - Prefer subclassing or explicit extension points over monkey patching. If a patch is necessary, keep it narrow and local.
 - Before substantial work, assess the docs tree cheaply with `uv run python tools/docs_triage.py` or a filename-only scan, then read in full only the docs relevant to the immediate task.
-- During autonomous work, do not emit narration-only turns if more work remains. If you say "next I will X", invoke the tool for `X` in the same response.
-- Only end an autonomous run intentionally after creating a stop marker with `./tools/openhands_allow_stop.sh complete`, `needs-user`, or `blocked`.
 
-## General Tool Contract
-- Use only tools that are actually exposed by the current agent harness. Do not invent tool names.
-- Treat `find`, `rg`, `grep`, `git grep`, `sed`, `cat`, and `ls` as shell commands to run through the harness's available shell/command tool.
-- If a tool call fails because the tool does not exist or the arguments are invalid, do not repeat the same call; choose a valid tool or inspect files through shell commands.
-- If a command-line program is missing from the container, install the small required package with passwordless `sudo` instead of inventing a tool or repeatedly working around the missing dependency.
-- Do not create, edit, overwrite, delete, chmod, or chown `.git/`, `.goose/`, `.openhands/`, `.codex/`, `.config/`, `.local/`, `.cache/`, or other tool, VCS, editor, credential, or agent configuration directories unless the user explicitly asks for that exact config change.
-
-## OpenHands Tool Contract
-- This section applies only to OpenHands sessions. Goose/Ornith sessions should follow `.goosehints` and `.goose/README.md` instead.
-- Use the OpenHands `terminal` tool for every shell command.
-- There is no OpenHands `shell`, `find`, or `search` tool. Treat `find`, `rg`, `grep`, and `git grep` as commands to run inside `terminal`.
-- Use `file_editor` only for direct text-file operations. Its valid commands are `view`, `create`, `str_replace`, `insert`, and `undo_edit`.
-- Always pass an absolute path to `file_editor`, starting with `/projects/amiga-ui/`.
-- Do not pass `line_start`, `line_end`, `depth`, or `query` to `file_editor`.
-- Do not use `file_editor` with `command: open` or `command: search`; use `view` for files/directories and `terminal` with `rg` or `find` for searches.
-
-## Image Tool Contract
-- Use image-reading tools such as `read_image` only for files whose path ends in `.png`, `.jpg`, `.jpeg`, `.gif`, or `.webp`.
-- Never use `read_image` for source code, Markdown, JSON, YAML, TOML, text files, logs, directories, paths without an image extension, or unknown file types.
-- Treat non-image paths as text by default. Use the available text/file-viewing tool, or run `sed`, `cat`, `rg`, `find`, or `git grep` inside the shell/terminal tool.
-- If an image-reading tool reports `unsupported image format`, immediately retry with a text-file inspection method instead of repeating the image tool call.
+## Tool Use And Safety
+Every harness working in this repository — OpenHands, Goose, or any other — must follow the shared rules in [docs/workflows/agent-tool-contract.md](docs/workflows/agent-tool-contract.md): tool discipline, protected directories, image-tool handling, and narration/stop discipline. Harness-specific tool names and invocation mechanics live in `.openhands/onboarding.md` (OpenHands) and `.goosehints` / `.goose/README.md` (Goose) — do not restate the shared rules there either; only the harness-specific deltas belong in those files.
 
 ## Git Workflow
 - `main` is not the working branch for routine OpenHands development.

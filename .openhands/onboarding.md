@@ -58,27 +58,15 @@ Do not treat the inventory step as a replacement for reading the important docs 
 
 ## OpenHands Tool Contract
 
-Use the OpenHands tool names exactly:
+See [../docs/workflows/agent-tool-contract.md](../docs/workflows/agent-tool-contract.md) for the tool-use and safety rules shared with Goose (general tool discipline, protected directories, image-tool handling, narration/stop discipline). The OpenHands-specific mechanics on top of that:
 
 - Use `terminal` for every shell command.
 - There is no OpenHands `shell`, `find`, or `search` tool.
 - Treat `find`, `rg`, `grep`, and `git grep` as shell commands to run inside `terminal`.
-
-Use `file_editor` only for direct text-file operations:
-
-- Valid `file_editor` commands are `view`, `create`, `str_replace`, `insert`, and `undo_edit`.
-- Always pass an absolute path, starting with `/projects/amiga-ui/`.
-- Do not pass `line_start`, `line_end`, `depth`, or `query`.
-- Do not use `command: open` or `command: search`.
-- Use `file_editor` with `command: view` for files or directories.
-- Use `terminal` with `rg`, `find`, or `git grep` when searching file contents or paths.
-
-Image-reading tools are only for real image files:
-
-- Use `read_image` or equivalent image-inspection tools only for paths ending in `.png`, `.jpg`, `.jpeg`, `.gif`, or `.webp`.
-- Never use image tools for source code, Markdown, JSON, YAML, TOML, plain text, logs, directories, paths without an image extension, or unknown file types.
-- Treat non-image paths as text and inspect them with `file_editor view` or terminal commands such as `sed`, `cat`, `rg`, `find`, or `git grep`.
-- If an image tool returns `unsupported image format`, retry immediately with a text inspection method.
+- Use `file_editor` only for direct text-file operations. Valid commands are `view`, `create`, `str_replace`, `insert`, and `undo_edit`.
+- Always pass an absolute path to `file_editor`, starting with `/projects/amiga-ui/`.
+- Do not pass `line_start`, `line_end`, `depth`, or `query` to `file_editor`.
+- Do not use `file_editor` with `command: open` or `command: search`. Use `file_editor view` for files or directories, and `terminal` with `rg`, `find`, or `git grep` for searches.
 
 ## Canonical Commands
 
@@ -97,12 +85,7 @@ uv run amiga-ui-xvfb -- <command> [args...]
 
 ## Autonomous Stop Protocol
 
-OpenHands can treat a text-only assistant response as the end of an autonomous run, even when the text is only narration such as "now I'll fix that next". To avoid accidental stops:
-
-- Do not emit narration-only progress turns during autonomous work.
-- If more work remains, make the next tool call in the same response.
-- Do not say "next I will X" unless you are also invoking the tool for `X`.
-- Only stop intentionally after creating a stop marker with `./tools/openhands_allow_stop.sh`.
+See [../docs/workflows/agent-tool-contract.md](../docs/workflows/agent-tool-contract.md) for the narration/stop discipline shared with Goose. Only stop intentionally after creating a stop marker with `./tools/openhands_allow_stop.sh`.
 
 Allowed stop reasons:
 

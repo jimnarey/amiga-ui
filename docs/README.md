@@ -34,10 +34,11 @@ The helper inspects markdown paths and front matter only. Use it to discover wha
 6. `runtime/headless-gui.md`
 7. `runtime/subsystem-stop-rules.md`
 8. `host-gui/README.md`
-9. `workflows/fake-and-deferred-implementations.md`
-10. `workflows/branching-and-merging.md`
-11. `workflows/error-driven-porting.md`
-12. `apps/itidy/runbook.md` for the current target application, then other relevant notes under `apps/` as more targets are added
+9. `workflows/agent-tool-contract.md`
+10. `workflows/fake-and-deferred-implementations.md`
+11. `workflows/branching-and-merging.md`
+12. `workflows/error-driven-porting.md`
+13. `apps/itidy/runbook.md` for the current target application, then other relevant notes under `apps/` as more targets are added
 
 ## Sections
 
@@ -54,6 +55,13 @@ The helper inspects markdown paths and front matter only. Use it to discover wha
 ## Sources
 
 Use the numbered inline reference system defined in [sources.md](sources.md) when citing external material.
+
+## Workfiles
+
+Temporary, gitignored working state does not live under `docs/`:
+
+- `artifacts/runs/` for probe and run artifacts.
+- `.goose/state/` and `.openhands/state/` for harness stop-marker and rejection state.
 
 ## Status
 

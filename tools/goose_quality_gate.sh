@@ -13,10 +13,19 @@
 # - reason "blocked" or "needs-user": accepted as-is, no quality gate.
 # - no marker at all: rejected — this is what catches a run that stopped
 #   with narration instead of doing (or finishing) the work.
+#
+# Marker read/write logic lives in tools/lib/stop_marker.sh; the quality
+# checks themselves live in tools/lib/quality_checks.sh. Both are shared
+# with the OpenHands stop hook (.openhands/hooks/stop_guard.sh and
+# .openhands/hooks/quality_gate.sh) — this script only owns the
+# Goose-specific retry/rejection-note behavior around them.
 
 set -euo pipefail
 
 export UV_CACHE_DIR="${UV_CACHE_DIR:-/tmp/uv-cache}"
+
+source tools/lib/stop_marker.sh
+source tools/lib/quality_checks.sh
 
 state_dir=".goose/state"
 marker_path="$state_dir/allow-stop.json"
@@ -47,31 +56,7 @@ if [[ ! -f "$marker_path" ]]; then
   reject "No stop marker was found. A run must not end on narration alone: if more work remains, keep making tool calls; when the run is genuinely finished, blocked, or needs user input, call ./tools/goose_allow_stop.sh {complete|blocked|needs-user} \"<note>\" before ending the turn."
 fi
 
-if ! mapfile -t marker_fields < <(python3 - "$marker_path" <<'PY'
-import json
-import sys
-from datetime import datetime, timezone
-from pathlib import Path
-
-path = Path(sys.argv[1])
-
-try:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    reason = payload["reason"]
-    created_at = payload["created_at"]
-    branch = payload.get("branch", "")
-    created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-except Exception:
-    sys.exit(1)
-
-now = datetime.now(timezone.utc)
-age_seconds = int((now - created).total_seconds())
-
-print(reason)
-print(branch)
-print(age_seconds)
-PY
-); then
+if ! mapfile -t marker_fields < <(stop_marker_read "$marker_path"); then
   reject "The stop marker at $marker_path was malformed. Recreate it with ./tools/goose_allow_stop.sh immediately before ending the turn."
 fi
 
@@ -80,13 +65,9 @@ marker_branch="${marker_fields[1]:-}"
 marker_age="${marker_fields[2]:-}"
 current_branch="$(git branch --show-current 2>/dev/null || true)"
 
-case "$reason" in
-  complete|needs-user|blocked)
-    ;;
-  *)
-    reject "The stop marker used an unknown reason '$reason'. Use one of: complete, needs-user, blocked."
-    ;;
-esac
+if ! stop_marker_valid_reason "$reason"; then
+  reject "The stop marker used an unknown reason '$reason'. Use one of: complete, needs-user, blocked."
+fi
 
 if [[ -n "$marker_branch" && -n "$current_branch" && "$marker_branch" != "$current_branch" ]]; then
   reject "The stop marker was created on branch '$marker_branch' but the repo is now on '$current_branch'. Recreate the marker on the current branch immediately before ending the turn."
@@ -103,26 +84,8 @@ if [[ "$reason" != "complete" ]]; then
   exit 0
 fi
 
-if [[ "$current_branch" == "main" ]]; then
-  reject "Do not finish work on main. Switch to development, then use a feature branch for changes."
-fi
-
-if [[ "$current_branch" == "development" ]]; then
-  if ! git diff --quiet || ! git diff --cached --quiet; then
-    reject "Do not finish with unmerged work sitting on development. Move the change to a feature branch and merge back only after it passes the quality gates."
-  fi
-fi
-
-if ! uv run pre-commit run --all-files 2>&1; then
-  reject "pre-commit checks failed. Fix formatting, lint, or type-check issues before finishing."
-fi
-
-if ! uv run python -m unittest 2>&1; then
-  reject "The unit test suite failed. Fix the failures before finishing."
-fi
-
-if ! uv run python tests/run_gui_smoke_test.py 2>&1; then
-  reject "The headless GUI smoke test failed. Fix the Xvfb or Qt path before finishing."
+if ! quality_checks_run; then
+  reject "$QUALITY_CHECK_REASON"
 fi
 
 rm -f "$marker_path"

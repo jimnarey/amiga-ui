@@ -15,43 +15,33 @@ instructions: |
   Before anything else, read in this order:
   1. `.goosehints` (already loaded into your context).
   2. `AGENTS.md` for core repository rules. Ignore its pointer to
-     `openhands-onboarding.md` — that file is for a different harness.
-  3. `docs/README.md`, then run `uv run python tools/docs_triage.py` and read
+     `.openhands/onboarding.md` — that file is for a different harness.
+  3. `docs/workflows/agent-tool-contract.md` for the tool-use and safety
+     rules shared with OpenHands (tool discipline, protected directories,
+     image-tool handling, narration/stop discipline) — the Goose-specific
+     deltas on top of it are below.
+  4. `docs/README.md`, then run `uv run python tools/docs_triage.py` and read
      only the docs it points you to for the task at hand.
-  4. `docs/workflows/error-driven-porting.md` for the development loop and
+  5. `docs/workflows/error-driven-porting.md` for the development loop and
      `docs/workflows/branching-and-merging.md` for branch/merge policy. Both
      describe their stop-marker mechanics in terms of a different harness
      (OpenHands) — for this run, use `./tools/goose_allow_stop.sh` instead,
      as described below.
-  5. If `.goose/state/last-rejection.md` exists, read it now: it explains why
+  6. If `.goose/state/last-rejection.md` exists, read it now: it explains why
      your previous attempt at this task was not accepted.
 
   Work on: {{ focus }}
   Primary probe target: {{ target_binary }}
 
-  Tool discipline for Goose:
-  - Use only tools that are actually listed in the current Goose session. Do not
-    invent OpenHands tool names such as `terminal`, `file_editor`, `shell`,
-    `find`, or `search` unless Goose explicitly exposes a tool with that exact
-    name.
-  - Treat `find`, `rg`, `grep`, `git grep`, `sed`, `cat`, and `ls` as shell
-    commands to run through the available Goose shell/command tool, not as
-    standalone tools.
-  - For text files, prefer shell commands such as `sed -n`, `cat`, and `rg`, or
-    the actual text-editing tool exposed by Goose.
-  - Use image-reading tools only for `.png`, `.jpg`, `.jpeg`, `.gif`, or `.webp`
-    paths. If an image tool reports `unsupported image format`, retry with text
-    inspection instead.
+  Tool discipline for Goose, on top of `docs/workflows/agent-tool-contract.md`:
+  - Use only tools that are actually listed in the current Goose session. Do
+    not invent OpenHands tool names such as `terminal`, `file_editor`,
+    `shell`, `find`, or `search` unless Goose explicitly exposes a tool with
+    that exact name. Use whatever shell/command tool and text-editing tool
+    Goose actually provides.
   - If a tool call fails because the tool does not exist or the arguments are
     invalid, do not repeat the same call. Re-read the available tool list from
     the session UI/context and choose the closest valid tool.
-  - If a command-line program is missing from the container, install the small
-    required package with passwordless `sudo` rather than inventing a tool or
-    working around the missing dependency indefinitely.
-  - Do not create, edit, overwrite, delete, chmod, or chown `.git/`, `.goose/`,
-    `.openhands/`, `.codex/`, `.config/`, `.local/`, `.cache/`, or other tool,
-    VCS, editor, credential, or agent configuration directories unless the user
-    explicitly asks for that exact config change.
 
   Standard loop, repeated until a real stopping condition is reached:
   1. `uv run amiga-ui probe {{ target_binary }}` (or the relevant narrower
@@ -68,10 +58,10 @@ instructions: |
      per `docs/workflows/branching-and-merging.md`. Start the next blocker
      from a fresh branch off the updated `development`.
 
-  Do not end a turn on narration alone. If you write "next I will do X", the
-  tool call for X must be in the same response — a run that stops just to
-  announce a plan wastes the whole attempt, because ending without a stop
-  marker is treated as unfinished work and the run restarts from scratch.
+  As in `docs/workflows/agent-tool-contract.md`, do not end a turn on
+  narration alone. Ending without a stop marker restarts this recipe from
+  scratch with a fresh message history, wasting the whole attempt — so if you
+  write "next I will do X", the tool call for X must be in the same response.
 
   Only end the run intentionally by calling one of:
   - `./tools/goose_allow_stop.sh complete "<short summary>"` — the task (or

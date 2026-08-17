@@ -5,6 +5,8 @@ set -euo pipefail
 project_dir="${OPENHANDS_PROJECT_DIR:-$PWD}"
 cd "$project_dir"
 
+source tools/lib/stop_marker.sh
+
 state_dir=".openhands/state"
 marker_path="$state_dir/allow-stop.json"
 quality_gate=".openhands/hooks/quality_gate.sh"
@@ -19,33 +21,7 @@ if [[ ! -f "$marker_path" ]]; then
   deny "The task still appears to be in progress. A text-only narration or progress message is not completion. If more work remains, continue by making the next tool call. Only stop after explicitly creating the stop marker with ./tools/openhands_allow_stop.sh."
 fi
 
-if ! mapfile -t marker_fields < <(python3 - "$marker_path" <<'PY'
-import json
-import sys
-from datetime import datetime, timezone
-from pathlib import Path
-
-path = Path(sys.argv[1])
-
-try:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    reason = payload["reason"]
-    created_at = payload["created_at"]
-    branch = payload.get("branch", "")
-    note = payload.get("note", "")
-    created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-except Exception:
-    sys.exit(1)
-
-now = datetime.now(timezone.utc)
-age_seconds = int((now - created).total_seconds())
-
-print(reason)
-print(branch)
-print(age_seconds)
-print(note)
-PY
-); then
+if ! mapfile -t marker_fields < <(stop_marker_read "$marker_path"); then
   rm -f "$marker_path"
   deny "The stop marker was malformed. Recreate it with ./tools/openhands_allow_stop.sh immediately before an intentional stop."
 fi
@@ -56,14 +32,10 @@ marker_age="${marker_fields[2]:-}"
 
 current_branch="$(git branch --show-current 2>/dev/null || true)"
 
-case "$reason" in
-  complete|needs-user|blocked)
-    ;;
-  *)
-    rm -f "$marker_path"
-    deny "The stop marker used an unknown reason. Use one of: complete, needs-user, blocked."
-    ;;
-esac
+if ! stop_marker_valid_reason "$reason"; then
+  rm -f "$marker_path"
+  deny "The stop marker used an unknown reason. Use one of: complete, needs-user, blocked."
+fi
 
 if [[ -n "$marker_branch" && -n "$current_branch" && "$marker_branch" != "$current_branch" ]]; then
   rm -f "$marker_path"

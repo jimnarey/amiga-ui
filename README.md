@@ -2,7 +2,7 @@
 
 `amiga-ui` is a Python-based compatibility-layer project for running selected classic Amiga Workbench GUI applications on Linux by extending the `vamos` runtime from [amitools](https://github.com/cnvogelg/amitools).
 
-This README is the human entrypoint. For the OpenHands-specific autonomous workflow, start with [openhands-onboarding.md](openhands-onboarding.md).
+This README is the human entrypoint. For the OpenHands-specific autonomous workflow, start with [.openhands/onboarding.md](.openhands/onboarding.md).
 
 ## Installation
 
@@ -69,7 +69,7 @@ uv run vamos --help
 uv run xdftool --help
 ```
 
-For the full autonomous development loop and recommended command order, see [openhands-onboarding.md](openhands-onboarding.md).
+For the full autonomous development loop and recommended command order, see [.openhands/onboarding.md](.openhands/onboarding.md).
 
 ## Development Workflow
 
@@ -103,6 +103,13 @@ uv run amiga-ui smoke-gui --direct
 ### Probe Artifacts
 
 The `probe` subcommand writes local run artifacts under `artifacts/runs/`, including the exact invocation, stdout, stderr, a `vamos` log, and a JSON result summary. These files are for recent-run inspection, not long-term project history. Important findings from a run should be carried forward into the relevant documentation, especially the app run log.
+
+`artifacts/runs/` is gitignored and grows by one directory per run. Prune older runs once their findings have been carried forward:
+
+```bash
+./tools/prune_run_artifacts.sh        # keep the most recent 20 runs
+./tools/prune_run_artifacts.sh 50     # or keep a different number
+```
 
 ## Documentation Sources
 
