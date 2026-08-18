@@ -8,12 +8,14 @@ from amitools.vamos.libcore import LibImpl
 class IffParseLibrary(LibImpl):
     """Stub implementation to satisfy the first ``iffparse.library`` load."""
 
-    def get_version(self) -> int:
-        """Report a baseline library version.
+    def AllocIFF(self, *args, **kwargs):
+        """Return a dummy IFF handle.
 
-        The exact value is not critical for initial loading; Workbench expects
-        a non‑zero value.  Returning 40 mirrors the baseline used for
-        icon.library.
+        The iTidy binary merely checks for a non‑NULL handle.
         """
-        return 40
+        return 1
+    def FreeIFF(self, *args, **kwargs):
+        """No‑op free.
+        """
+        return None
 

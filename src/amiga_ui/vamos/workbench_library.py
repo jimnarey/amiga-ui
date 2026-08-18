@@ -10,4 +10,12 @@ class WorkbenchLibrary(LibImpl):
 
     def get_version(self) -> int:
         return 40
+    def LockPubScreen(self, name):
+        """Minimal stub: return `None` to indicate failure.
+        iTidy expects a handle, but we just simulate failure.
+        """
+        return None
+    def UnlockPubScreen(self, screen):
+        """No-op unlock."""
+        return None
 

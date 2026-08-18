@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Record why the bespoke agent/ driver is intentionally ending a unit of
+# work. Same contract as tools/openhands_allow_stop.sh and
+# tools/goose_allow_stop.sh, reusing tools/lib/stop_marker.sh's shared logic
+# with its own state directory so the three harnesses never collide.
+
+set -euo pipefail
+
+source tools/lib/stop_marker.sh
+
+reason="${1:-}"
+shift || true
+
+if ! stop_marker_valid_reason "$reason"; then
+  echo "Usage: ./tools/bespoke_agent_allow_stop.sh {complete|needs-user|blocked} [note]" >&2
+  exit 1
+fi
+
+stop_marker_write ".agent/state" "$reason" "${*:-}"

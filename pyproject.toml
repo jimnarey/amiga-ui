@@ -26,3 +26,6 @@ dev = [
     "pyright>=1.1.411",
     "ruff>=0.16.2",
 ]
+agent = [
+    "pydantic-ai>=1.0.0",
+]

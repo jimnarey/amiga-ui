@@ -111,6 +111,17 @@ The `probe` subcommand writes local run artifacts under `artifacts/runs/`, inclu
 ./tools/prune_run_artifacts.sh 50     # or keep a different number
 ```
 
+## Bespoke Porting Agent (experimental)
+
+`agent/` is a separate, minimal driver for this repo's error-driven-porting loop, built on [PydanticAI](https://pydantic.dev/docs/ai/overview/) against local models. Unlike the OpenHands/Goose/OpenCode harnesses, the LLM is only called for two narrow, validated judgment calls — classify the blocker, propose a fix as a diff — while a plain Python driver owns the loop itself, including deciding whether a fix actually worked.
+
+```bash
+uv sync --group agent --group dev
+uv run python -m agent amiga_apps/itidy1classic/binary/extracted/iTidy
+```
+
+It runs exactly one unit of work per invocation and exits; call it again to pick up the next blocker. See [agent/README.md](agent/README.md) for the design — including how it restricts blocker categories to what the launcher's own probe output actually supports — and [docs/research/local-agent-performance.md](docs/research/local-agent-performance.md) for the research behind it.
+
 ## Documentation Sources
 
 The external source registry for this project lives in [docs/sources.md](docs/sources.md).

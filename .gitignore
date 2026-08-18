@@ -7,6 +7,7 @@ __pycache__/
 .venv/
 .openhands/state/
 .goose/state/
+.agent/state/
 assets/**
 !assets/**/
 !assets/**/*.placeholder

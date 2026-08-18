@@ -20,7 +20,7 @@ repos:
         entry: uv run pyright
         language: unsupported
         pass_filenames: false
-        files: ^(src|tests)/.*\\.py$
+        files: ^(agent|src|tests)/.*\\.py$
         require_serial: true
 
       - id: check-yaml
