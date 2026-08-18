@@ -136,8 +136,6 @@ class EvidenceGroundingTests(unittest.TestCase):
         self.assertEqual(result.output.category, "struct_or_message_translation")
 
 
-<<<<<<< HEAD
-=======
 class OutOfScopeForPythonBugsTests(unittest.TestCase):
     """Guards against the second real observed misclassification: a Python
     traceback pointing at this repo's own code (or amitools) called
@@ -209,7 +207,6 @@ class OutOfScopeForPythonBugsTests(unittest.TestCase):
         self.assertEqual(result.output.category, "out_of_scope_hardware_or_emulation")
 
 
->>>>>>> development
 class DriverOutcomeTests(unittest.TestCase):
     def _agents(self, *, classifier_category: str = "struct_or_message_translation") -> BlockerAgents:
         return BlockerAgents(

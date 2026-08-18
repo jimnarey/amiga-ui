@@ -11,7 +11,7 @@ import argparse
 import sys
 
 from .driver import BlockerAgents, run_one_blocker
-from .llm import build_classifier_agent, build_fixer_agent, local_model, resolve_base_url
+from .llm import DEFAULT_ENDPOINT, build_classifier_agent, build_fixer_agent, local_model
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -19,27 +19,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("target_binary", help="e.g. amiga_apps/itidy1classic/binary/extracted/iTidy")
     parser.add_argument("--app", default="itidy", help="docs/apps/<app>/run-log.md to append to")
     parser.add_argument("--classifier-model", default="qwen3.5-128k")
-    parser.add_argument("--classifier-host", default=None, help="defaults to $OLLAMA_URL's host if set, else localhost")
-    parser.add_argument("--classifier-port", type=int, default=None, help="defaults to the GPU instance's port")
+    parser.add_argument("--classifier-endpoint", default=DEFAULT_ENDPOINT, help="host:port")
     parser.add_argument("--fixer-model", default="qwen3.5-128k")
-    parser.add_argument("--fixer-host", default=None, help="defaults to $OLLAMA_URL's host if set, else localhost")
-    parser.add_argument("--fixer-port", type=int, default=None, help="defaults to the GPU instance's port")
+    parser.add_argument("--fixer-endpoint", default=DEFAULT_ENDPOINT, help="host:port")
     args = parser.parse_args(argv)
 
-    classifier_url = resolve_base_url(host=args.classifier_host, port=args.classifier_port)
-    fixer_url = resolve_base_url(host=args.fixer_host, port=args.fixer_port)
-    print(f"[agent] classifier: {args.classifier_model} @ {classifier_url}", flush=True)
-    print(f"[agent] fixer: {args.fixer_model} @ {fixer_url}", flush=True)
+    print(f"[agent] classifier: {args.classifier_model} @ {args.classifier_endpoint}", flush=True)
+    print(f"[agent] fixer: {args.fixer_model} @ {args.fixer_endpoint}", flush=True)
     print(
         "[agent] each model call below can take a while on a local reasoning model; progress prints as it happens",
         flush=True,
     )
 
     agents = BlockerAgents(
-        classifier=build_classifier_agent(
-            local_model(args.classifier_model, host=args.classifier_host, port=args.classifier_port)
-        ),
-        fixer=build_fixer_agent(local_model(args.fixer_model, host=args.fixer_host, port=args.fixer_port)),
+        classifier=build_classifier_agent(local_model(args.classifier_model, endpoint=args.classifier_endpoint)),
+        fixer=build_fixer_agent(local_model(args.fixer_model, endpoint=args.fixer_endpoint)),
     )
 
     outcome = run_one_blocker(args.target_binary, agents, app=args.app)

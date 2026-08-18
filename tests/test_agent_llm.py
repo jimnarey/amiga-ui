@@ -1,44 +1,28 @@
-"""Tests for agent/llm.py's model-endpoint resolution.
+"""Tests for agent/llm.py's local model endpoint wiring.
 
-Guards against a real, directly-observed misconfiguration: in this
-environment $OLLAMA_URL points at a CPU-only Ollama instance on a
-different port than the GPU-backed one (docker-compose.yml's `ollama-cpu`
-service sets CUDA_VISIBLE_DEVICES=-1 and maps a separate port) -- likely
-intentional for other tools that shouldn't compete for VRAM, but silently
-made every model call in this package 2-3x+ slower than necessary. The fix
-reuses $OLLAMA_URL's host but always targets the GPU service's port.
+Kept intentionally minimal -- $OLLAMA_URL is now sound at the shell level,
+so this module no longer has any environment-sniffing logic to guard
+against, just a plain default and a single combined host:port endpoint.
 """
 
 from __future__ import annotations
 
 import unittest
-from unittest import mock
 
-from agent.llm import _GPU_PORT, resolve_base_url
+from agent.llm import DEFAULT_ENDPOINT, local_model
 
 
-class BaseUrlResolutionTests(unittest.TestCase):
-    def test_defaults_to_localhost_when_ollama_url_is_unset(self) -> None:
-        with mock.patch.dict("os.environ", {}, clear=False):
-            import os
+class LocalModelEndpointTests(unittest.TestCase):
+    def test_default_endpoint_is_localhost_11434(self) -> None:
+        self.assertEqual(DEFAULT_ENDPOINT, "localhost:11434")
 
-            os.environ.pop("OLLAMA_URL", None)
-            self.assertEqual(resolve_base_url(), f"http://localhost:{_GPU_PORT}")
+    def test_default_model_targets_the_default_endpoint(self) -> None:
+        model = local_model("qwen3.5-128k")
+        self.assertEqual(str(model.client.base_url), "http://localhost:11434/v1/")
 
-    def test_reuses_ollama_urls_host_but_forces_the_gpu_port(self) -> None:
-        with mock.patch.dict("os.environ", {"OLLAMA_URL": "http://192.168.50.136:11435"}):
-            self.assertEqual(resolve_base_url(), f"http://192.168.50.136:{_GPU_PORT}")
-
-    def test_explicit_host_and_port_override_ollama_url_entirely(self) -> None:
-        with mock.patch.dict("os.environ", {"OLLAMA_URL": "http://192.168.50.136:11435"}):
-            self.assertEqual(
-                resolve_base_url(host="10.0.0.5", port=9999),
-                "http://10.0.0.5:9999",
-            )
-
-    def test_explicit_host_only_still_uses_the_gpu_port_default(self) -> None:
-        with mock.patch.dict("os.environ", {"OLLAMA_URL": "http://192.168.50.136:11435"}):
-            self.assertEqual(resolve_base_url(host="10.0.0.5"), f"http://10.0.0.5:{_GPU_PORT}")
+    def test_explicit_endpoint_is_used_verbatim(self) -> None:
+        model = local_model("qwen3.5-128k", endpoint="192.168.50.136:11434")
+        self.assertEqual(str(model.client.base_url), "http://192.168.50.136:11434/v1/")
 
 
 if __name__ == "__main__":

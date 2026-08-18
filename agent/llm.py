@@ -10,9 +10,6 @@ Direction: A Bespoke, Narrow-Loop Driver").
 
 from __future__ import annotations
 
-import os
-from urllib.parse import urlparse
-
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.models import Model
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -20,61 +17,23 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from .models import BlockerClassification, ClassifierDeps, ProposedFix
 
-# The GPU-backed Ollama service's port. Deliberately not "whatever port
-# $OLLAMA_URL specifies" -- see _default_base_url.
-_GPU_PORT = 11434
+# $OLLAMA_URL is a sound, correctly-GPU-pointed environment convention now
+# (fixed at the shell level) -- this no longer needs to second-guess it, so
+# the default is just Ollama's own plain default.
+DEFAULT_ENDPOINT = "localhost:11434"
 
 
-def _default_base_url() -> str:
-    """Defaults to the GPU-backed Ollama instance, not just whatever
-    $OLLAMA_URL happens to point at.
+def local_model(model_name: str, *, endpoint: str = DEFAULT_ENDPOINT) -> OpenAIChatModel:
+    """An OpenAI-compatible local model at `host:port`.
 
-    Observed directly in this environment: $OLLAMA_URL was configured to
-    point at port 11435, a CPU-only instance (docker-compose.yml's
-    `ollama-cpu` service sets CUDA_VISIBLE_DEVICES=-1 and maps that port) --
-    likely intentional for other tools that shouldn't compete for VRAM, but
-    wrong for this driver's latency-sensitive classify/fix calls (~9s vs
-    ~25s+ for a trivial prompt measured directly, and a full two-attempt
-    classify+fix cycle exceeding a 10-minute budget on CPU).
-
-    Still reuses $OLLAMA_URL's *host* when set -- that's the established way
-    to reach a host-level Ollama instance from this container -- but always
-    targets the GPU service's port. Falls back to plain localhost when
-    $OLLAMA_URL isn't set at all, which is the right default on a bare-metal
-    setup with one GPU Ollama instance directly on localhost.
+    Point ``endpoint`` at whichever GPU/CPU-pinned server is serving a given
+    role once splitting roles across multiple models -- nothing else in
+    this module needs to change.
     """
 
-    configured = os.environ.get("OLLAMA_URL")
-    host = urlparse(configured).hostname if configured else None
-    return f"http://{host or 'localhost'}:{_GPU_PORT}"
-
-
-def resolve_base_url(*, host: str | None = None, port: int | None = None) -> str:
-    """The base URL `local_model()` will actually use for these host/port
-    values -- exposed so callers (agent/__main__.py) can announce it before
-    making the first slow model call, rather than the user having no idea
-    which server it's actually waiting on.
-    """
-
-    if host is not None or port is not None:
-        return f"http://{host or 'localhost'}:{port or 11434}"
-    return _default_base_url()
-
-
-def local_model(model_name: str, *, host: str | None = None, port: int | None = None) -> OpenAIChatModel:
-    """An OpenAI-compatible local model.
-
-    With no host/port given, targets the GPU-backed instance (see
-    _default_base_url): $OLLAMA_URL's host if set, always on the GPU
-    service's port, else plain localhost. Pass host/port explicitly to
-    target a specific GPU/CPU-pinned server once splitting roles across
-    multiple models -- nothing else in this module needs to change.
-    """
-
-    base_url = resolve_base_url(host=host, port=port)
     return OpenAIChatModel(
         model_name,
-        provider=OpenAIProvider(base_url=f"{base_url}/v1", api_key="local"),
+        provider=OpenAIProvider(base_url=f"http://{endpoint}/v1", api_key="local"),
     )
 
 

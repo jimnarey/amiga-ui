@@ -83,11 +83,11 @@ uv run python -m agent amiga_apps/itidy1classic/binary/extracted/iTidy
 ```
 
 Both the classifier and fixer default to `qwen3.5-128k` on
-`localhost:11434` (Ollama's default). Point them at different
-hosts/ports/models with `--classifier-host`/`--classifier-port`/
-`--classifier-model` and the `--fixer-*` equivalents — this is the seam
-where a second model on a second GPU, or a CPU-hosted model, plugs in later
-without changing anything else in this package.
+`localhost:11434` (Ollama's default). Point them at a different
+endpoint/model with `--classifier-endpoint host:port`/`--classifier-model`
+and the `--fixer-*` equivalents — this is the seam where a second model on a
+second GPU, or a CPU-hosted model, plugs in later without changing anything
+else in this package.
 
 It runs exactly one unit of work (one blocker) and exits, matching the
 "solve one blocker, commit, exit" shape — call it again from an external
