@@ -54,12 +54,16 @@ class VamosSessionRunner:
         """Add a PROGDIR: volume for extracted app resources when available."""
 
         app_root = VamosSessionRunner.get_app_root_for_probe()
-        if app_root is None:
+        if app_root is None or not args:
             return args
-        # Check if PROGDIR volume was already manually specified in args
-        progdir_specified = any(arg.lower().startswith("progdir:") or arg.lower() == "-v" for arg in args)
-        if progdir_specified:
-            return args
+        # Check if PROGDIR volume was already manually specified in args.
+        for index, arg in enumerate(args):
+            lower_arg = arg.lower()
+            if lower_arg.startswith("progdir:"):
+                return args
+            if lower_arg == "-v" and index + 1 < len(args):
+                if args[index + 1].lower().startswith("progdir:"):
+                    return args
         return ["-V", f"progdir:{app_root}", *args]
 
     @staticmethod

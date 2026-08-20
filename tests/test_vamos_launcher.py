@@ -33,6 +33,24 @@ class VamosLauncherIntegrationTest(unittest.TestCase):
         volumes = mp.get_cfg_dict().volumes
         self.assertIn(f"progdir:{app_dir}", volumes)
 
+    def test_registers_progdir_when_other_volumes_are_configured(self) -> None:
+        app_dir = PROJECT_ROOT / "amiga_apps/itidy1classic/binary/extracted"
+        if not app_dir.is_dir():
+            self.skipTest("iTidy extracted app directory is not present")
+
+        mp = VamosSessionRunner.create_main_parser()
+        self.assertTrue(
+            VamosSessionRunner.parse_main_parser(
+                mp,
+                ["-V", "sys:/tmp/sys", "-V", "work:/tmp/work", "app:iTidy"],
+            )
+        )
+
+        volumes = mp.get_cfg_dict().volumes
+        self.assertIn("sys:/tmp/sys", volumes)
+        self.assertIn("work:/tmp/work", volumes)
+        self.assertIn(f"progdir:{app_dir}", volumes)
+
     def test_returns_config_error_when_binary_argument_is_missing(self) -> None:
         exit_code = run_vamos_in_process(args=[])
 
