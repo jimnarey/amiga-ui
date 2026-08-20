@@ -117,6 +117,36 @@ class GraphicsLibrary(LibImpl):
         """
         return None
 
+    def SetRGB32CM(self, cm, n, r, g, b):
+        """Set a RGB32 color in a ColorMap.
+
+        Args:
+            cm: ColorMap pointer (a0 register)
+            n: color index (d0 register)
+            r: red component (d1 register)
+            g: green component (d2 register)
+            b: blue component (d3 register)
+        """
+        return None
+
+    def SetMaxPen(self, rp, maxpen):
+        """Set the maximum pen number.
+
+        Args:
+            rp: RastPort pointer (a0 register)
+            maxpen: maximum pen number (d0 register)
+        """
+        return maxpen
+
+    def SetOutlinePen(self, rp, pen):
+        """Set the outline pen in a RastPort.
+
+        Args:
+            rp: RastPort pointer (a0 register)
+            pen: pen number (d0 register)
+        """
+        return pen
+
     def LoadRGB32(self, vp, table):
         """Load RGB32 color table into a ViewPort.
 
