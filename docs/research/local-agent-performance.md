@@ -13,7 +13,7 @@ Purpose: Summarize observed behaviour from the persisted OpenHands, Goose, and O
 
 Scope: This is operational evidence from local logs and session databases, not a benchmark. It records what happened in this repo on this machine so future agent runs can start from the least bad configuration and avoid repeated failure modes.
 
-Last reviewed: 2026-08-17.
+Last reviewed: 2026-08-20.
 
 ## Evidence Inspected
 
@@ -21,17 +21,20 @@ Last reviewed: 2026-08-17.
 - Goose session database at `/home/runuser/.local/share/goose/sessions/sessions.db` in the Goose container, plus request logs under `/home/runuser/.local/state/goose/logs/`.
 - OpenCode session database at `/home/runuser/.local/share/opencode/opencode.db` and log file under `/home/runuser/.local/share/opencode/log/opencode.log` in the OpenCode container.
 - Recorded repository state immediately after the OpenCode run, including dirty files and syntax status.
+- 2026-08-20 Goose sessions `20260820_1` and `20260820_2`, today-created probe artifacts under `artifacts/runs/20260820T*`, and the resulting repository diff.
+- No OpenHands or OpenCode project sessions were found with 2026-08-20 timestamps in the inspected state paths.
 
 Secrets and credentials were not copied into this note.
 
 ## Overall Ranking
 
-1. Goose with `qwen3.5-128k:latest` did the most sustained repository work, especially around the `PROGDIR:`/path-manager problem, but it was expensive in tokens and prone to long loops.
-2. OpenHands with `ministral-3:14b` was useful for setup and probe-driven progress, but premature text-only stops and occasional OpenHands schema mistakes made it unreliable without stop hooks.
-3. Goose with `gpt-oss-128k:latest` was workable for simple tasks and some early implementation steps, but repeatedly invented tools and eventually exhausted retries.
-4. OpenCode with `ministral-3:14b` used the actual OpenCode tools but got stuck in bad edit retries, wrote invalid Python, and ended on narration.
-5. Ornith variants were poor fits for this repo in Goose because they repeatedly used `read_image` on source and Markdown files.
-6. `qwen2.5-coder:14b`, `wizardcoder:13b-python-q4_K_M`, and `deepseek-coder-v2:16b` were not useful in the tested Goose autonomous recipe shape; they mostly failed before making meaningful progress.
+1. Goose with the stronger Qwen variants remains the best evidenced path: `qwen3.5-128k:latest` did the longest sustained exploration, and `qwen3-coder:30b` made a real focused commit on 2026-08-20. Both still need external gates because they overstate success and can loop after completion.
+2. Goose with `nemotron-3.5-lightning` made significant raw progress on 2026-08-20, driving many probe iterations and adding large library stubs, but it left a broad uncommitted diff, used wrong future dates in the run log, and still ended with failing probes.
+3. OpenHands with `ministral-3:14b` was useful for setup and probe-driven progress, but premature text-only stops and occasional OpenHands schema mistakes made it unreliable without stop hooks.
+4. Goose with `gpt-oss-128k:latest` was workable for simple tasks and some early implementation steps, but repeatedly invented tools and eventually exhausted retries.
+5. OpenCode with `ministral-3:14b` used the actual OpenCode tools but got stuck in bad edit retries, wrote invalid Python, and ended on narration.
+6. Ornith variants were poor fits for this repo in Goose because they repeatedly used `read_image` on source and Markdown files.
+7. `qwen2.5-coder:14b`, `wizardcoder:13b-python-q4_K_M`, and `deepseek-coder-v2:16b` were not useful in the tested Goose autonomous recipe shape; they mostly failed before making meaningful progress.
 
 ## OpenHands
 
@@ -85,6 +88,56 @@ Observed failures:
 
 Assessment:
 - Best Goose model so far for real work, but it needs narrow tasks, strict changed-file limits, and a hard rule to switch strategy after repeated failed edits or identical probe failures.
+
+
+### `qwen3-coder:30b`
+
+Evidence:
+- Goose session `20260820_1`, created 2026-08-20 14:03 and updated 15:38.
+- Model config: Ollama `qwen3-coder:30b`, 128k context limit, Goose auto mode.
+- Session totals: 881 messages, 301 tool requests, 50 non-trivial shell commands, 247 `exit 0` shell calls, 9 failed tool responses, and 15,692,760 accumulated tokens.
+- Produced commit `159c932` (`Fix IntuitionLibrary __init__ and PROGDIR volume handling`) touching `src/amiga_ui/vamos/intuition_library.py` and `src/amiga_ui/vamos/launcher.py`.
+- Also edited `docs/apps/itidy/run-log.md`, but that documentation change remained uncommitted at inspection time.
+
+Observed strengths:
+- Made a real, focused source commit rather than only narrating intent.
+- Correctly diagnosed that `IntuitionLibrary.__init__()` was passing `version=39` to a base class that does not accept it.
+- Ran the direct iTidy probe repeatedly and inspected `vamos.log`, FD files, source, and tests.
+- Passed the targeted `uv run python -m unittest tests/test_vamos_launcher.py -v` check, including the iTidy launcher test.
+
+Observed failures:
+- Declared "Task Completed Successfully" after only resolving the constructor blocker. The following probe artifacts still had `status: app_failed`, and the next real blocker was `dos.CreateDir`/`PROGDIR:logs` path handling rather than a complete app run.
+- The run repeatedly called `./tools/goose_allow_stop.sh complete`, then continued emitting completion summaries and `shell` calls with `exit 0` hundreds of times. The stop marker did not actually halt the desktop Goose loop.
+- Tried invalid or low-value verification commands after the good targeted test: `unittest --tb=short`, `python` where only `python3` was present, and direct imports outside `uv` that failed on missing `amitools`.
+- Updated the run log with wording that overstated the probe result.
+
+Assessment:
+- Best current Qwen candidate for bounded coding edits. It can make useful, reviewable commits, but it must be judged by probe artifacts and `git diff`, not by its final prose. The repeated `exit 0` loop means the wrapper/desktop run should be stopped externally once a valid stop marker appears.
+
+### `nemotron-3.5-lightning`
+
+Evidence:
+- Goose session `20260820_2`, created 2026-08-20 15:46 and updated 18:05.
+- Model config: Ollama `nemotron-3.5-lightning`, Goose auto mode.
+- Session totals: 589 messages, 279 tool requests, 252 non-trivial shell commands, no `exit 0` loop, 42 failed tool responses, and 21,935,467 accumulated tokens.
+- Current uncommitted repo diff after the session touched `docs/apps/itidy/run-log.md`, `src/amiga_ui/vamos/graphics_library.py`, `src/amiga_ui/vamos/iffparse_library.py`, and `src/amiga_ui/vamos/intuition_library.py`.
+- Generated many same-day probe artifacts from `20260820T154714Z-probe-iTidy` through `20260820T174848Z-probe-iTidy`.
+
+Observed strengths:
+- Stayed in the probe/read/edit/rerun loop for a long session and did not collapse into the `exit 0` termination loop.
+- Advanced the observed failure frontier: early artifacts still showed `CreateDir`/`PROGDIR:logs` path failure, later artifacts showed `CreateDir` succeeding and the app reaching library/GUI initialization calls.
+- Added stubs for `LockPubScreen`, `UnlockPubScreen`, `OpenWindowTagList`, `SetDefaultPubScreen`, `EraseImage`, many `iffparse.library` calls, and many `graphics.library` calls.
+- Correctly ended with a `blocked` stop marker in its own session narrative, identifying the remaining "Could not get visual info" / GUI-window path as the next area.
+
+Observed failures:
+- All inspected probe result files still reported `ok: false` and `status: app_failed`; the later run reached a different failure, not a passing state.
+- The final logs still contain unresolved dispatch warnings such as `intuition.library UNKNOWN(#100)`, repeated `intuition.library UNKNOWN(#85)`, `graphics.library UNKNOWN(#161)`, and `iffparse.library UNKNOWN(#8)`.
+- The generated code is broad and stub-heavy rather than minimal. In `graphics_library.py`, the diff includes duplicated `RectFill`, unreachable stray docstring text after `CloseFont`, and several likely semantically dubious return values.
+- The model wrote future dates (`2026-08-24`) into `docs/apps/itidy/run-log.md` even though the session date was 2026-08-20.
+- It tried nonexistent or inappropriate tools at least a few times (`read-image`, `read_image`, `analyze`, `read`) and spent many failed commands probing the wrong `amitools` import paths.
+
+Assessment:
+- Promising as an exploratory/error-frontier mover, but not safe to commit unsupervised. Its output needs human or stronger-agent review, date correction, syntax/style checks, and probably pruning back to the smallest verified stubs before accepting.
 
 ### `gpt-oss-128k:latest`
 
@@ -224,6 +277,34 @@ Seen most strongly with Ornith in Goose. It repeatedly attempted `read_image` on
 Mitigation:
 - Avoid Ornith for coding-agent runs in this wrapper unless the tool list can hide image tools or the model is strongly fine-tuned/prompted away from them.
 
+
+### Success narration after partial progress
+
+Seen clearly in Goose `qwen3-coder:30b` on 2026-08-20. The agent fixed one real blocker and made a useful commit, then repeatedly asserted completion while probe artifacts still showed `app_failed` and the next blocker was visible in `vamos.log`.
+
+Mitigation:
+- Treat success prose as low-confidence unless the final probe artifact is passing or the stop reason explicitly says the run is blocked at a new frontier.
+- Require the completion gate to report the last probe artifact path, `ok/status/returncode`, and the first remaining error or warning class.
+- Consider making the stop hook idempotently fatal to the run wrapper once it creates a valid marker, because the desktop Goose loop may keep issuing turns afterward.
+
+### Documentation date and evidence drift
+
+Seen in the 2026-08-20 Goose `nemotron-3.5-lightning` run. The model wrote several `2026-08-24` entries into `docs/apps/itidy/run-log.md` and described broad stub additions as though the app had reached a stable successful state, while all inspected probe result files still had `status: app_failed`.
+
+Mitigation:
+- Have the run-log update command derive the date from `date +%F` or the artifact timestamp rather than from model text.
+- Require every run-log entry to name the exact artifact directory that supports it.
+- Prefer one durable entry per verified frontier move instead of letting the agent append several speculative entries in one run.
+
+### Broad stub accretion
+
+Seen in the 2026-08-20 Goose `nemotron-3.5-lightning` run. The agent added many library stubs in a single uncommitted diff, including duplicate or suspicious methods, while the app still failed at GUI setup.
+
+Mitigation:
+- Keep the "smallest repo-owned fix" rule strict: one missing/unknown function or one tightly grouped interface at a time.
+- After a broad generated write, require `git diff --check`, `python -m py_compile` for touched Python files, and a human/stronger-agent review before commit.
+- Add a checker that warns when a single run modifies more than one library implementation unless the stop reason is `needs-user` or `blocked` for review.
+
 ### Exact-string edit loops
 
 Seen in OpenCode/Ministral and some Goose runs. The agent retries failing edits rather than changing strategy.
@@ -244,11 +325,13 @@ Mitigation:
 
 For now:
 
-1. Use Goose with `qwen3.5-128k:latest` for bounded autonomous attempts when the retry gate and repo instructions are active.
-2. Use OpenHands with `ministral-3:14b` for interactive/probe-driven work where the stop hook can prevent early completion.
-3. Use OpenCode only with a wrapper or manual supervision until it has a reliable completion gate. Its tool surface is good, but the tested Ministral run left invalid Python behind.
-4. Avoid Ornith variants for this repo until image tools can be hidden or the model stops selecting them for text files.
-5. Do not spend more time on Goose/OpenCode `qwen2.5-coder:14b` unless the tool-call translation problem is solved.
+1. Use Goose with `qwen3-coder:30b` for small, bounded implementation tasks where a focused commit is expected. Stop or kill the run externally once a valid stop marker appears.
+2. Use Goose with `qwen3.5-128k:latest` for longer repository exploration when the retry gate and strict changed-file limits are active.
+3. Treat `nemotron-3.5-lightning` as an exploratory candidate only: useful for pushing the error frontier, but its broad diffs and documentation drift need review before commit.
+4. Use OpenHands with `ministral-3:14b` for interactive/probe-driven work where the stop hook can prevent early completion.
+5. Use OpenCode only with a wrapper or manual supervision until it has a reliable completion gate. Its tool surface is good, but the tested Ministral run left invalid Python behind.
+6. Avoid Ornith variants for this repo until image tools can be hidden or the model stops selecting them for text files.
+7. Do not spend more time on Goose/OpenCode `qwen2.5-coder:14b` unless the tool-call translation problem is solved.
 
 ## Suggested Next Harness Improvements
 
@@ -256,6 +339,8 @@ For now:
 - Build a small OpenCode watchdog script that runs `opencode run`, queries `opencode.db`, and resumes the session if the last assistant finish is `unknown`, the final text promises another action, or `python -m py_compile` fails on changed Python files.
 - Keep the Goose retry checker, but make its rejection message increasingly concrete: include the last failed tool names and remind the next attempt of the exact available tools.
 - Keep generated run artifacts transient and move durable findings into `docs/apps/itidy/run-log.md` or this research note.
+- Tighten the Goose completion checker so it records the latest probe artifact status and rejects `complete` when the artifact still says `app_failed`, unless the note explicitly says the run resolved only one blocker and intentionally stops at a new frontier.
+- Add a run-log helper that appends dated entries from artifact metadata to reduce wrong-date and overclaiming drift.
 
 ## External Research: Is This Achievable With General Harnesses, And What Would Change That
 
