@@ -21,6 +21,9 @@ This file is loaded automatically for every Goose session (interactive or
   ```
 - `.goose/README.md` — how to invoke the autonomous development recipe with
   `goose run`, and what its completion gate checks.
+- `docs/runtime/writing-a-library-impl.md` — required before implementing
+  or changing a repo-owned `vamos` library. Use its `UNKNOWN(#index)`
+  mapping guidance and scanner diagnostic before adding stubs.
 
 ## Working Loop
 

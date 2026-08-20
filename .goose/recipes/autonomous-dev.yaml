@@ -29,6 +29,10 @@ instructions: |
      as described below.
   6. If `.goose/state/last-rejection.md` exists, read it now: it explains why
      your previous attempt at this task was not accepted.
+  7. Before implementing or changing a repo-owned `vamos` library, read
+     `docs/runtime/writing-a-library-impl.md`, especially the section on
+     mapping `UNKNOWN(#index)` calls and validating methods with
+     `LibImplScanner`. Do not hand-count `.fd` entries.
 
   Work on: {{ focus }}
   Primary probe target: {{ target_binary }}

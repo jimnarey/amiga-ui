@@ -47,9 +47,58 @@ AddFreeList(freelist,mem,size)(a0/a1/a2)
 
 The first parens list the argument names in order; the second parens list the registers that hold them, in the same order. So `GetDiskObject(name)(a0)` means: one argument called `name`, passed in register `A0`.
 
+
+## Mapping `UNKNOWN(#index)` Calls To Functions
+
+When `vamos.log` reports a call such as:
+
+```text
+graphics.library 972 UNKNOWN(#161)
+```
+
+map it with `amitools`' own `.fd` parser. Do not hand-count lines or visible function entries in the `.fd` file. Library tables can start at a non-zero bias, include private functions, or otherwise make manual ordinal counts misleading.
+
+Use this diagnostic shape from the repo root:
+
+```bash
+uv run python - <<'PY'
+from amitools.fd import read_lib_fd
+
+lib_name = "graphics.library"
+unknown_index = 161
+fd = read_lib_fd(lib_name)
+for func in fd.get_funcs():
+    if func.get_index() == unknown_index:
+        print(func.get_name(), "index", func.get_index(), "bias", func.get_bias(), "args", func.get_args())
+PY
+```
+
+For the example above, the important value is the FD index from the log, not the apparent ordinal position in the text file. In the current pinned `amitools`, `graphics.library` index `161` / bias `972` maps to `FreeDBufInfo(dbi)(a1)`, while `SetRGB32CM(cm,n,r,g,b)` is a later FD entry.
+
+If a method exists in your implementation but the log still says `UNKNOWN(#index)`, check the scanner result before adding more stubs:
+
+```bash
+uv run python - <<'PY'
+from amitools.fd import read_lib_fd
+from amitools.vamos.libcore.impl import LibImplScanner
+from src.amiga_ui.vamos.graphics_library import GraphicsLibrary
+
+lib_name = "graphics.library"
+impl = GraphicsLibrary()
+fd = read_lib_fd(lib_name)
+scan = LibImplScanner().scan(lib_name, impl, fd, True)
+print("valid", scan.get_num_valid_funcs())
+print("error", scan.get_num_error_funcs(), scan.get_error_func_names())
+print("invalid", scan.get_num_invalid_funcs(), scan.get_invalid_func_names())
+print("missing", scan.get_num_missing_funcs())
+PY
+```
+
+A scanner `error` is not a harmless warning: that function is not installed as a valid trap. The most common cause is a bad method signature. Valid methods must begin with `self, ctx`; if they include extra arguments, the extra argument count must match the `.fd` entry exactly and the method must not use `*args`, `**kwargs`, or default values.
+
 ## Step 2: Write The Implementation Class
 
-Subclass `LibImpl` from `amitools.vamos.libcore`, and add one method per function name from the `.fd` file. Each method takes `self` and a `ctx` object (the call context) — nothing else:
+Subclass `LibImpl` from `amitools.vamos.libcore`, and add one method per function name from the `.fd` file. Each method must begin with `self` and a `ctx` object (the call context). After that, you may either read registers yourself from `ctx`, or add one Python parameter per `.fd` argument and let `amitools` map those registers for you:
 
 ```python
 from amitools.vamos.libcore import LibImpl
@@ -65,13 +114,23 @@ class IconLibrary(LibImpl):
 
 For the "library is missing entirely" stage, a class with only `get_version()` can already be useful if the real goal is to make `OpenLibrary()` succeed and let the next probe expose the first required function call. The repo's current `icon.library` override demonstrates that narrower first step.
 
+If you include `.fd` arguments in the method signature, keep the count exact and keep `ctx` as the first argument after `self`:
+
+```python
+def FreeDBufInfo(self, ctx, dbi):
+    # graphics.library FreeDBufInfo(dbi)(a1)
+    return None
+```
+
+Do not write methods like `def FreeDBufInfo(self, dbi):`. They import and compile, but `amitools` marks them as scanner errors and does not wire them into the library jump table.
+
 Method names must match the `.fd` entry exactly, including case. `amitools` scans your class with `inspect.getmembers` and matches by name against the `.fd` table (`amitools/vamos/libcore/impl.py`, `LibImplScanner.scan`); a method whose name isn't in the `.fd` file is simply not wired up as a trap, not an error, so a typo fails silently rather than loudly. If a run still reports the library as missing after adding an implementation, first confirm the method name matches the `.fd` file exactly.
 
 You do not need to implement every function up front. Implement the one function the current blocker needs, register it, rerun the probe, and let the next blocker (possibly the next function on the same library) tell you what to add next — this is the same one-fix-at-a-time discipline as the rest of the porting loop.
 
 ## Step 3: Read Arguments From Registers
 
-Arguments arrive in CPU registers, not Python parameters. Use `ctx.cpu.r_reg(...)` with the register named in the `.fd` file:
+Arguments arrive in CPU registers. You can either read them explicitly from `ctx`, or let `amitools` pass them as extra Python parameters if your method signature is `self, ctx, <fd args...>`. For explicit reads, use `ctx.cpu.r_reg(...)` with the register named in the `.fd` file:
 
 ```python
 from amitools.vamos.machine.regs import REG_D0, REG_A0, REG_A1
