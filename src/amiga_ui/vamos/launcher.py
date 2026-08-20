@@ -56,7 +56,9 @@ class VamosSessionRunner:
         app_root = VamosSessionRunner.get_app_root_for_probe()
         if app_root is None:
             return args
-        if any(arg.lower().startswith("progdir:") for arg in args):
+        # Check if PROGDIR volume was already manually specified in args
+        progdir_specified = any(arg.lower().startswith("progdir:") or arg.lower() == "-v" for arg in args)
+        if progdir_specified:
             return args
         return ["-V", f"progdir:{app_root}", *args]
 
