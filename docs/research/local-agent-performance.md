@@ -13,7 +13,7 @@ Purpose: Summarize observed behaviour from the persisted OpenHands, Goose, and O
 
 Scope: This is operational evidence from local logs and session databases, not a benchmark. It records what happened in this repo on this machine so future agent runs can start from the least bad configuration and avoid repeated failure modes.
 
-Last reviewed: 2026-08-20.
+Last reviewed: 2026-08-21.
 
 ## Evidence Inspected
 
@@ -21,20 +21,23 @@ Last reviewed: 2026-08-20.
 - Goose session database at `/home/runuser/.local/share/goose/sessions/sessions.db` in the Goose container, plus request logs under `/home/runuser/.local/state/goose/logs/`.
 - OpenCode session database at `/home/runuser/.local/share/opencode/opencode.db` and log file under `/home/runuser/.local/share/opencode/log/opencode.log` in the OpenCode container.
 - Recorded repository state immediately after the OpenCode run, including dirty files and syntax status.
-- 2026-08-20 Goose sessions `20260820_1` and `20260820_2`, today-created probe artifacts under `artifacts/runs/20260820T*`, and the resulting repository diff.
+- 2026-08-20 Goose sessions `20260820_1` through `20260820_7`, same-day probe artifacts under `artifacts/runs/20260820T*`, and the resulting repository diffs.
 - No OpenHands or OpenCode project sessions were found with 2026-08-20 timestamps in the inspected state paths.
+- No Goose, OpenHands, or OpenCode project sessions or probe artifacts were found with 2026-08-21 timestamps in the inspected state paths; the only uncovered project-agent evidence was the late 2026-08-20 Goose/Devstral sequence.
 
 Secrets and credentials were not copied into this note.
 
 ## Overall Ranking
 
 1. Goose with the stronger Qwen variants remains the best evidenced path: `qwen3.5-128k:latest` did the longest sustained exploration, and `qwen3-coder:30b` made a real focused commit on 2026-08-20. Both still need external gates because they overstate success and can loop after completion.
-2. Goose with `nemotron-3.5-lightning` made significant raw progress on 2026-08-20, driving many probe iterations and adding large library stubs, but it left a broad uncommitted diff, used wrong future dates in the run log, and still ended with failing probes.
-3. OpenHands with `ministral-3:14b` was useful for setup and probe-driven progress, but premature text-only stops and occasional OpenHands schema mistakes made it unreliable without stop hooks.
-4. Goose with `gpt-oss-128k:latest` was workable for simple tasks and some early implementation steps, but repeatedly invented tools and eventually exhausted retries.
-5. OpenCode with `ministral-3:14b` used the actual OpenCode tools but got stuck in bad edit retries, wrote invalid Python, and ended on narration.
-6. Ornith variants were poor fits for this repo in Goose because they repeatedly used `read_image` on source and Markdown files.
-7. `qwen2.5-coder:14b`, `wizardcoder:13b-python-q4_K_M`, and `deepseek-coder-v2:16b` were not useful in the tested Goose autonomous recipe shape; they mostly failed before making meaningful progress.
+2. Goose with `devstral-small-2:latest` is now the strongest non-Qwen candidate: after the PROGDIR documentation/prompt fixes it completed a useful blocked run, removed the final `UNKNOWN` warnings in the probe log, and stopped with a proper `blocked` marker. Its edits still need review because it broadened stubs and left scratch files.
+3. Goose with `nemotron-3.5-lightning` made significant raw progress on 2026-08-20, driving many probe iterations and adding large library stubs, but it left a broad uncommitted diff, used wrong future dates in the run log, and still ended with failing probes.
+4. OpenHands with `ministral-3:14b` was useful for setup and probe-driven progress, but premature text-only stops and occasional OpenHands schema mistakes made it unreliable without stop hooks.
+5. Goose with `gpt-oss-128k:latest` was workable for simple tasks and some early implementation steps, but repeatedly invented tools and eventually exhausted retries.
+6. OpenCode with `ministral-3:14b` used the actual OpenCode tools but got stuck in bad edit retries, wrote invalid Python, and ended on narration.
+7. Goose with `devstral:24b` did not show the same competence as `devstral-small-2:latest`; the inspected runs were mostly narration/retry failures.
+8. Ornith variants were poor fits for this repo in Goose because they repeatedly used `read_image` on source and Markdown files.
+9. `qwen2.5-coder:14b`, `wizardcoder:13b-python-q4_K_M`, and `deepseek-coder-v2:16b` were not useful in the tested Goose autonomous recipe shape; they mostly failed before making meaningful progress.
 
 ## OpenHands
 
@@ -138,6 +141,34 @@ Observed failures:
 
 Assessment:
 - Promising as an exploratory/error-frontier mover, but not safe to commit unsupervised. Its output needs human or stronger-agent review, date correction, syntax/style checks, and probably pruning back to the smallest verified stubs before accepting.
+
+### `devstral:24b` and `devstral-small-2:latest`
+
+Evidence:
+- Goose sessions `20260820_3` through `20260820_7`, all in `/workspace/work/projects/amiga-ui`.
+- `20260820_3` and `20260820_4` used `devstral:24b`. They were short failures: one produced only a narrated plan before `Maximum retry attempts (10) exceeded`; the other made a single docs-triage shell call and then hit the same retry exhaustion shape.
+- `20260820_5`, `20260820_6`, and `20260820_7` used `devstral-small-2:latest`.
+- The last run, `20260820_7`, created 253 message rows, 74 shell calls, 19 edits, 18 non-zero shell responses, 3 `read_image` attempts against text files, and 16 probe artifacts from `20260820T220614Z-probe-iTidy` through `20260820T224544Z-probe-iTidy`. Session totals were 41,183 tokens for the final turn and 9,836,144 accumulated tokens.
+- The final probe artifact inspected was `artifacts/runs/20260820T224544Z-probe-iTidy`: `ok: false`, `status: app_failed`, `returncode: 20`; stdout ended with `Could not get visual info` and `Failed to open GUI window`; `grep -i unknown` found no `UNKNOWN` dispatch warnings in that final log.
+- The latest run left tracked changes in `src/amiga_ui/vamos/intuition_library.py`, `src/amiga_ui/vamos/iffparse_library.py`, and `src/amiga_ui/vamos/graphics_library.py`, plus many root-level scratch scripts such as `check_bias.py`, `scan_libraries.py`, and `test_intuition_impl.py`.
+
+Observed strengths:
+- `devstral-small-2:latest` recovered from the earlier PROGDIR confusion once the repo instructions and run log were made more truthful. It correctly treated the current branch as `development` and used the normal probe loop.
+- The last run made real frontier movement: the final probe resolved `PROGDIR:logs/` to the extracted app logs directory, wrote app logs successfully, and had no remaining `UNKNOWN` lines in `vamos.log`.
+- It found and corrected several scanner-signature issues by adding the required `ctx` parameter to repo-owned library methods.
+- It ended with a proper `./tools/goose_allow_stop.sh blocked ...` marker instead of a premature completion claim.
+
+Observed failures:
+- The 24B Devstral model was ineffective in this harness: mostly narration, no useful edit loop, and retry exhaustion.
+- The small model still selected `read_image` for `.goosehints`, Markdown, and Python files despite earlier instruction work.
+- It repeatedly chased the same class of signature/scanner problem through trial and error, leaving many scratch scripts in the repo root.
+- It produced a broad intuition-library stub expansion rather than a minimal, semantically justified fix.
+- The final diff is syntactically valid, but not automatically safe: `graphics_library.py` replaces `InitRastPort` with `SetFont`, which may remove a previously useful stub while fixing the final `UNKNOWN(#10)` warning.
+- Its final blocked note says all `UNKNOWN` calls were resolved, which is true for the final grep but can overstate the situation: the app still fails, and the remaining problem is likely semantic runtime behaviour rather than just missing dispatch entries.
+
+Assessment:
+- `devstral-small-2:latest` is worth further bounded Goose trials. It is noticeably better than `devstral:24b` and, after the repo guidance fixes, can reach a clean blocked stop with useful probe evidence.
+- Do not commit its generated code without review. Treat it as a frontier-finder and patch proposer: inspect stubs for removed methods, verify FD signatures with the documented helper approach, delete scratch files, then run the probe and focused scanner tests before accepting changes.
 
 ### `gpt-oss-128k:latest`
 
@@ -327,11 +358,12 @@ For now:
 
 1. Use Goose with `qwen3-coder:30b` for small, bounded implementation tasks where a focused commit is expected. Stop or kill the run externally once a valid stop marker appears.
 2. Use Goose with `qwen3.5-128k:latest` for longer repository exploration when the retry gate and strict changed-file limits are active.
-3. Treat `nemotron-3.5-lightning` as an exploratory candidate only: useful for pushing the error frontier, but its broad diffs and documentation drift need review before commit.
-4. Use OpenHands with `ministral-3:14b` for interactive/probe-driven work where the stop hook can prevent early completion.
-5. Use OpenCode only with a wrapper or manual supervision until it has a reliable completion gate. Its tool surface is good, but the tested Ministral run left invalid Python behind.
-6. Avoid Ornith variants for this repo until image tools can be hidden or the model stops selecting them for text files.
-7. Do not spend more time on Goose/OpenCode `qwen2.5-coder:14b` unless the tool-call translation problem is solved.
+3. Use Goose with `devstral-small-2:latest` for another bounded frontier-finding trial, but require post-run review of every generated stub and cleanup of scratch scripts before commit.
+4. Treat `nemotron-3.5-lightning` as an exploratory candidate only: useful for pushing the error frontier, but its broad diffs and documentation drift need review before commit.
+5. Use OpenHands with `ministral-3:14b` for interactive/probe-driven work where the stop hook can prevent early completion.
+6. Use OpenCode only with a wrapper or manual supervision until it has a reliable completion gate. Its tool surface is good, but the tested Ministral run left invalid Python behind.
+7. Avoid Ornith variants for this repo until image tools can be hidden or the model stops selecting them for text files.
+8. Do not spend more time on Goose/OpenCode `qwen2.5-coder:14b`, Goose `devstral:24b`, `wizardcoder:13b-python-q4_K_M`, or `deepseek-coder-v2:16b` unless the harness/prompt changes materially.
 
 ## Suggested Next Harness Improvements
 
