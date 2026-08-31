@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from amitools.vamos.libcore import LibImpl
+from .base_library import BaseLibrary
 
 
-class IconLibrary(LibImpl):
+class IconLibrary(BaseLibrary):
     """Provide the first project-owned ``icon.library`` implementation seam."""
 
     def get_version(self) -> int:

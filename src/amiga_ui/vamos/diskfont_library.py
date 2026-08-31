@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from amitools.vamos.libcore import LibImpl
+from .base_library import BaseLibrary
 
 
-class DiskFontLibrary(LibImpl):
+class DiskFontLibrary(BaseLibrary):
     """Stub implementation enabling ``diskfont.library`` to load."""
 
     def get_version(self) -> int:

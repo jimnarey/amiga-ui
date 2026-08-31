@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from amitools.vamos.libcore import LibImpl
+from .base_library import BaseLibrary
 
 
-class IffParseLibrary(LibImpl):
+class IffParseLibrary(BaseLibrary):
     """Stub implementation to satisfy the first ``iffparse.library`` load."""
 
     def AllocIFF(self, ctx):

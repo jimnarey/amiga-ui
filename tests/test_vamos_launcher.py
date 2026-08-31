@@ -79,6 +79,7 @@ class VamosLauncherIntegrationTest(unittest.TestCase):
             self.assertIn("setup dos.library", log_text)
             icon_open_match = _ICON_LIBRARY_OPEN_RE.search(log_text)
             self.assertIsNotNone(icon_open_match, "expected icon.library to open during startup")
+            assert icon_open_match is not None  # narrows for the type checker
             self.assertNotEqual(icon_open_match.group(1), "000000")
 
 

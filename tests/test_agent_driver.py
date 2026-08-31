@@ -1,3 +1,10 @@
+# pyright: reportMissingImports = none
+# pyright: reportPossiblyUnboundVariable = none
+# The imports below require the optional "agent" dependency group
+# (pydantic-ai, see pyproject.toml). These pragmas keep pyright green on
+# the canonical `uv sync --group dev` bootstrap, where that group is not
+# installed; they are no-ops once the group is present. The runtime guard
+# below skips the suite instead of failing to import.
 """Tests for agent/driver.py's control flow -- in particular, how it decides
 whether a unit of work succeeded. Uses pydantic-ai's TestModel so no live
 local model server is required; all repo side effects (probe runs, git,
@@ -11,18 +18,25 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from pydantic_ai.models.test import TestModel
+try:
+    from pydantic_ai.models.test import TestModel
 
-from agent import driver
-from agent import gate as gate_module
-from agent import git_ops as git_ops_module
-from agent import patch as patch_module
-from agent import probe as probe_module
-from agent import run_log as run_log_module
-from agent.driver import BlockerAgents, run_one_blocker
-from agent.llm import build_classifier_agent, build_fixer_agent
-from agent.models import ClassifierDeps
-from agent.probe import ProbeResult
+    from agent import driver
+    from agent import gate as gate_module
+    from agent import git_ops as git_ops_module
+    from agent import patch as patch_module
+    from agent import probe as probe_module
+    from agent import run_log as run_log_module
+    from agent.driver import BlockerAgents, run_one_blocker
+    from agent.llm import build_classifier_agent, build_fixer_agent
+    from agent.models import ClassifierDeps
+    from agent.probe import ProbeResult
+
+    _AGENT_GROUP_AVAILABLE = True
+except ImportError:
+    _AGENT_GROUP_AVAILABLE = False
+
+_AGENT_GROUP_SKIP_REASON = "agent dependency group is not installed; run: uv sync --group agent --group dev"
 
 
 def _result(status: str, **details: object) -> ProbeResult:
@@ -50,6 +64,7 @@ def _fixer_test_model(diff: str = "diff --git a/x b/x\n") -> TestModel:
     )
 
 
+@unittest.skipUnless(_AGENT_GROUP_AVAILABLE, _AGENT_GROUP_SKIP_REASON)
 class ClassifierRestrictionTests(unittest.TestCase):
     """The output_validator restriction is the second, structural layer on
     top of agent/blockers.py's routing -- confirm it actually holds even
@@ -74,6 +89,7 @@ class ClassifierRestrictionTests(unittest.TestCase):
         self.assertEqual(result.output.category, "gui_requester_or_layout")
 
 
+@unittest.skipUnless(_AGENT_GROUP_AVAILABLE, _AGENT_GROUP_SKIP_REASON)
 class EvidenceGroundingTests(unittest.TestCase):
     """Reproduces, and guards against, a real observed failure: with no real
     log text in the prompt, the classifier confidently invented a plausible-
@@ -136,6 +152,7 @@ class EvidenceGroundingTests(unittest.TestCase):
         self.assertEqual(result.output.category, "struct_or_message_translation")
 
 
+@unittest.skipUnless(_AGENT_GROUP_AVAILABLE, _AGENT_GROUP_SKIP_REASON)
 class OutOfScopeForPythonBugsTests(unittest.TestCase):
     """Guards against the second real observed misclassification: a Python
     traceback pointing at this repo's own code (or amitools) called
@@ -207,6 +224,7 @@ class OutOfScopeForPythonBugsTests(unittest.TestCase):
         self.assertEqual(result.output.category, "out_of_scope_hardware_or_emulation")
 
 
+@unittest.skipUnless(_AGENT_GROUP_AVAILABLE, _AGENT_GROUP_SKIP_REASON)
 class DriverOutcomeTests(unittest.TestCase):
     def _agents(self, *, classifier_category: str = "struct_or_message_translation") -> BlockerAgents:
         return BlockerAgents(

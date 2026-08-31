@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from amitools.vamos.libcore import LibImpl
+from .base_library import BaseLibrary
 
 
-class GraphicsLibrary(LibImpl):
+class GraphicsLibrary(BaseLibrary):
     """Provide the first project-owned ``graphics.library`` implementation seam."""
 
     def get_version(self) -> int:

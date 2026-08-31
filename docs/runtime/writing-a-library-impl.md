@@ -98,19 +98,21 @@ A scanner `error` is not a harmless warning: that function is not installed as a
 
 ## Step 2: Write The Implementation Class
 
-Subclass `LibImpl` from `amitools.vamos.libcore`, and add one method per function name from the `.fd` file. Each method must begin with `self` and a `ctx` object (the call context). After that, you may either read registers yourself from `ctx`, or add one Python parameter per `.fd` argument and let `amitools` map those registers for you:
+Subclass the repo-owned `BaseLibrary` (in `src/amiga_ui/vamos/base_library.py`, which itself subclasses `LibImpl` from `amitools.vamos.libcore`), and add one method per function name from the `.fd` file. Each method must begin with `self` and a `ctx` object (the call context). After that, you may either read registers yourself from `ctx`, or add one Python parameter per `.fd` argument and let `amitools` map those registers for you:
 
 ```python
-from amitools.vamos.libcore import LibImpl
+from amiga_ui.vamos.base_library import BaseLibrary
 from amitools.vamos.machine.regs import REG_A0
 
 
-class IconLibrary(LibImpl):
+class IconLibrary(BaseLibrary):
     def GetDiskObject(self, ctx):
         name_ptr = ctx.cpu.r_reg(REG_A0)
         name = ctx.mem.r_cstr(name_ptr)
         # ... build and return a DiskObject pointer ...
 ```
+
+`BaseLibrary` re-announces `get_version` as `-> int` so the repo's library classes can override it with a plain `int` return annotation (the unannotated upstream `LibImpl.get_version` would otherwise make the type checker infer a literal return type and reject the override).
 
 For the "library is missing entirely" stage, a class with only `get_version()` can already be useful if the real goal is to make `OpenLibrary()` succeed and let the next probe expose the first required function call. The repo's current `icon.library` override demonstrates that narrower first step.
 
