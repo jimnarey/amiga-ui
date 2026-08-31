@@ -23,11 +23,11 @@ class IntuitionLibrary(BaseLibrary):
         # basic operation - it just needs a truthy handle.
         return 0x10000
 
-    def UnlockPubScreen(self, screen):
+    def UnlockPubScreen(self, ctx, name, screen):
         """No-op unlock."""
         return None
 
-    def OpenWindowTagList(self, newWindow, tagList):
+    def OpenWindowTagList(self, ctx, newWindow, tagList):
         """Stub for OpenWindowTagList - returns a default window pointer.
 
         iTidy calls OpenWindowTagList to create a window during GUI initialization.
@@ -36,7 +36,7 @@ class IntuitionLibrary(BaseLibrary):
         # Return a default window pointer to allow further GUI initialization
         return 0x20000
 
-    def SetDefaultPubScreen(self, nameBuffer):
+    def SetDefaultPubScreen(self, ctx, name):
         """Stub for SetDefaultPubScreen - returns success.
 
         iTidy calls SetDefaultPubScreen during GUI initialization.
@@ -45,7 +45,7 @@ class IntuitionLibrary(BaseLibrary):
         # Indicate success
         return 0
 
-    def EraseImage(self, rp, image, leftOffset, topOffset):
+    def EraseImage(self, ctx, rp, image, leftOffset, topOffset):
         """Stub for EraseImage - clears a rectangle in the render pattern.
 
         iTidy calls EraseImage during GUI initialization.
@@ -54,9 +54,10 @@ class IntuitionLibrary(BaseLibrary):
         # No-op stub - iTidy just needs the function to exist
         pass
 
-    # Placeholder
-    def OpenWindow(self):
+    def OpenWindow(self, ctx, newWindow):
+        """Stub for the classic OpenWindow entry point; iTidy uses OpenWindowTagList."""
         pass
 
-    def CloseWindow(self):
+    def CloseWindow(self, ctx, window):
+        """Stub for the classic CloseWindow entry point."""
         pass
