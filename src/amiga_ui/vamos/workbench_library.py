@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from amitools.vamos.libcore import LibImpl
+from .base_library import BaseLibrary
 
 
-class WorkbenchLibrary(LibImpl):
+class WorkbenchLibrary(BaseLibrary):
     """Stub implementation enabling ``workbench.library`` to load."""
 
     def get_version(self) -> int:

@@ -104,6 +104,11 @@ repo side effect (probe runs, git, the quality gate, the run log), so the
 suite never touches the real working tree or requires a live local model
 server.
 
+If the `agent` dependency group (see `pyproject.toml`) is not installed,
+`tests.test_agent_driver` and `tests.test_agent_llm` skip with a reason
+instead of failing to import, so the standard `uv run python -m unittest`
+quality gate stays green on a dev-only bootstrap.
+
 ## Not yet implemented
 
 - Cross-model agreement checking (ask a second, differently-trained model

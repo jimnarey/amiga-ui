@@ -1,3 +1,8 @@
+# pyright: reportMissingImports = none
+# This module imports the optional "agent" dependency group (pydantic-ai,
+# see pyproject.toml); the pragma keeps pyright green on the canonical
+# `uv sync --group dev` bootstrap where that group is not installed. It is
+# a no-op once the group is present.
 """The deterministic control loop.
 
 LLM agents are called as functions for exactly two narrow judgment calls --

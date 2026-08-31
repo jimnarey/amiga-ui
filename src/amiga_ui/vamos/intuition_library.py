@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from amitools.vamos.libcore import LibImpl
+from .base_library import BaseLibrary
 
 
-class IntuitionLibrary(LibImpl):
+class IntuitionLibrary(BaseLibrary):
     def get_version(self) -> int:
         """Report a plausible baseline library version for Workbench 3.x startup."""
         return 39

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from amitools.vamos.libcore import LibImpl
+from .base_library import BaseLibrary
 
 
-class ASLLibrary(LibImpl):
+class ASLLibrary(BaseLibrary):
     """Stub implementation enabling ``asl.library`` to load.
 
     This allows the app to advance past library startup without

@@ -239,7 +239,7 @@ def _strip_quotes(value: str) -> str:
     return value
 
 
-def _tokenize_terms(terms: list[str]) -> list[str]:
+def _tokenize_terms(terms: list[str]) -> set[str]:
     return _tokenize_text(" ".join(terms))
 
 

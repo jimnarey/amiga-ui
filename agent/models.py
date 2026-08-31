@@ -1,3 +1,8 @@
+# pyright: reportMissingImports = none
+# This module imports the optional "agent" dependency group (pydantic,
+# see pyproject.toml); the pragma keeps pyright green on the canonical
+# `uv sync --group dev` bootstrap where that group is not installed. It is
+# a no-op once the group is present.
 """Pydantic models exchanged with the LLM agents.
 
 Kept deliberately small. ``ProposedFix`` carries a unified diff as plain

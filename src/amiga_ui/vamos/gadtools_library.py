@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from amitools.vamos.libcore import LibImpl
+from .base_library import BaseLibrary
 
 
-class GadToolsLibrary(LibImpl):
+class GadToolsLibrary(BaseLibrary):
     """Stub implementation enabling ``gadtools.library`` to load."""
 
     def get_version(self) -> int:

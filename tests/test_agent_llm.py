@@ -1,3 +1,9 @@
+# pyright: reportPossiblyUnboundVariable = none
+# agent/llm.py requires the optional "agent" dependency group (pydantic-ai,
+# see pyproject.toml); the pragma keeps pyright green on the canonical
+# `uv sync --group dev` bootstrap, where that group is not installed. It is
+# a no-op once the group is present. The runtime guard below skips the
+# suite instead of failing to import.
 """Tests for agent/llm.py's local model endpoint wiring.
 
 Kept intentionally minimal -- $OLLAMA_URL is now sound at the shell level,
@@ -9,9 +15,17 @@ from __future__ import annotations
 
 import unittest
 
-from agent.llm import DEFAULT_ENDPOINT, local_model
+try:
+    from agent.llm import DEFAULT_ENDPOINT, local_model
+
+    _AGENT_GROUP_AVAILABLE = True
+except ImportError:
+    _AGENT_GROUP_AVAILABLE = False
+
+_AGENT_GROUP_SKIP_REASON = "agent dependency group is not installed; run: uv sync --group agent --group dev"
 
 
+@unittest.skipUnless(_AGENT_GROUP_AVAILABLE, _AGENT_GROUP_SKIP_REASON)
 class LocalModelEndpointTests(unittest.TestCase):
     def test_default_endpoint_is_localhost_11434(self) -> None:
         self.assertEqual(DEFAULT_ENDPOINT, "localhost:11434")
