@@ -14,3 +14,4 @@ assets/**
 !assets/libs/download_classact33.sh
 !assets/docs/download_required_docs.sh
 .claude/
+amiga_apps/itidy1classic/binary/extracted/logs
