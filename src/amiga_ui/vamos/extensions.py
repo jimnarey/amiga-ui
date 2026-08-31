@@ -1,10 +1,10 @@
-from .intuition_library import IntuitionLibrary
 from .asllibrary import ASLLibrary
 from .diskfont_library import DiskFontLibrary
 from .gadtools_library import GadToolsLibrary
 from .graphics_library import GraphicsLibrary
 from .icon_library import IconLibrary
 from .iffparse_library import IffParseLibrary
+from .intuition_library import IntuitionLibrary
 from .workbench_library import WorkbenchLibrary
 
 

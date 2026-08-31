@@ -76,7 +76,6 @@ class XvfbSession:
         self.close()
 
 
-
 def run_with_xvfb(
     command: list[str],
     *,
@@ -100,7 +99,6 @@ def run_with_xvfb(
             timeout=timeout,
             check=False,
         )
-
 
 
 def start_xvfb(
@@ -136,13 +134,11 @@ def start_xvfb(
         raise
 
 
-
 def ensure_xvfb_available() -> None:
     """Raise if Xvfb is not available on the host."""
 
     if shutil.which("Xvfb") is None:
         raise XvfbUnavailableError("Xvfb is not available. Run ./check_dependencies.sh for guidance.")
-
 
 
 def validate_x11_socket_dir(path: Path = X11_SOCKET_DIR) -> None:
@@ -162,7 +158,6 @@ def validate_x11_socket_dir(path: Path = X11_SOCKET_DIR) -> None:
         raise XvfbSocketError(
             f"{path} has mode {socket_mode}, but Xvfb expects 1777.\nSuggested host fix: sudo chmod 1777 {path}"
         )
-
 
 
 def _start_on_first_available_display(
@@ -190,7 +185,6 @@ def _start_on_first_available_display(
     raise XvfbStartError(message)
 
 
-
 def _start_on_candidate(
     candidate: str,
     *,
@@ -209,9 +203,7 @@ def _start_on_candidate(
     if not _wait_for_xvfb_start(process, log_path):
         failure_message = _read_start_failure_message(log_path)
         process.wait(timeout=5)
-        raise XvfbStartError(
-            f"Unable to start Xvfb on display {candidate}.\nXvfb output: {failure_message}"
-        )
+        raise XvfbStartError(f"Unable to start Xvfb on display {candidate}.\nXvfb output: {failure_message}")
 
     return XvfbSession(
         display=candidate,
@@ -219,7 +211,6 @@ def _start_on_candidate(
         log_path=log_path,
         process=process,
     )
-
 
 
 def _wait_for_xvfb_start(process: subprocess.Popen[Any], log_path: Path) -> bool:
@@ -230,21 +221,16 @@ def _wait_for_xvfb_start(process: subprocess.Popen[Any], log_path: Path) -> bool
     return True
 
 
-
 def _read_start_failure_message(log_path: Path) -> str:
     if not log_path.is_file():
         return ""
-    return " ".join(
-        log_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    ).strip()
-
+    return " ".join(log_path.read_text(encoding="utf-8", errors="replace").splitlines()).strip()
 
 
 def _normalize_cli_command(command: list[str]) -> list[str]:
     if command and command[0] == "--":
         return command[1:]
     return command
-
 
 
 def _build_cli_parser() -> argparse.ArgumentParser:
@@ -268,7 +254,6 @@ def _build_cli_parser() -> argparse.ArgumentParser:
         help="command to run, optionally preceded by --",
     )
     return parser
-
 
 
 def main(argv: list[str] | None = None) -> int:

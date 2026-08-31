@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-from contextlib import AbstractContextManager, nullcontext
-
-
 import importlib
+from contextlib import AbstractContextManager, nullcontext
 
 
 def apply_runtime_patches() -> AbstractContextManager[None]:
@@ -19,7 +17,7 @@ def apply_runtime_patches() -> AbstractContextManager[None]:
     # Monkey‑patch ExecLibrary.FreeVec to swallow unknown pointers that
     # usually arise when the iTidy binary uses a different memory model.
     try:
-        exec_lib_mod = importlib.import_module('amitools.vamos.lib.ExecLibrary')
+        exec_lib_mod = importlib.import_module("amitools.vamos.lib.ExecLibrary")
         ExecLibrary = exec_lib_mod.ExecLibrary
         original_free_vec = ExecLibrary.FreeVec
 
@@ -28,7 +26,7 @@ def apply_runtime_patches() -> AbstractContextManager[None]:
                 return original_free_vec(self, ctx)
             except Exception as e:
                 msg = str(e)
-                if 'Unknown memory to free' in msg:
+                if "Unknown memory to free" in msg:
                     return None
                 raise
 
@@ -38,10 +36,13 @@ def apply_runtime_patches() -> AbstractContextManager[None]:
 
     # Monkey‑patch WorkbenchLibrary for minimal screen handling
     try:
-        wb_mod = importlib.import_module('amiga_ui.vamos.workbench_library')
+        wb_mod = importlib.import_module("amiga_ui.vamos.workbench_library")
         WorkbenchLibrary = wb_mod.WorkbenchLibrary
+
         # Simple dummy screen object
-        class DummyScreen: pass
+        class DummyScreen:
+            pass
+
         WorkbenchLibrary.LockPubScreen = lambda self, name: DummyScreen()
         WorkbenchLibrary.UnlockPubScreen = lambda self, screen: None
         WorkbenchLibrary.OpenScreen = lambda self, *args, **kwargs: DummyScreen()
