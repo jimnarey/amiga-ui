@@ -135,9 +135,10 @@ Arguments arrive in CPU registers. You can either read them explicitly from `ctx
 ```python
 from amitools.vamos.machine.regs import REG_D0, REG_A0, REG_A1
 
+
 def SomeFunction(self, ctx):
-    flags = ctx.cpu.r_reg(REG_D0)   # a plain integer/flags argument
-    ptr = ctx.cpu.r_reg(REG_A0)     # a pointer argument
+    flags = ctx.cpu.r_reg(REG_D0)  # a plain integer/flags argument
+    ptr = ctx.cpu.r_reg(REG_A0)  # a pointer argument
 ```
 
 ## Step 4: Read And Write Emulated Memory
@@ -145,8 +146,8 @@ def SomeFunction(self, ctx):
 Pointer arguments are addresses into the emulated Amiga address space, not real Python objects. Use `ctx.mem` to dereference them:
 
 ```python
-name = ctx.mem.r_cstr(name_ptr)          # read a NUL-terminated C string
-first_long = ctx.mem.r32(struct_ptr)     # read a 4-byte field at an address
+name = ctx.mem.r_cstr(name_ptr)  # read a NUL-terminated C string
+first_long = ctx.mem.r32(struct_ptr)  # read a 4-byte field at an address
 ctx.mem.w32(struct_ptr + 12, new_value)  # write a 4-byte field at an offset
 ```
 

@@ -328,12 +328,6 @@ class GraphicsLibrary(LibImpl):
             font: font pointer (a1 register)
         """
         return None
-        """Initialize a View.
-
-        Args:
-            view: View pointer (a1 register)
-        """
-        return None
 
     def SetRGB4(self, vp, index, red, green, blue):
         """Set RGB4 color in a ViewPort.
@@ -369,8 +363,7 @@ class GraphicsLibrary(LibImpl):
         """
         return None
 
-    def BltBitMap(self, srcBitMap, xSrc, ySrc, destBitMap, xDest, yDest,
-                  xSize, ySize, minterm, mask, tempA):
+    def BltBitMap(self, srcBitMap, xSrc, ySrc, destBitMap, xDest, yDest, xSize, ySize, minterm, mask, tempA):
         """Block transfer between bitmaps.
 
         Args:
@@ -385,17 +378,5 @@ class GraphicsLibrary(LibImpl):
             minterm: minterm (d6 register)
             mask: mask (d7 register)
             tempA: temp A (a2 register)
-        """
-        return None
-
-    def RectFill(self, rp, xMin, yMin, xMax, yMax):
-        """Fill a rectangle.
-
-        Args:
-            rp: RastPort (a1)
-            xMin: left (d0)
-            yMin: top (d1)
-            xMax: right (d2)
-            yMax: bottom (d3)
         """
         return None

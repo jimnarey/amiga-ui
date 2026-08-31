@@ -16,4 +16,3 @@ class DiskFontLibrary(LibImpl):
         implementation simple and consistent with previous libraries.
         """
         return 40
-

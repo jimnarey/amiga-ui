@@ -59,8 +59,7 @@ def candidate_sessions(con: sqlite3.Connection, cwd: Path) -> list[str]:
     fuzzy = [
         str(session_id)
         for session_id, workdir in rows
-        if str(session_id) not in exact
-        and (cwd_text.endswith(str(workdir)) or str(workdir).endswith(cwd.name))
+        if str(session_id) not in exact and (cwd_text.endswith(str(workdir)) or str(workdir).endswith(cwd.name))
     ]
     fallback = [str(session_id) for session_id, _workdir in rows]
     seen: set[str] = set()
@@ -131,8 +130,7 @@ def recovery_hint(tool_name: str, error_text: str) -> str | None:
         return (
             "Use one of Goose's actual tools instead of inventing a tool name. "
             "For command-line work, use the `shell` tool with the command as "
-            "its argument."
-            + available
+            "its argument." + available
         )
     if tool_name == "read_image" or "unsupported image format" in lower:
         return (
@@ -153,15 +151,9 @@ def recovery_hint(tool_name: str, error_text: str) -> str | None:
             "the required package with passwordless `sudo`."
         )
     if "no such file or directory" in lower:
-        return (
-            "Verify the path with `pwd`, `ls`, `find`, or `git ls-files` "
-            "before retrying the command."
-        )
+        return "Verify the path with `pwd`, `ls`, `find`, or `git ls-files` before retrying the command."
     if "no match found for the specified text" in lower:
-        return (
-            "Refresh the target file contents first, then make a smaller edit "
-            "against exact current text."
-        )
+        return "Refresh the target file contents first, then make a smaller edit against exact current text."
     if "command exited with code" in lower:
         return (
             "Read the command output, inspect the affected files or artifacts, "
@@ -242,9 +234,13 @@ def main() -> int:
         print(f"Could not open Goose session database: {exc}")
         return 0
 
-    session_ids = [args.session_id] if args.session_id else candidate_sessions(
-        con,
-        Path(args.cwd),
+    session_ids = (
+        [args.session_id]
+        if args.session_id
+        else candidate_sessions(
+            con,
+            Path(args.cwd),
+        )
     )
     if not session_ids:
         print("No Goose session rows were found; no failures could be inspected.")

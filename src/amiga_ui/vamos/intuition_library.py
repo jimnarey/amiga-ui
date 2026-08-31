@@ -13,7 +13,7 @@ class IntuitionLibrary(LibImpl):
     def LockPubScreen(self, ctx, name):
         """Minimal stub: return a plausible public screen pointer.
         iTidy expects a handle and will proceed once it gets one.
-        
+
         The scanner expects (self, ctx, name) signature for proper function dispatch.
         ctx: library context pointer
         name: screen name to lock
@@ -29,7 +29,7 @@ class IntuitionLibrary(LibImpl):
 
     def OpenWindowTagList(self, newWindow, tagList):
         """Stub for OpenWindowTagList - returns a default window pointer.
-        
+
         iTidy calls OpenWindowTagList to create a window during GUI initialization.
         This stub returns a default window handle to allow further initialization.
         """
@@ -38,7 +38,7 @@ class IntuitionLibrary(LibImpl):
 
     def SetDefaultPubScreen(self, nameBuffer):
         """Stub for SetDefaultPubScreen - returns success.
-        
+
         iTidy calls SetDefaultPubScreen during GUI initialization.
         This stub indicates success and allows further initialization.
         """
@@ -47,7 +47,7 @@ class IntuitionLibrary(LibImpl):
 
     def EraseImage(self, rp, image, leftOffset, topOffset):
         """Stub for EraseImage - clears a rectangle in the render pattern.
-        
+
         iTidy calls EraseImage during GUI initialization.
         This stub accepts the parameters but does nothing.
         """
