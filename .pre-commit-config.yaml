@@ -1,3 +1,4 @@
+exclude: '^\.deprecated/'
 repos:
   - repo: local
     hooks:
@@ -20,7 +21,7 @@ repos:
         entry: uv run pyright
         language: unsupported
         pass_filenames: false
-        files: '^(agent|src|tests)/.*\.py$'
+        files: '^(src|tests|tools)/.*\.py$'
         require_serial: true
 
       - id: check-yaml

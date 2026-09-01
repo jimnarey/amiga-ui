@@ -25,7 +25,7 @@ Needed for:
 
 Do not create, edit, overwrite, delete, chmod, or chown `.git/`, `.deprecated/`, `.codex/`, `.config/`, `.local/`, `.cache/`, or other tool, VCS, editor, credential, or agent configuration directories unless the user explicitly asks for that exact config change.
 
-`.deprecated/` contains preserved legacy OpenHands and Goose material. It is not active repository guidance, and agents should ignore it unless the user explicitly asks about legacy harness behavior.
+`.deprecated/` contains preserved legacy OpenHands, Goose, and bespoke local-agent material. It is not active repository guidance, and agents should ignore it unless the user explicitly asks about legacy harness behavior.
 
 ## Image Tool Contract
 
@@ -41,7 +41,7 @@ Some harnesses can treat a text-only response as the end of an autonomous run, e
 - Do not emit narration-only turns while more work remains.
 - If you write "next I will do X", the tool call for `X` must be in the same response.
 - Only end an autonomous run intentionally after the requested work is complete, blocked by a real external dependency, or needs a user decision.
-- DSH does not currently use a repo-local stop-marker helper in this repository. Legacy OpenHands and Goose stop-marker helpers are preserved under `.deprecated/` for reference only.
+- DSH does not currently use a repo-local stop-marker helper in this repository. Legacy OpenHands, Goose, and bespoke-agent stop-marker helpers are preserved under `.deprecated/` for reference only.
 
 ## Where Harness Specifics Live
 

@@ -6,7 +6,7 @@ This README is the human entrypoint. Autonomous agents should start with [AGENTS
 
 ## Harness Status
 
-DeepSeek Harness is the active local autonomous workflow for this repository. The previous OpenHands and Goose configuration, prompts, hooks, and helper scripts have been preserved under `.deprecated/` for reference, but they are no longer active instructions. Agents should ignore `.deprecated/` unless specifically asked to inspect the legacy setup.
+DeepSeek Harness is the active local autonomous workflow for this repository. Previous OpenHands, Goose, and bespoke local-agent experiments have been preserved under `.deprecated/` for reference, but they are no longer active instructions. Agents should ignore `.deprecated/` unless specifically asked to inspect the legacy setup.
 
 ## Installation
 
@@ -129,18 +129,9 @@ The `probe` subcommand writes local run artifacts under `artifacts/runs/`, inclu
 ./tools/prune_run_artifacts.sh 50     # or keep a different number
 ```
 
-## Bespoke Porting Agent (experimental)
+## Deprecated Local Agent Experiments
 
-`agent/` is a separate, minimal driver for this repo's error-driven-porting loop, built on [PydanticAI](https://pydantic.dev/docs/ai/overview/) against local models. Unlike the general-purpose harnesses, the LLM is only called for two narrow, validated judgment calls — classify the blocker, propose a fix as a diff — while a plain Python driver owns the loop itself, including deciding whether a fix actually worked.
-
-```bash
-uv sync --group agent --group dev
-uv run python -m agent amiga_apps/itidy1classic/binary/extracted/iTidy
-```
-
-It runs exactly one unit of work per invocation and exits; call it again to pick up the next blocker. See [agent/README.md](agent/README.md) for the design — including how it restricts blocker categories to what the launcher's own probe output actually supports — and [docs/research/local-agent-performance.md](docs/research/local-agent-performance.md) for the research behind it.
-
-The `agent` dependency group is optional: without it, the agent's unit tests (`tests.test_agent_driver`, `tests.test_agent_llm`) skip with a reason instead of failing to import, so the standard quality gate stays green on the dev-only bootstrap.
+Earlier local-agent experiments, including the bespoke PydanticAI porting driver, are preserved under `.deprecated/` for reference. They are no longer part of the active workflow, package checks, or pre-commit scope.
 
 ## Documentation Sources
 

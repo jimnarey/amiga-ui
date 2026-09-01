@@ -2,11 +2,12 @@
   "include": [
     "src",
     "tests",
-    "agent"
+    "tools"
   ],
   "exclude": [
     "**/__pycache__",
-    "artifacts"
+    "artifacts",
+    ".deprecated"
   ],
   "extraPaths": [
     "src"

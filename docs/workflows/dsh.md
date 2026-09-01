@@ -20,7 +20,7 @@ Purpose: Define the current preferred autonomous-agent workflow for this reposit
 
 Needed for:
 - Giving DSH a short, active starting path.
-- Keeping legacy OpenHands and Goose instructions out of the model's way while preserving them for reference.
+- Keeping legacy OpenHands, Goose, and bespoke local-agent instructions out of the model's way while preserving them for reference.
 - Making bootstrap, asset acquisition, and missing-function research explicit enough for long autonomous runs.
 
 ## DSH Role
@@ -31,7 +31,7 @@ DSH loads repo instructions from `AGENTS.md` and related project instruction fil
 
 ## Ignore Legacy Harness Material
 
-The old OpenHands and Goose prompts, hooks, recipes, and helper scripts are preserved under `.deprecated/`. They are not active instructions for DSH sessions. Ignore `.deprecated/` unless the user explicitly asks about legacy harness behavior.
+The old OpenHands and Goose prompts, hooks, recipes, helper scripts, and bespoke local-agent code are preserved under `.deprecated/`. They are not active instructions for DSH sessions. Ignore `.deprecated/` unless the user explicitly asks about legacy harness behavior.
 
 ## Starting A DSH Run
 

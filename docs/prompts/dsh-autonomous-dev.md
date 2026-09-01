@@ -13,7 +13,7 @@ citations_used: []
 
 Work autonomously in the `amiga-ui` repository.
 
-Use `AGENTS.md` as the repo-wide authority. Use `docs/workflows/dsh.md`, `docs/workflows/agent-tool-contract.md`, `docs/workflows/error-driven-porting.md`, and `docs/workflows/branching-and-merging.md` for the active workflow. Ignore `.deprecated/` unless explicitly asked to inspect legacy OpenHands or Goose material.
+Use `AGENTS.md` as the repo-wide authority. Use `docs/workflows/dsh.md`, `docs/workflows/agent-tool-contract.md`, `docs/workflows/error-driven-porting.md`, and `docs/workflows/branching-and-merging.md` for the active workflow. Ignore `.deprecated/` unless explicitly asked to inspect legacy OpenHands, Goose, or bespoke local-agent material.
 
 First establish the baseline. If the environment has not already been bootstrapped, run:
 

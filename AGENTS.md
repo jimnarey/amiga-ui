@@ -2,7 +2,7 @@
 
 This repository develops a Python-based compatibility layer for selected classic Amiga Workbench applications.
 
-Read `docs/README.md` for the documentation map, then `docs/workflows/dsh.md` for the current DeepSeek Harness autonomous workflow. The older OpenHands and Goose material is preserved under `.deprecated/`; ignore that directory unless the user explicitly asks you to inspect or revive legacy harness behavior.
+Read `docs/README.md` for the documentation map, then `docs/workflows/dsh.md` for the current DeepSeek Harness autonomous workflow. Older OpenHands, Goose, and bespoke local-agent material is preserved under `.deprecated/`; ignore that directory unless the user explicitly asks you to inspect or revive legacy harness behavior.
 
 ## Core Rules
 - Use `uv` for Python commands and dependency management.
