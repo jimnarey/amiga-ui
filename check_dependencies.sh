@@ -24,6 +24,10 @@ check_tool \
   7z -h
 
 check_tool \
+  "curl command available" \
+  curl --version
+
+check_tool \
   "Xvfb command available" \
   Xvfb -help
 

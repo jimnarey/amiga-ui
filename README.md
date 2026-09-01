@@ -75,6 +75,20 @@ uv run xdftool --help
 
 For the autonomous development loop and recommended command order, see [docs/workflows/dsh.md](docs/workflows/dsh.md) and [docs/workflows/error-driven-porting.md](docs/workflows/error-driven-porting.md).
 
+## Reference Tooling
+
+Local agents can regenerate the non-committed reference material used for API-aware porting:
+
+```bash
+assets/docs/download_required_docs.sh
+assets/libs/download_classact33.sh
+uv run python tools/extract_adfs.py --force
+uv run python tools/generate_api_index.py
+uv run python tools/analyze_target_failure.py --latest
+```
+
+The generated/extracted outputs live under ignored `assets/` paths. The scripts and placeholder contracts are the committed part.
+
 ## Development Workflow
 
 Routine development should flow through `development`, not `main`.

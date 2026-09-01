@@ -105,3 +105,13 @@ If a task needs the smallest likely-useful default reference set, prefer:
 2. AmigaOS 3.0 when earlier 3.x comparison matters,
 3. AmigaOS 3.1.4 when later-library or later-media differences matter,
 4. AmigaOS 2.1 only when intentionally probing older pre-3.x behavior.
+
+## Extraction
+
+After the operator has supplied local `.adf` files beside the placeholders, extract them into ignored local reference trees with:
+
+```bash
+uv run python tools/extract_adfs.py --force
+```
+
+The extractor uses `amitools`/`xdftool` in read-only mode and writes per-image trees under `assets/extracted/adf/<adf-stem>/`. `xdftool unpack` preserves Amiga filesystem metadata in sidecar files such as `.xdfmeta`, `.blkdev`, and boot-code output where applicable. These extracted trees are for source comparison and runtime-tree construction; they are not source-controlled project assets and should not be treated as the canonical runtime layout.

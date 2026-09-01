@@ -16,6 +16,9 @@ dependencies = [
 [project.scripts]
 amiga-ui = "amiga_ui.cli:main"
 amiga-ui-xvfb = "amiga_ui.host.xvfb:main"
+amiga-ui-extract-adfs = "amiga_ui.adf_extract:main"
+amiga-ui-generate-api-index = "amiga_ui.api_index:main"
+amiga-ui-analyze-failure = "amiga_ui.failure_analyzer:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/amiga_ui"]

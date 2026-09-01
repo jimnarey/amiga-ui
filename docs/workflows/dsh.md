@@ -7,6 +7,7 @@ depends_on:
   - "error-driven-porting.md"
   - "branching-and-merging.md"
   - "asset-acquisition.md"
+  - "../host-gui/translation-obligations.md"
 citations_used:
   - "S67"
   - "S68"
@@ -53,7 +54,9 @@ At the beginning of a run, DSH should establish the repository baseline before f
 2. Run `bash tools/bootstrap.sh` unless the user has already bootstrapped the environment.
 3. Run `uv run python tools/docs_triage.py` to choose a small, relevant doc set.
 4. Run `uv run amiga-ui check` before making behavior changes unless an earlier dependency/bootstrap failure blocks it.
-5. Use `UV_CACHE_DIR=/tmp/uv-cache`, `UV_LINK_MODE=copy`, and `PRE_COMMIT_HOME=/tmp/pre-commit-home` if container cache ownership or cross-filesystem hardlinking prevents `uv` or `pre-commit` from writing cleanly under the default home directory.
+5. Run `uv run python tools/generate_api_index.py` when the generated API index is missing or stale.
+6. Run `uv run python tools/analyze_target_failure.py --latest` after each probe failure to identify the defaulted API calls, missing paths, and any UI obligation attached to the blocker.
+7. Use `UV_CACHE_DIR=/tmp/uv-cache`, `UV_LINK_MODE=copy`, and `PRE_COMMIT_HOME=/tmp/pre-commit-home` if container cache ownership or cross-filesystem hardlinking prevents `uv` or `pre-commit` from writing cleanly under the default home directory.
 
 The bootstrap script intentionally prints the next recommended checks instead of running every expensive command itself.
 
@@ -64,9 +67,11 @@ Do not invent binary assets or commit copyrighted payloads. When a task needs re
 ```bash
 assets/docs/download_required_docs.sh
 assets/libs/download_classact33.sh
+uv run python tools/extract_adfs.py --force
+uv run python tools/generate_api_index.py
 ```
 
-These scripts are not required for every run. Use them when `docs/assets/`, `amiga_apps/`, or the current blocker shows that the reference material is missing.
+These scripts are not required for every run. Use them when `docs/assets/`, `amiga_apps/`, or the current blocker shows that the reference material is missing. `extract_adfs.py` uses `amitools`/`xdftool` to unpack operator-supplied ADFs from `assets/adf/` into ignored local reference trees under `assets/extracted/adf/`. `generate_api_index.py` combines FD tables, fetched AutoDocs, and repo implementation status into ignored local files under `assets/generated/`.
 
 ## Missing Amiga Function Workflow
 

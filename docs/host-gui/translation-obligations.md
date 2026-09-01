@@ -29,6 +29,8 @@ Workbench applications are fundamentally about windows, menus, gadgets, and requ
 
 The current `iTidy` target already puts real pressure on this rule because it constructs menus, requesters, and a main window as part of its normal behavior [S31 L174-L227] [S31 L470-L518] [S31 L1006-L1085].
 
+The generated API index from `uv run python tools/generate_api_index.py` adds a mechanical first pass over this rule. Entries marked `host-ui-required`, `workbench-visible-state`, or `likely-ui-support` should send an agent to this page before it writes a stub. The marker is not a complete design decision, but it is a warning that a fake pointer or no-op return probably hides the real compatibility work.
+
 ## The Main Rule
 
 If the Amiga-side operation would normally produce a visible UI element, change visible UI state, or wait for a user-facing interaction, then the compatibility layer should normally do one of two things:

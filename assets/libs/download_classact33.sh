@@ -33,6 +33,13 @@ mkdir -p "${extract_dir}"
 echo "Extracting archive to ${extract_dir}..."
 extract_archive
 
+find "${extract_dir}" -type f | sort >"${extract_dir}/FILES.txt"
+
+if find "${extract_dir}" -type f \( -iname '*.fd' -o -iname '*.h' -o -iname '*.i' -o -iname '*.doc' -o -iname '*.guide' -o -iname '*.readme' \) | grep -q .; then
+  find "${extract_dir}" -type f     \( -iname '*.fd' -o -iname '*.h' -o -iname '*.i' -o -iname '*.doc' -o -iname '*.guide' -o -iname '*.readme' \)     | sort >"${extract_dir}/REFERENCE_FILES.txt"
+fi
+
 echo "Done."
 echo "Archive kept at: ${archive_path}"
 echo "Extracted files at: ${extract_dir}"
+echo "File manifest: ${extract_dir}/FILES.txt"

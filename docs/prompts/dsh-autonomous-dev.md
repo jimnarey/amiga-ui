@@ -27,6 +27,7 @@ Then run or confirm these checks before making behavior changes, unless an earli
 ./check_dependencies.sh
 uv run python tools/docs_triage.py
 uv run amiga-ui check
+uv run python tools/generate_api_index.py
 ```
 
 If `uv` or `pre-commit` hits a cache ownership problem, use writable temporary caches, for example:
@@ -42,11 +43,15 @@ If required reference docs, ClassAct files, ADF-derived files, or ROM-derived fi
 ```bash
 assets/docs/download_required_docs.sh
 assets/libs/download_classact33.sh
+uv run python tools/extract_adfs.py --force
+uv run python tools/generate_api_index.py
 ```
 
 Advance by the error-driven porting loop: run the real target under the repo `vamos` launcher, capture the first actionable failure, classify it, make the smallest useful repo-owned fix, rerun the same command, and record the result in the relevant app run log.
 
-For missing Amiga library functions, inspect the latest run artifact, identify the library/vector/function/register contract from local FD/proto/stub material, read the relevant AutoDocs, and inspect the target app source to understand why the function is being called. Do not implement from a function name alone. Use decompiled ROM or ADF-contained code only when redistributable docs and available source do not provide enough evidence.
+For missing Amiga library functions, inspect the latest run artifact, run `uv run python tools/analyze_target_failure.py --latest`, identify the library/vector/function/register contract from local FD/proto/stub material, read the relevant AutoDocs, and inspect the target app source to understand why the function is being called. Do not implement from a function name alone. Use decompiled ROM or ADF-contained code only when redistributable docs and available source do not provide enough evidence.
+
+For UI-related functions, correctness means useful host-side behavior, not just returning a value that lets the binary proceed. If the API index or failure analyser marks a function as `host-ui-required`, `workbench-visible-state`, or `likely-ui-support`, read `docs/host-gui/translation-obligations.md` and either implement real Qt-backed window/menu/gadget/requester/font/drawing state or stop at an honest documented boundary. Do not count a fake window pointer, fake visual-info pointer, fake requester result, or no-op drawing call as success by itself.
 
 Use only tools that DSH exposes in this session. Treat `rg`, `find`, `sed`, `cat`, `ls`, and `git grep` as shell commands. If a command fails, inspect the full output before retrying, and change approach when the error shows the command was wrong. If a small command-line dependency is missing and passwordless `sudo` is available, install the package rather than repeatedly working around the missing tool.
 

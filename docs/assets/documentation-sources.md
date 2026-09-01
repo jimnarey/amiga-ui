@@ -10,6 +10,16 @@ citations_used:
   - "S4"
   - "S5"
   - "S6"
+  - "S24"
+  - "S26"
+  - "S27"
+  - "S28"
+  - "S36"
+  - "S46"
+  - "S47"
+  - "S50"
+  - "S52"
+  - "S54"
 ---
 
 # Documentation Sources
@@ -28,9 +38,9 @@ The `assets/docs/` area is the raw documentation cache used to support the proje
 The download helper currently fetches four kinds of upstream material:
 
 - the AmigaOS 3.2 NDK archive [S1]
-- selected AmigaOS wiki pages for Workbench and app development [S2] [S3] [S4]
-- selected AmigaOS 3 Developer pages, currently including `dos.library` and the reading-priority article [S5] [S6]
-- the helper script itself at `assets/docs/download_required_docs.sh`
+- selected AmigaOS wiki pages for Workbench, Intuition, icons, IFF, tags, libraries, and app development [S2] [S3] [S4]
+- selected AmigaOS 3 Developer pages, including AutoDoc indexes and function pages for the libraries/devices most likely to block Workbench GUI applications [S5] [S6]
+- the helper scripts at `assets/docs/download_required_docs.sh` and `assets/docs/fetch_autodocs.py`
 
 ## Local Layout
 
@@ -39,6 +49,7 @@ The current local subdirectories are:
 - `assets/docs/ndk/`
 - `assets/docs/amigaos-wiki/`
 - `assets/docs/amigaos3-developer/`
+- `assets/docs/amigaos3-developer/autodocs/<library-or-device>/`
 
 Their contents are fetched raw material, not project-owned polished summaries.
 
@@ -51,13 +62,13 @@ Each family serves a different role:
 - `amigaos-wiki/`
   Higher-level conceptual docs such as Workbench behavior and development overviews.
 - `amigaos3-developer/`
-  API reference and curated supporting reading.
+  API reference and curated supporting reading. The `autodocs/` subdirectory is the local source used by `uv run python tools/generate_api_index.py` when function pages have been fetched.
 
 This split is what makes the current docs strategy workable for small-context models: narrow project pages in `docs/`, deeper source material in `assets/docs/`.
 
 ## Source-Control Rule
 
-The committed contract here is the download script, not the fetched payload. The raw downloaded files and extracted NDK tree are local cache material that may be regenerated.
+The committed contract here is the download scripts and generation commands, not the fetched payload. The raw downloaded files, extracted NDK tree, fetched AutoDocs, and generated API index are local cache material that may be regenerated.
 
 ## Usage Rule
 
@@ -65,6 +76,7 @@ Use the materials under `assets/docs/` to:
 
 1. verify specific API or structure claims,
 2. inspect original headers and examples,
-3. support new project-authored summaries.
+3. support new project-authored summaries,
+4. generate `assets/generated/api-index.json` and `assets/generated/api-index.md` with `uv run python tools/generate_api_index.py`.
 
 Do not treat the raw cache as the authoritative place to write project decisions. Those belong in `docs/`.

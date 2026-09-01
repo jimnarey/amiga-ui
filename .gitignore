@@ -2,7 +2,6 @@ vamos.log
 artifacts/runs/
 *.pyc
 __pycache__/
-*.pyc
 /amitools/
 .venv/
 .openhands/state/
@@ -15,3 +14,6 @@ assets/**
 !assets/docs/download_required_docs.sh
 .claude/
 amiga_apps/itidy1classic/binary/extracted/logs
+!assets/docs/fetch_autodocs.py
+!assets/generated/
+assets/generated/**

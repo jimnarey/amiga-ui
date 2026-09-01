@@ -42,7 +42,7 @@ If an upstream resource can be fetched from a stable public source and the proje
 
 That rule already covers:
 
-- the documentation cache under `assets/docs/`, which is built from the AmigaOS 3.2 NDK plus selected official AmigaOS wiki and developer pages [S1] [S2] [S3] [S4] [S5] [S6]
+- the documentation cache under `assets/docs/`, which is built from the AmigaOS 3.2 NDK plus selected official AmigaOS wiki pages, developer pages, and AutoDoc pages for likely Workbench/GUI blocker libraries and devices [S1] [S2] [S3] [S4] [S5] [S6]
 - the ClassAct 3.3 archive and extracted tree under `assets/libs/`, which come from the Aminet package and archive referenced in the source registry [S16] [S17]
 
 ### 2. Operator-Supplied Local Binaries
@@ -60,9 +60,18 @@ Examples:
 
 ADF disk images and Kickstart ROMs are kept under `assets/adf/` and `assets/roms/` respectively. Their placeholders are the primary inventory. The repo does not try to encode acquisition channels for those files. The working assumption is simply that the operator supplies them from legitimate media or downloads available to them, using the normalized filenames documented by the placeholders.
 
+Once ADFs are present, extract them for local inspection with `uv run python tools/extract_adfs.py --force`. The extracted trees live under `assets/extracted/adf/` and remain ignored local evidence.
+
 ### Project Documentation Cache
 
 Raw documentation for research and validation is acquired by running the docs download helper. Those source materials are inputs to the authored docs, not replacements for them [S1] [S2] [S3] [S4] [S5] [S6].
+
+```bash
+assets/docs/download_required_docs.sh
+uv run python tools/generate_api_index.py
+```
+
+The generated API index is written under `assets/generated/` and is intentionally ignored by git. It should be regenerated after fetching docs, changing repo-owned library implementations, or adding a new library/device target.
 
 ### Toolkits And Libraries
 
@@ -81,9 +90,11 @@ Some placeholders represent narrower runtime fragments rather than full OS media
 For a fresh machine, the least confusing order is:
 
 1. run the fetch scripts for docs and toolkit material;
-2. place local ADFs, ROMs, and any required system fragments into the matching placeholder locations;
-3. verify that every supplied file follows the placeholder naming contract exactly;
-4. only then start constructing a prepared `sys:` runtime tree for actual `vamos` runs.
+2. generate the API index with `uv run python tools/generate_api_index.py`;
+3. place local ADFs, ROMs, and any required system fragments into the matching placeholder locations;
+4. extract ADFs with `uv run python tools/extract_adfs.py --force` when source-tree comparison is useful;
+5. verify that every supplied file follows the placeholder naming contract exactly;
+6. only then start constructing a prepared `sys:` runtime tree for actual `vamos` runs.
 
 This keeps source analysis, copyrighted local payloads, and prepared runtime trees as three separate concerns.
 

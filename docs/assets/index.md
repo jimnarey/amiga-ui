@@ -39,6 +39,8 @@ The current top-level groups are:
 - `assets/libs/`
 - `assets/docs/`
 - `assets/system/`
+- `assets/extracted/`
+- `assets/generated/`
 
 Each group exists for a different reason and should not be treated as one undifferentiated "runtime image."
 
@@ -49,7 +51,9 @@ The `.gitignore` rules intentionally ignore most of `assets/**` while keeping:
 - directories,
 - `*.placeholder` files,
 - `assets/libs/download_classact33.sh`,
-- `assets/docs/download_required_docs.sh`
+- `assets/docs/download_required_docs.sh`,
+- `assets/docs/fetch_autodocs.py`,
+- the resource-generation entrypoints under `tools/`
 
 in source control. In practice, that means the committed contract is:
 
@@ -66,6 +70,8 @@ The asset tree is primarily a reference and staging area, not a direct `vamos` r
 - ADFs and ROMs are mainly reference or comparison media at this stage.
 - Toolkit archives and extracted trees support dependency analysis.
 - Raw docs support project-authored summaries.
+- Extracted ADF trees under `assets/extracted/adf/` support local comparison against operator-supplied OS media.
+- Generated API indexes under `assets/generated/` connect FD tables, AutoDocs, implementation status, and UI-obligation hints for agents.
 - Prepared runtime trees, when needed, should be built deliberately rather than assumed to be identical to `assets/`.
 
 ## Section Guide
@@ -74,6 +80,7 @@ The asset tree is primarily a reference and staging area, not a direct `vamos` r
 - [ROM Sets](./rom-sets.md) covers the Kickstart references and their limited current role.
 - [Libraries And Toolkits](./libraries-and-toolkits.md) covers non-base toolkit dependencies, currently centered on ClassAct 3.3 [S16].
 - [Documentation Sources](./documentation-sources.md) covers the fetched upstream reference material used to write the project docs.
+- `uv run python tools/generate_api_index.py` creates ignored local API index output from those source materials.
 
 ## Working Rule
 
@@ -83,4 +90,5 @@ When adding new material under `assets/`, be explicit about which of these it is
 2. a committed placeholder,
 3. an optional local payload,
 4. an extracted local reference tree,
-5. or a fetched raw documentation cache.
+5. a fetched raw documentation cache,
+6. or generated local reference output.
