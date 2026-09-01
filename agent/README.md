@@ -64,13 +64,13 @@ into one model opinion:
    `docs/apps/itidy/run-log.md` entries already use by hand.
 2. **Is it good enough to commit?** `agent/gate.py` shells out to
    `tools/lib/quality_checks.sh` — the exact pre-commit/unittest/GUI-smoke/
-   branch-hygiene gate already shared with the OpenHands and Goose
-   harnesses. Not reimplemented here.
+   branch-hygiene gate shared through `tools/lib/quality_checks.sh`. Not
+   reimplemented here.
 3. **Should the run stop, and how should that be legible afterward?**
-   `agent/gate.py` writes the same `complete`/`blocked`/`needs-user` marker
-   vocabulary as `tools/openhands_allow_stop.sh` and
-   `tools/goose_allow_stop.sh`, via the new `tools/bespoke_agent_allow_stop.sh`
-   and this driver's own `.agent/state/` directory.
+   `agent/gate.py` writes the `complete`/`blocked`/`needs-user` marker
+   vocabulary via `tools/bespoke_agent_allow_stop.sh` and this driver's own
+   `.agent/state/` directory. Legacy harness stop helpers are preserved
+   under `.deprecated/`.
 
 A failed fix attempt is retried once (`MAX_ATTEMPTS_PER_BLOCKER = 2` total),
 then escalates to `needs-user` rather than looping indefinitely.

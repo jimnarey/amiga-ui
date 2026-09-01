@@ -2,7 +2,7 @@
 
 This repository develops a Python-based compatibility layer for selected classic Amiga Workbench applications.
 
-Read `.openhands/onboarding.md` first for the standard bootstrap and autonomous development loop. (OpenHands only — Goose sessions should read `.goosehints` and `.goose/README.md` instead.)
+Read `docs/README.md` for the documentation map, then `docs/workflows/dsh.md` for the current DeepSeek Harness autonomous workflow. The older OpenHands and Goose material is preserved under `.deprecated/`; ignore that directory unless the user explicitly asks you to inspect or revive legacy harness behavior.
 
 ## Core Rules
 - Use `uv` for Python commands and dependency management.
@@ -11,13 +11,14 @@ Read `.openhands/onboarding.md` first for the standard bootstrap and autonomous 
 - Keep compatibility changes in the repository, not in `.venv/` or other installed-package locations.
 - Prefer subclassing or explicit extension points over monkey patching. If a patch is necessary, keep it narrow and local.
 - Before substantial work, assess the docs tree cheaply with `uv run python tools/docs_triage.py` or a filename-only scan, then read in full only the docs relevant to the immediate task.
+- Use `bash tools/bootstrap.sh` as the shared bootstrap entrypoint for local agent containers unless the environment has already been bootstrapped.
 
 ## Tool Use And Safety
-Every harness working in this repository — OpenHands, Goose, or any other — must follow the shared rules in [docs/workflows/agent-tool-contract.md](docs/workflows/agent-tool-contract.md): tool discipline, protected directories, image-tool handling, and narration/stop discipline. Harness-specific tool names and invocation mechanics live in `.openhands/onboarding.md` (OpenHands) and `.goosehints` / `.goose/README.md` (Goose) — do not restate the shared rules there either; only the harness-specific deltas belong in those files.
+Every harness working in this repository must follow the shared rules in [docs/workflows/agent-tool-contract.md](docs/workflows/agent-tool-contract.md): tool discipline, protected directories, image-tool handling, and narration/stop discipline. Harness-specific tool names and invocation mechanics belong in harness-specific instructions, not in shared policy. Current DSH instructions live in [docs/workflows/dsh.md](docs/workflows/dsh.md).
 
 ## Git Workflow
-- `main` is not the working branch for routine OpenHands development.
-- OpenHands should start on `development`.
+- `main` is not the working branch for routine autonomous development.
+- Start routine autonomous work from `development` when that branch exists and the user has not requested a different branch.
 - Each distinct feature, fix, doc task, or blocker-fix iteration should use its own branch created from `development`.
 - Do not commit directly on `main` or `development`.
 - Do not merge routine work into `main`.
@@ -36,6 +37,7 @@ Every harness working in this repository — OpenHands, Goose, or any other — 
 - Do not commit copyrighted binary assets unless the repo already treats them as allowed.
 - Maintain placeholder files and download scripts consistently when binary resources cannot live in source control.
 - Stay within API-level compatibility scope. Direct hardware access and full-system emulation are out of scope.
+- When implementing missing Amiga library functions, use local FD/proto files, AutoDocs, app source, and recorded run artifacts before inferring behavior from a function name. Decompile ROMs or ADF-contained binaries only when the task genuinely needs implementation evidence that is not available from redistributable documentation or source.
 
 ## Verification And Docs
 - Run the smallest relevant verification set for each change and report what you actually ran.

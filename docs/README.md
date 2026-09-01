@@ -26,19 +26,22 @@ The helper inspects markdown paths and front matter only. Use it to discover wha
 
 ## Read First
 
-1. `architecture/overview.md`
-2. `architecture/compatibility-scope.md`
-3. `architecture/gui-strategy.md`
-4. `platform/amiga-primer.md`
-5. `runtime/vamos-overview.md`
-6. `runtime/headless-gui.md`
-7. `runtime/subsystem-stop-rules.md`
-8. `host-gui/README.md`
-9. `workflows/agent-tool-contract.md`
-10. `workflows/fake-and-deferred-implementations.md`
-11. `workflows/branching-and-merging.md`
-12. `workflows/error-driven-porting.md`
-13. `apps/itidy/runbook.md` for the current target application, then other relevant notes under `apps/` as more targets are added
+1. `../AGENTS.md`
+2. `workflows/dsh.md` for DeepSeek Harness sessions
+3. `workflows/bootstrap-environment.md`
+4. `architecture/overview.md`
+5. `architecture/compatibility-scope.md`
+6. `architecture/gui-strategy.md`
+7. `platform/amiga-primer.md`
+8. `runtime/vamos-overview.md`
+9. `runtime/headless-gui.md`
+10. `runtime/subsystem-stop-rules.md`
+11. `host-gui/README.md`
+12. `workflows/agent-tool-contract.md`
+13. `workflows/fake-and-deferred-implementations.md`
+14. `workflows/branching-and-merging.md`
+15. `workflows/error-driven-porting.md`
+16. `apps/itidy/runbook.md` for the current target application, then other relevant notes under `apps/` as more targets are added
 
 ## Sections
 
@@ -50,6 +53,7 @@ The helper inspects markdown paths and front matter only. Use it to discover wha
 - `workflows/`: repeatable setup, porting, regression, and implementation-boundary routines.
 - `assets/`: the resource inventory section explaining what resource classes exist and why they matter to the project.
 - `apps/`: app-specific notes, beginning with `iTidy`.
+- `prompts/`: copy-paste prompts for supported autonomous harnesses.
 - `research/`: open questions, deferred decisions, and source priorities.
 
 ## Sources
@@ -61,7 +65,7 @@ Use the numbered inline reference system defined in [sources.md](sources.md) whe
 Temporary, gitignored working state does not live under `docs/`:
 
 - `artifacts/runs/` for probe and run artifacts.
-- `.goose/state/` and `.openhands/state/` for harness stop-marker and rejection state.
+- `.deprecated/` for preserved legacy harness configuration that is no longer active.
 
 ## Status
 

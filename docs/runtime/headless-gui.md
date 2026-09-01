@@ -15,7 +15,7 @@ citations_used:
 
 # Headless GUI Runtime
 
-Purpose: Define the standard headless display environment for Linux and OpenHands runs.
+Purpose: Define the standard headless display environment for Linux and local-agent runs.
 
 Needed for:
 - Reproducible GUI smoke tests.
@@ -25,7 +25,7 @@ Needed for:
 
 The project-standard headless display server is `Xvfb`, not a headless Wayland compositor. On Linux, Qt uses the `xcb` QPA plugin to run Qt GUI and Qt Widgets applications against X11 [S18 §Platform Plugin Dependencies tbl.1]. `Xvfb` exists specifically to run an X server on machines with no display hardware or physical input devices, and it is explicitly described as useful for testing clients and running applications that insist on having an X server [S20 §Description ¶1-2].
 
-That makes `Xvfb` the lowest-friction way to give the project a real window-system target inside OpenHands while keeping the runtime model close to ordinary Qt Widgets usage.
+That makes `Xvfb` the lowest-friction way to give the project a real window-system target inside local-agent containers while keeping the runtime model close to ordinary Qt Widgets usage.
 
 ## Project Rule
 
@@ -47,7 +47,7 @@ Qt documents the `qminimal` platform plugin as being for tools that link against
 
 When a developer has a normal Linux desktop session, they should run the host GUI directly in that session for exploratory work. The `Xvfb` wrapper is mainly for:
 
-- OpenHands execution
+- local-agent execution
 - repeatable smoke tests
 - automated regression checks
 

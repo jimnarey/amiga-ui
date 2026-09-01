@@ -106,11 +106,11 @@ This is part of the workflow, not optional cleanup. The project is intentionally
 
 Do this in one specific, mechanical place so the step cannot be skipped or scattered by ambiguity about where it belongs: append one dated entry to `docs/apps/<app>/run-log.md` (a dedicated log file, separate from `compatibility-notes.md`; create it from the template below if it does not exist yet). Use this template:
 
-```
-### YYYY-MM-DD — <one-line description of the blocker>
+```text
+### YYYY-MM-DD - <one-line description of the blocker>
 
 - Observed: <important/useful outcome from the run, including the first blocker and any key evidence worth preserving>
-- Change: <what was implemented, or "none — recorded for triage">
+- Change: <what was implemented, or "none - recorded for triage">
 - Next: <what to look at next, if known>
 ```
 
@@ -120,16 +120,9 @@ Newest entry last. Do not rewrite or delete earlier entries; the log is a histor
 
 ### 8. Finalize The Branch If The Iteration Is Complete
 
-If the rerun shows that the current blocker has been improved or resolved and the branch now represents one coherent completed change, do not treat "the next blocker is visible" as the end of the repository workflow by itself. Finish the branch properly:
+If the rerun shows that the current blocker has been improved or resolved and the branch now represents one coherent completed change, do not treat "the next blocker is visible" as the end of the repository workflow by itself. Finish the branch according to [branching-and-merging.md](branching-and-merging.md) unless the user asked for a different handoff shape.
 
-- run the relevant quality gates,
-- commit the blocker-level change,
-- merge the feature branch into `development`,
-- and start the next blocker from a fresh branch created from the updated `development` branch.
-
-Only stop before merge when the work is intentionally draft, the user asked to leave it unmerged, the blocker turned out to be out of scope, or a merge/state problem needs human input.
-
-For OpenHands-driven autonomous runs, plain narration such as "now I'll fix that next" is not a safe stopping shape because the host may interpret a text-only response as task completion. If more work remains, make the next tool call in the same response. Before any intentional final stop, create the explicit stop marker with `./tools/openhands_allow_stop.sh complete`, `needs-user`, or `blocked` as appropriate.
+Do not emit narration-only turns while more work remains. If more work remains, make the next tool call in the same response. Before any intentional final stop, make sure the requested work is complete, blocked by a real external dependency, or waiting for a user decision.
 
 There is a concrete example of this workflow producing one completed unit of work in commit `c097fbb` in `main` history (`Add minimal icon.library override`). It is a useful reference for the expected size and shape of one blocker-level iteration.
 

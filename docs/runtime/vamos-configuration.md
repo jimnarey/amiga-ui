@@ -20,7 +20,7 @@ Needed for:
 
 ## Summary
 
-`Vamos` can be configured partly on the command line and partly through `.vamosrc` files, and command-line settings override file settings [S7 L79-L94]. For this project, that flexibility is useful but also dangerous: hidden per-user configuration would make OpenHands runs harder to reproduce. The project should therefore prefer explicit repo-owned settings and should avoid depending on ambient `~/.vamosrc` state.
+`Vamos` can be configured partly on the command line and partly through `.vamosrc` files, and command-line settings override file settings [S7 L79-L94]. For this project, that flexibility is useful but also dangerous: hidden per-user configuration would make autonomous runs harder to reproduce. The project should therefore prefer explicit repo-owned settings and should avoid depending on ambient `~/.vamosrc` state.
 
 ## Configuration Sources
 

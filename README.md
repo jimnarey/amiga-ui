@@ -2,7 +2,11 @@
 
 `amiga-ui` is a Python-based compatibility-layer project for running selected classic Amiga Workbench GUI applications on Linux by extending the `vamos` runtime from [amitools](https://github.com/cnvogelg/amitools).
 
-This README is the human entrypoint. For the OpenHands-specific autonomous workflow, start with [.openhands/onboarding.md](.openhands/onboarding.md).
+This README is the human entrypoint. Autonomous agents should start with [AGENTS.md](AGENTS.md); the current preferred DeepSeek Harness workflow is in [docs/workflows/dsh.md](docs/workflows/dsh.md), with a copy-paste task prompt in [docs/prompts/dsh-autonomous-dev.md](docs/prompts/dsh-autonomous-dev.md).
+
+## Harness Status
+
+DeepSeek Harness is the active local autonomous workflow for this repository. The previous OpenHands and Goose configuration, prompts, hooks, and helper scripts have been preserved under `.deprecated/` for reference, but they are no longer active instructions. Agents should ignore `.deprecated/` unless specifically asked to inspect the legacy setup.
 
 ## Installation
 
@@ -32,10 +36,10 @@ You can then confirm the required host-side tools are available with:
 ./check_dependencies.sh
 ```
 
-If you are working through OpenHands, the repo-local setup entrypoint is:
+For local agent containers, the shared repo bootstrap entrypoint is:
 
 ```bash
-bash .openhands/setup.sh
+bash tools/bootstrap.sh
 ```
 
 ## Usage
@@ -69,7 +73,7 @@ uv run vamos --help
 uv run xdftool --help
 ```
 
-For the full autonomous development loop and recommended command order, see [.openhands/onboarding.md](.openhands/onboarding.md).
+For the autonomous development loop and recommended command order, see [docs/workflows/dsh.md](docs/workflows/dsh.md) and [docs/workflows/error-driven-porting.md](docs/workflows/error-driven-porting.md).
 
 ## Development Workflow
 
@@ -113,7 +117,7 @@ The `probe` subcommand writes local run artifacts under `artifacts/runs/`, inclu
 
 ## Bespoke Porting Agent (experimental)
 
-`agent/` is a separate, minimal driver for this repo's error-driven-porting loop, built on [PydanticAI](https://pydantic.dev/docs/ai/overview/) against local models. Unlike the OpenHands/Goose/OpenCode harnesses, the LLM is only called for two narrow, validated judgment calls — classify the blocker, propose a fix as a diff — while a plain Python driver owns the loop itself, including deciding whether a fix actually worked.
+`agent/` is a separate, minimal driver for this repo's error-driven-porting loop, built on [PydanticAI](https://pydantic.dev/docs/ai/overview/) against local models. Unlike the general-purpose harnesses, the LLM is only called for two narrow, validated judgment calls — classify the blocker, propose a fix as a diff — while a plain Python driver owns the loop itself, including deciding whether a fix actually worked.
 
 ```bash
 uv sync --group agent --group dev

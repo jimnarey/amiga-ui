@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Shared helpers for writing and reading the harness stop marker
-# (<state_dir>/allow-stop.json). Sourced by tools/openhands_allow_stop.sh,
-# tools/goose_allow_stop.sh, .openhands/hooks/stop_guard.sh, and
-# tools/goose_quality_gate.sh. Not meant to be invoked directly.
+# (<state_dir>/allow-stop.json). Sourced by active repo-owned helpers such
+# as tools/bespoke_agent_allow_stop.sh. Legacy OpenHands and Goose callers
+# are preserved under .deprecated/. Not meant to be invoked directly.
 #
 # Assumes the sourcing script's working directory is the repository root.
 

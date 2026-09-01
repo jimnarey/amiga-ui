@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Shared "is this branch actually merge/finish-ready" checks: branch
 # hygiene, pre-commit, unit tests, GUI smoke test. Sourced by
-# .openhands/hooks/quality_gate.sh and tools/goose_quality_gate.sh. Not
-# meant to be invoked directly.
+# active or legacy harness wrappers. Not meant to be invoked directly.
 #
 # Assumes the sourcing script's working directory is the repository root.
 

@@ -1,8 +1,8 @@
 """Reuses the repo's existing shared quality-check and stop-marker
 infrastructure (tools/lib/) rather than reimplementing it -- see
-docs/workflows/agent-tool-contract.md and tools/lib/quality_checks.sh /
-tools/lib/stop_marker.sh, already shared with the OpenHands and Goose
-harnesses. This module adds no new verification logic of its own.
+docs/workflows/agent-tool-contract.md, tools/lib/quality_checks.sh, and
+tools/lib/stop_marker.sh. This module adds no new verification logic of its
+own.
 """
 
 from __future__ import annotations
@@ -17,10 +17,9 @@ StopReason = Literal["complete", "needs-user", "blocked"]
 
 
 def quality_gate_passes() -> bool:
-    """Runs the same branch-hygiene/pre-commit/unittest/smoke checks the
-    OpenHands and Goose harnesses gate on. Tool output streams straight to
-    this process's stdout/stderr, matching tools/lib/quality_checks.sh's own
-    existing behavior.
+    """Runs the shared branch-hygiene/pre-commit/unittest/smoke checks. Tool
+    output streams straight to this process's stdout/stderr, matching
+    tools/lib/quality_checks.sh's own existing behavior.
     """
 
     script = "set -euo pipefail\nsource tools/lib/quality_checks.sh\nquality_checks_run\n"
@@ -29,8 +28,8 @@ def quality_gate_passes() -> bool:
 
 
 def write_stop_marker(reason: StopReason, note: str) -> None:
-    """Writes the same complete/blocked/needs-user marker vocabulary the
-    other harnesses use, in this driver's own .agent/state/ namespace (see
+    """Writes the complete/blocked/needs-user marker vocabulary in this
+    driver's own .agent/state/ namespace (see
     tools/bespoke_agent_allow_stop.sh), via a plain argv call -- no shell
     interpolation of `note`, so arbitrary text is always safe here.
     """

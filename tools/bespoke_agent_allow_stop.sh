@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Record why the bespoke agent/ driver is intentionally ending a unit of
-# work. Same contract as tools/openhands_allow_stop.sh and
-# tools/goose_allow_stop.sh, reusing tools/lib/stop_marker.sh's shared logic
-# with its own state directory so the three harnesses never collide.
+# work. Reuses tools/lib/stop_marker.sh's shared logic with its own state
+# directory. Legacy harness stop helpers are preserved under .deprecated/.
 
 set -euo pipefail
 

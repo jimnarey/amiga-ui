@@ -25,9 +25,9 @@ The repository has two long-lived branches:
 - `main`
 - `development`
 
-`main` is the protected history branch. OpenHands should not develop directly on it and should not merge work into it as part of routine iteration.
+`main` is the protected history branch. Autonomous agents should not develop directly on it and should not merge work into it as part of routine iteration.
 
-`development` is the integration branch for accepted incremental work. OpenHands should start from `development`, but should still do feature work on a separate short-lived branch.
+`development` is the integration branch for accepted incremental work. Autonomous agents should start from `development` when it exists and the user has not requested a different branch, but should still do feature work on a separate short-lived branch.
 
 ## Feature Branch Rule
 
@@ -68,7 +68,7 @@ A feature branch may be merged into `development` only when all of the following
 5. Any required docs updates are already on the branch.
 6. The resulting state is still within project scope.
 
-Routine OpenHands work should merge into `development`, not into `main`.
+Routine autonomous work should merge into `development`, not into `main`.
 
 Meeting the merge conditions is not merely permission to merge later. For routine autonomous work, merge into `development` is the normal completion step once those conditions are satisfied, unless:
 
@@ -82,11 +82,11 @@ If none of those exceptions apply, do not stop at "the branch is ready." Merge i
 
 Do not delete branches after merge. The project wants to retain feature branches as an audit trail of how individual compatibility features or fixes were developed.
 
-## Practical OpenHands Rule
+## Practical Agent Rule
 
-At the start of a fresh OpenHands session:
+At the start of a fresh autonomous session:
 
-1. ensure the repo is on `development`;
+1. ensure the repo is on `development` when that branch exists and the user has not requested a different branch;
 2. create or switch to a feature branch before making code changes;
 3. keep one coherent blocker or decision per feature branch;
 4. run the normal quality checks before attempting to finish the task;

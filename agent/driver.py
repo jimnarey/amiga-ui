@@ -16,12 +16,11 @@ model opinion:
    already use by hand ("advances startup to graphics.library"), just made
    mechanical. No LLM involvement.
 2. Is it good enough to commit? ``gate.quality_gate_passes()`` -- the exact
-   pre-commit/unittest/smoke-test/branch-hygiene gate the OpenHands and
-   Goose harnesses already use, reused rather than reimplemented.
+   pre-commit/unittest/smoke-test/branch-hygiene gate from
+   ``tools/lib/quality_checks.sh``, reused rather than reimplemented.
 3. Should the run stop, and how should a human read that state afterward?
    ``gate.write_stop_marker(...)`` -- the same complete/blocked/needs-user
-   vocabulary the other harnesses already write, in this driver's own
-   namespace.
+   vocabulary, written in this driver's own namespace.
 
 See docs/research/local-agent-performance.md's "Possible Direction: A
 Bespoke, Narrow-Loop Driver" for the design rationale.

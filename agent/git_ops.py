@@ -3,8 +3,7 @@
 Deliberately does not create, switch, or merge branches: the quality gate
 (agent/gate.py -> tools/lib/quality_checks.sh) already refuses to pass on
 `main` or a dirty `development`, so being on the right branch first is a
-precondition the caller/human satisfies -- the same way it already is for
-the OpenHands and Goose harnesses, which don't auto-branch either.
+precondition the caller/human satisfies.
 
 Also deliberately requires explicit paths rather than `git add -A`, so a
 commit can never sweep in unrelated working-tree changes.
