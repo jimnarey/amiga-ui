@@ -70,6 +70,11 @@ _WIN_OFF_WSCREEN = 0x2E  # APTR struct Screen *WScreen
 _WIN_OFF_RPORT = 0x32  # APTR struct RastPort *RPort
 _WIN_OFF_FIRSTGADGET = 0x3E  # APTR struct Gadget *FirstGadget
 _WIN_OFF_IDCMP = 0x52  # ULONG IDCMPFlags
+_WIN_OFF_USERPORT = 0x56  # APTR struct MsgPort *UserPort
+_WIN_OFF_WINDOWPORT = 0x5A  # APTR struct MsgPort *WindowPort
+
+# --- struct MsgPort (classic, exec) -------------------------------------------
+_MSGPORT_SIZE = 0x14  # mp_NextMsg(0), mp_FirstMsg(4), mp_Task(8), mp_Flags(C), mp_Signals(10)
 
 # WA_ window-open tags (WA_Dummy = 0x80000063).
 _WA_LEFT = 0x80000064
@@ -90,7 +95,8 @@ class IntuitionLibrary(BaseLibrary):
         self._screen_addr: int | None = None
         self._screen_locks = 0
         self._draw_infos: dict[int, object] = {}
-        self._windows: dict[int, object] = {}
+        # addr -> (Window, UserPort, WindowPort) Memory blocks.
+        self._windows: dict[int, tuple] = {}
 
     def get_version(self) -> int:
         """Report a plausible baseline library version for Workbench 3.x startup."""
@@ -240,8 +246,49 @@ class IntuitionLibrary(BaseLibrary):
         mem.w32(addr + _WIN_OFF_RPORT, screen + _OFF_RASTPORT)
         mem.w32(addr + _WIN_OFF_FIRSTGADGET, gadgets)
         mem.w32(addr + _WIN_OFF_IDCMP, idcmp)
-        self._windows[addr] = win
+        # A real window has Intuition message ports: the app's event loop does
+        # WaitPort(win->UserPort) then GT_GetIMsg(win->UserPort). Register
+        # genuine MsgPorts (in the same address space) so WaitPort finds valid
+        # ports rather than NULL. Track them for CloseWindow to release.
+        user_port = self._register_window_port(ctx, "Intuition.UserPort")
+        window_port = self._register_window_port(ctx, "Intuition.WindowPort")
+        mem.w32(addr + _WIN_OFF_USERPORT, user_port.addr)
+        mem.w32(addr + _WIN_OFF_WINDOWPORT, window_port.addr)
+        # (Window, UserPort, WindowPort) Memory blocks, all freed on CloseWindow.
+        self._windows[addr] = (win, user_port, window_port)
         return addr
+
+    @staticmethod
+    def _get_port_mgr(ctx):
+        """Reach the exec PortManager through the exec VLib's impl.
+
+        The ``VLibManager.exec_lib`` reference is the exec *struct*; the
+        queue-backed ``PortManager`` lives on the exec *impl* (lib/ExecLibrary),
+        which is attached to the exec VLib as ``impl``.
+        """
+        vlib = ctx.vlib_mgr.get_vlib_by_name("exec.library")
+        if vlib is None or vlib.impl is None:
+            raise RuntimeError("Intuition: exec.library impl not available")
+        return vlib.impl.port_mgr
+
+    def _register_window_port(self, ctx, label):
+        """Allocate a real MsgPort and register it with the exec PortManager.
+
+        The Vamos ``WaitPort`` implementation requires the port to be a known
+        port (``port_mgr.has_port``) before it can inspect the queue; a NULL or
+        unregistered port is a hard internal error. Registering a genuine
+        queue-backed port matches what OpenWindow produces on real AmigaOS.
+        """
+        port_mgr = self._get_port_mgr(ctx)
+        mem = ctx.alloc.alloc_memory(_MSGPORT_SIZE, label=label)
+        m = ctx.mem
+        m.w32(mem.addr + 0x00, 0)  # mp_NextMsg
+        m.w32(mem.addr + 0x04, 0)  # mp_FirstMsg
+        m.w32(mem.addr + 0x08, 0)  # mp_Task
+        m.w32(mem.addr + 0x0C, 0)  # mp_Flags
+        m.w32(mem.addr + 0x10, 0)  # mp_Signals
+        port_mgr.register_port(mem.addr)
+        return mem
 
     def SetMenuStrip(self, ctx, window, menu):
         """Attach (or detach, with a NULL menu) a menu strip to a window."""
@@ -264,5 +311,14 @@ class IntuitionLibrary(BaseLibrary):
         return None
 
     def CloseWindow(self, ctx, window):
-        """Stub for the classic CloseWindow entry point."""
+        """Release a window opened via OpenWindowTagList and its message ports."""
+        rec = self._windows.pop(window, None)
+        if rec is None:
+            return None
+        win, user_port, window_port = rec
+        port_mgr = self._get_port_mgr(ctx)
+        for port_mem in (user_port, window_port):
+            port_mgr.unregister_port(port_mem.addr)
+            ctx.alloc.free_memory(port_mem)
+        ctx.alloc.free_memory(win)
         return None
