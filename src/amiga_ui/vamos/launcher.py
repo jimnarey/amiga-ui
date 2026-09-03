@@ -21,6 +21,7 @@ from amiga_ui.config import PROJECT_ROOT
 
 from .bootstrap import apply_runtime_patches
 from .extensions import get_library_impl_overrides
+from .fd_creator import install_repo_fd_creator
 
 
 class ProjectSetupLibManager(SetupLibManager):
@@ -34,6 +35,11 @@ class ProjectSetupLibManager(SetupLibManager):
         # repo-owned impls (e.g. Intuition's public screen) can allocate real
         # host-side state in the same address space as the emulated program.
         lib_mgr.vlib_mgr.set_ctx_extra_attr("alloc", self.alloc)
+        # Resolve jump-table layouts for libraries missing from the bundled FD
+        # data (gadtools, diskfont, workbench, asl) from the repository's NDK
+        # FD tables, so their library-specific entries (e.g. GetVisualInfo)
+        # exist in the jump table instead of a std-calls-only fake one.
+        install_repo_fd_creator(lib_mgr.vlib_mgr)
         return lib_mgr
 
 
