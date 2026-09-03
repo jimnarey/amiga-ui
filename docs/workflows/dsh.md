@@ -51,12 +51,13 @@ For Web UI sessions, paste the same prompt into a new session after selecting th
 At the beginning of a run, DSH should establish the repository baseline before fixing code:
 
 1. Read `AGENTS.md` and this document.
-2. Run `bash tools/bootstrap.sh` unless the user has already bootstrapped the environment.
-3. Run `uv run python tools/docs_triage.py` to choose a small, relevant doc set.
-4. Run `uv run amiga-ui check` before making behavior changes unless an earlier dependency/bootstrap failure blocks it.
-5. Run `uv run python tools/generate_api_index.py` when the generated API index is missing or stale.
-6. Run `uv run python tools/analyze_target_failure.py --latest` after each probe failure to identify the defaulted API calls, missing paths, and any UI obligation attached to the blocker.
-7. Use `UV_CACHE_DIR=/tmp/uv-cache`, `UV_LINK_MODE=copy`, and `PRE_COMMIT_HOME=/tmp/pre-commit-home` if container cache ownership or cross-filesystem hardlinking prevents `uv` or `pre-commit` from writing cleanly under the default home directory.
+2. Read `docs/architecture/platform-target.md` before making version-sensitive API, structure, or UI decisions.
+3. Run `bash tools/bootstrap.sh` unless the user has already bootstrapped the environment.
+4. Run `uv run python tools/docs_triage.py` to choose a small, relevant doc set.
+5. Run `uv run amiga-ui check` before making behavior changes unless an earlier dependency/bootstrap failure blocks it.
+6. Run `uv run python tools/generate_api_index.py` when the generated API index is missing or stale. Treat an FD that exists under `assets/docs/ndk/` but is absent from the index as a bootstrap problem, not proof that the function is unavailable.
+7. Run `uv run python tools/analyze_target_failure.py --latest` after each probe failure to identify the defaulted API calls, missing paths, target-version classification, and any UI obligation attached to the blocker.
+8. Use `UV_CACHE_DIR=/tmp/uv-cache`, `UV_LINK_MODE=copy`, and `PRE_COMMIT_HOME=/tmp/pre-commit-home` if container cache ownership or cross-filesystem hardlinking prevents `uv` or `pre-commit` from writing cleanly under the default home directory.
 
 The bootstrap script intentionally prints the next recommended checks instead of running every expensive command itself.
 
@@ -78,14 +79,14 @@ These scripts are not required for every run. Use them when `docs/assets/`, `ami
 When `vamos` reports a missing library function, do not implement from the function name alone.
 
 1. Inspect the latest `artifacts/runs/` entry, including stdout, stderr, `vamos.log`, and result JSON.
-2. Identify the library, vector/bias, function name, register contract, and call site using FD/proto files, generated stubs, app source, and AutoDocs.
+2. Identify the library, vector/bias, function name, register contract, introduction version, target classification, and call site using FD/proto files, generated stubs, app source, and AutoDocs.
 3. Search the local docs tree and fetched documentation cache before looking elsewhere.
 4. For `iTidy`, inspect the upstream source under `amiga_apps/itidy1classic/source/` to understand why the app calls the function.
 5. Use decompiled ROM or ADF-contained code only as a fallback when redistributable docs and available source do not explain behavior well enough.
 6. Implement the smallest repo-owned compatibility behavior that gets the real app to the next meaningful state.
 7. Rerun the same probe command immediately, then document the new stopping point in `docs/apps/<app>/run-log.md`.
 
-AutoDocs fit between FD/proto discovery and implementation: FD files identify which function is being called and how `vamos` dispatches it; AutoDocs explain the expected AmigaOS API behavior and edge cases. Decompiled code is evidence of last resort, not the default design source.
+AutoDocs fit between FD/proto discovery and implementation: FD files identify which function is being called, how `vamos` dispatches it, and often which library version introduced it; AutoDocs explain the expected AmigaOS API behavior and edge cases. Decompiled code is evidence of last resort, not the default design source. Do not reclassify a classic GadTools or Intuition call as OS4-era without proving that the target m68k binary requires an OS4-only API or layout.
 
 ## Tool Behavior Expectations
 

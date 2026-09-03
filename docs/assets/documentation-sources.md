@@ -37,7 +37,7 @@ The `assets/docs/` area is the raw documentation cache used to support the proje
 
 The download helper currently fetches four kinds of upstream material:
 
-- the AmigaOS 3.2 NDK archive [S1]
+- the AmigaOS 3.2 NDK archive as a modern classic reference source, with API version markers preserved rather than treated as the default runtime target [S1]
 - selected AmigaOS wiki pages for Workbench, Intuition, icons, IFF, tags, libraries, and app development [S2] [S3] [S4]
 - selected AmigaOS 3 Developer pages, including AutoDoc indexes and function pages for the libraries/devices most likely to block Workbench GUI applications [S5] [S6]
 - the helper scripts at `assets/docs/download_required_docs.sh` and `assets/docs/fetch_autodocs.py`
@@ -79,4 +79,4 @@ Use the materials under `assets/docs/` to:
 3. support new project-authored summaries,
 4. generate `assets/generated/api-index.json` and `assets/generated/api-index.md` with `uv run python tools/generate_api_index.py`.
 
-Do not treat the raw cache as the authoritative place to write project decisions. Those belong in `docs/`.
+Do not treat the raw cache as the authoritative place to write project decisions. Those belong in `docs/`. In particular, `docs/architecture/platform-target.md` controls whether a discovered API is baseline, optional later-classic behavior, reference-only, or out of target.

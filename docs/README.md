@@ -31,19 +31,20 @@ The helper inspects markdown paths and front matter only. Use it to discover wha
 3. `prompts/dsh-autonomous-dev.md` when starting a new DSH task
 4. `workflows/bootstrap-environment.md`
 5. `architecture/overview.md`
-6. `architecture/compatibility-scope.md`
-7. `architecture/gui-strategy.md`
-8. `platform/amiga-primer.md`
-9. `runtime/vamos-overview.md`
-10. `runtime/headless-gui.md`
-11. `runtime/subsystem-stop-rules.md`
-12. `host-gui/README.md`
-13. `host-gui/translation-obligations.md` before implementing UI-related APIs
-14. `workflows/agent-tool-contract.md`
-15. `workflows/fake-and-deferred-implementations.md`
-16. `workflows/branching-and-merging.md`
-17. `workflows/error-driven-porting.md`
-18. `apps/itidy/runbook.md` for the current target application, then other relevant notes under `apps/` as more targets are added
+6. `architecture/platform-target.md`
+7. `architecture/compatibility-scope.md`
+8. `architecture/gui-strategy.md`
+9. `platform/amiga-primer.md`
+10. `runtime/vamos-overview.md`
+11. `runtime/headless-gui.md`
+12. `runtime/subsystem-stop-rules.md`
+13. `host-gui/README.md`
+14. `host-gui/translation-obligations.md` before implementing UI-related APIs
+15. `workflows/agent-tool-contract.md`
+16. `workflows/fake-and-deferred-implementations.md`
+17. `workflows/branching-and-merging.md`
+18. `workflows/error-driven-porting.md`
+19. `apps/itidy/runbook.md` for the current target application, then other relevant notes under `apps/` as more targets are added
 
 ## Sections
 

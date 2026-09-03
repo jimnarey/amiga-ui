@@ -13,13 +13,15 @@ citations_used: []
 
 Work autonomously in the `amiga-ui` repository.
 
-Use `AGENTS.md` as the repo-wide authority. Use `docs/workflows/dsh.md`, `docs/workflows/agent-tool-contract.md`, `docs/workflows/error-driven-porting.md`, and `docs/workflows/branching-and-merging.md` for the active workflow. Ignore `.deprecated/` unless explicitly asked to inspect legacy OpenHands, Goose, or bespoke local-agent material.
+Use `AGENTS.md` as the repo-wide authority. Use `docs/architecture/platform-target.md`, `docs/workflows/dsh.md`, `docs/workflows/agent-tool-contract.md`, `docs/workflows/error-driven-porting.md`, and `docs/workflows/branching-and-merging.md` for the active workflow. Ignore `.deprecated/` unless explicitly asked to inspect legacy OpenHands, Goose, or bespoke local-agent material.
 
 First establish the baseline. If the environment has not already been bootstrapped, run:
 
 ```bash
 bash tools/bootstrap.sh
 ```
+
+The default runtime target is classic m68k Workbench/AmigaOS 3.0-3.1. Use later 3.x/3.2 material only as version-gated reference, and do not infer OS4, PPC, ReAction, AROS, or MorphOS behavior unless the user explicitly changes the target.
 
 Then run or confirm these checks before making behavior changes, unless an earlier setup failure blocks them:
 
@@ -49,7 +51,7 @@ uv run python tools/generate_api_index.py
 
 Advance by the error-driven porting loop: run the real target under the repo `vamos` launcher, capture the first actionable failure, classify it, make the smallest useful repo-owned fix, rerun the same command, and record the result in the relevant app run log.
 
-For missing Amiga library functions, inspect the latest run artifact, run `uv run python tools/analyze_target_failure.py --latest`, identify the library/vector/function/register contract from local FD/proto/stub material, read the relevant AutoDocs, and inspect the target app source to understand why the function is being called. Do not implement from a function name alone. Use decompiled ROM or ADF-contained code only when redistributable docs and available source do not provide enough evidence.
+For missing Amiga library functions, inspect the latest run artifact, run `uv run python tools/analyze_target_failure.py --latest`, identify the library/vector/function/register contract and target-version classification from local FD/proto/stub material, read the relevant AutoDocs, and inspect the target app source to understand why the function is being called. Do not implement from a function name alone. If an FD file exists under `assets/docs/ndk/` but the generated API index says it is missing, regenerate or fix the API index before drawing conclusions. Use decompiled ROM or ADF-contained code only when redistributable docs and available source do not provide enough evidence.
 
 For UI-related functions, correctness means useful host-side behavior, not just returning a value that lets the binary proceed. If the API index or failure analyser marks a function as `host-ui-required`, `workbench-visible-state`, or `likely-ui-support`, read `docs/host-gui/translation-obligations.md` and either implement real Qt-backed window/menu/gadget/requester/font/drawing state or stop at an honest documented boundary. Do not count a fake window pointer, fake visual-info pointer, fake requester result, or no-op drawing call as success by itself.
 

@@ -1,6 +1,6 @@
 # Repository Guidance
 
-This repository develops a Python-based compatibility layer for selected classic Amiga Workbench applications.
+This repository develops a Python-based compatibility layer for selected classic Amiga Workbench applications. The default runtime target is classic m68k Workbench/AmigaOS 3.0-3.1; see `docs/architecture/platform-target.md` before making version-sensitive API or structure decisions.
 
 Read `docs/README.md` for the documentation map, then `docs/workflows/dsh.md` for the current DeepSeek Harness autonomous workflow. Older OpenHands, Goose, and bespoke local-agent material is preserved under `.deprecated/`; ignore that directory unless the user explicitly asks you to inspect or revive legacy harness behavior.
 
@@ -12,7 +12,7 @@ Read `docs/README.md` for the documentation map, then `docs/workflows/dsh.md` fo
 - Prefer subclassing or explicit extension points over monkey patching. If a patch is necessary, keep it narrow and local.
 - Before substantial work, assess the docs tree cheaply with `uv run python tools/docs_triage.py` or a filename-only scan, then read in full only the docs relevant to the immediate task.
 - Use `bash tools/bootstrap.sh` as the shared bootstrap entrypoint for local agent containers unless the environment has already been bootstrapped.
-- Use `uv run python tools/generate_api_index.py` and `uv run python tools/analyze_target_failure.py --latest` to connect probe failures to FD tables, AutoDocs, implementation status, and UI obligations before adding library methods.
+- Use `uv run python tools/generate_api_index.py` and `uv run python tools/analyze_target_failure.py --latest` to connect probe failures to FD tables, AutoDocs, implementation status, target-version classification, and UI obligations before adding library methods.
 
 ## Tool Use And Safety
 Every harness working in this repository must follow the shared rules in [docs/workflows/agent-tool-contract.md](docs/workflows/agent-tool-contract.md): tool discipline, protected directories, image-tool handling, and narration/stop discipline. Harness-specific tool names and invocation mechanics belong in harness-specific instructions, not in shared policy. Current DSH instructions live in [docs/workflows/dsh.md](docs/workflows/dsh.md).
@@ -37,8 +37,8 @@ Every harness working in this repository must follow the shared rules in [docs/w
 ## Assets And Scope
 - Do not commit copyrighted binary assets unless the repo already treats them as allowed.
 - Maintain placeholder files and download scripts consistently when binary resources cannot live in source control.
-- Stay within API-level compatibility scope. Direct hardware access and full-system emulation are out of scope.
-- When implementing missing Amiga library functions, use local FD/proto files, AutoDocs, app source, generated API indexes, and recorded run artifacts before inferring behavior from a function name. Decompile ROMs or ADF-contained binaries only when the task genuinely needs implementation evidence that is not available from redistributable documentation or source.
+- Stay within API-level compatibility scope. Direct hardware access, full-system emulation, and OS4/PPC/ReAction assumptions are out of scope for the default target.
+- When implementing missing Amiga library functions, use local FD/proto files, AutoDocs, app source, generated API indexes, target-version markers, and recorded run artifacts before inferring behavior from a function name. Decompile ROMs or ADF-contained binaries only when the task genuinely needs implementation evidence that is not available from redistributable documentation or source.
 - Do not treat fake UI handles or no-op drawing/requester/menu/gadget functions as complete fixes. If an Amiga API creates or changes visible UI, the repo implementation should connect it to Qt-backed host behavior or record an honest missing capability.
 
 ## Verification And Docs

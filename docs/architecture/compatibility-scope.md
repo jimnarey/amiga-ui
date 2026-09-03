@@ -83,7 +83,7 @@ Small documented uses of secondary OS services are conditionally in scope when t
 
 ### Later AmigaOS Releases
 
-Workbench 3.0 and 3.1 behavior form the default baseline. Later media such as 3.1.4 are retained as reference and comparison material, especially where they clarify library or layout behavior, but the project should not silently drift into “supports every 3.x variation” unless a later doc explicitly widens the contract.
+Workbench 3.0 and 3.1 behavior form the default baseline. See [platform-target.md](platform-target.md) for the version policy used by implementation work, generated API indexes, and autonomous-agent runs. Later media such as 3.1.4 and 3.2 are retained as reference and comparison material, especially where they clarify library or layout behavior, but the project should not silently drift into “supports every 3.x variation” unless a later doc explicitly widens the contract.
 
 ## Acceptance Test For New Targets
 

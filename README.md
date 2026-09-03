@@ -1,6 +1,6 @@
 # amiga-ui
 
-`amiga-ui` is a Python-based compatibility-layer project for running selected classic Amiga Workbench GUI applications on Linux by extending the `vamos` runtime from [amitools](https://github.com/cnvogelg/amitools).
+`amiga-ui` is a Python-based compatibility-layer project for running selected classic Amiga Workbench GUI applications on Linux by extending the `vamos` runtime from [amitools](https://github.com/cnvogelg/amitools). The default runtime target is classic m68k Workbench/AmigaOS 3.0-3.1; later classic material is used only as version-gated reference unless a target app requires it.
 
 This README is the human entrypoint. Autonomous agents should start with [AGENTS.md](AGENTS.md); the current preferred DeepSeek Harness workflow is in [docs/workflows/dsh.md](docs/workflows/dsh.md), with a copy-paste task prompt in [docs/prompts/dsh-autonomous-dev.md](docs/prompts/dsh-autonomous-dev.md).
 

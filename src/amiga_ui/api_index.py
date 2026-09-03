@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import inspect
 import json
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,11 @@ from .config import ASSETS_ROOT
 DEFAULT_DOCS_ROOT = ASSETS_ROOT / "docs"
 DEFAULT_OUTPUT_JSON = ASSETS_ROOT / "generated" / "api-index.json"
 DEFAULT_OUTPUT_MARKDOWN = ASSETS_ROOT / "generated" / "api-index.md"
+TARGET_OS_FAMILY = "classic-m68k-workbench"
+TARGET_VERSION_FLOOR = 39
+TARGET_VERSION_BASELINE = 40
+VERSION_MARKER_RE = re.compile(r"functions in V(?P<version>\d+) or higher", re.IGNORECASE)
+FD_FUNCTION_RE = re.compile(r"^(?P<name>[A-Za-z_][A-Za-z0-9_]*)\(")
 
 
 @dataclass(frozen=True)
@@ -39,6 +45,8 @@ class ApiFunction:
     args: list[dict[str, str]]
     private: bool
     standard_trap: bool
+    introduced_version: int | None
+    target_status: str
     implemented: bool
     implementation_status: str
     ui_obligation: str
@@ -155,6 +163,15 @@ def build_api_index(
     return {
         "generated_by": "amiga_ui.api_index",
         "docs_root": project_relative(docs_root),
+        "target": {
+            "os_family": TARGET_OS_FAMILY,
+            "version_floor": TARGET_VERSION_FLOOR,
+            "version_baseline": TARGET_VERSION_BASELINE,
+            "policy": (
+                "Prefer documented classic m68k Workbench/AmigaOS 3.0-3.1 API behavior. "
+                "Treat later classic APIs as explicit compatibility cases, not default assumptions."
+            ),
+        },
         "libraries": [asdict(library) for library in libraries],
     }
 
@@ -166,6 +183,7 @@ def build_library_entry(target: ApiTarget, *, docs_root: Path, fd_dirs: list[Pat
     warnings: list[str] = []
     functions: list[ApiFunction] = []
     implementation_statuses, implementation_file = _implementation_statuses(target.name, fd)
+    introduced_versions = _fd_introduced_versions(fd_source) if fd_source else {}
 
     if fd is None:
         warnings.append("No FD table found in fetched NDK material or amitools bundled data")
@@ -174,6 +192,7 @@ def build_library_entry(target: ApiTarget, *, docs_root: Path, fd_dirs: list[Pat
             name = str(func.get_name())
             status = implementation_statuses.get(name, "missing")
             implemented = status == "valid"
+            introduced_version = introduced_versions.get(name)
             functions.append(
                 ApiFunction(
                     name=name,
@@ -182,6 +201,8 @@ def build_library_entry(target: ApiTarget, *, docs_root: Path, fd_dirs: list[Pat
                     args=[{"name": str(arg), "register": str(reg)} for arg, reg in (func.get_args() or [])],
                     private=bool(func.is_private()),
                     standard_trap=bool(func.is_std()),
+                    introduced_version=introduced_version,
+                    target_status=classify_target_status(introduced_version),
                     implemented=implemented,
                     implementation_status=status,
                     ui_obligation=classify_ui_obligation(target.name, name),
@@ -225,6 +246,20 @@ def classify_ui_obligation(library_name: str, function_name: str) -> str:
     return "support"
 
 
+def classify_target_status(introduced_version: int | None) -> str:
+    """Classify an API against the repository's classic Workbench 3.0/3.1 target."""
+
+    if introduced_version is None:
+        return "baseline-or-unknown"
+    if introduced_version <= TARGET_VERSION_BASELINE:
+        return "classic-baseline"
+    if introduced_version <= 45:
+        return "later-classic-optional"
+    if introduced_version <= 47:
+        return "later-classic-reference"
+    return "out-of-target"
+
+
 def write_api_index(payload: dict[str, Any], json_path: Path, markdown_path: Path) -> None:
     """Write JSON and Markdown renderings of the API index."""
 
@@ -261,15 +296,20 @@ def render_markdown(payload: dict[str, Any]) -> str:
                 lines.append(f"- Warning: {warning}")
             lines.append("")
             continue
-        lines.append("| Index | Bias | Function | Args | Obligation | Impl status | Impl file | AutoDoc |")
-        lines.append("| --- | ---: | --- | --- | --- | --- | --- | --- |")
+        lines.append(
+            "| Index | Bias | Function | Args | Min version | Target | Obligation | Impl status | Impl file | AutoDoc |"
+        )
+        lines.append("| --- | ---: | --- | --- | ---: | --- | --- | --- | --- | --- |")
         for func in library["functions"]:
             args = ", ".join(f"{arg['name']}[{arg['register']}]" for arg in func["args"])
             impl_file = func["implementation_file"] or ""
             impl_status = func.get("implementation_status", "unknown")
             autodoc = func["autodoc_path"] or func["autodoc_url"]
+            min_version = func.get("introduced_version")
+            min_version_text = "" if min_version is None else str(min_version)
             lines.append(
                 f"| {func['index']} | {func['bias']} | `{func['name']}` | {args} | "
+                f"{min_version_text} | `{func.get('target_status', 'baseline-or-unknown')}` | "
                 f"`{func['ui_obligation']}` | `{impl_status}` | {impl_file} | {autodoc} |"
             )
         lines.append("")
@@ -354,10 +394,33 @@ def _discover_fd_dirs(docs_root: Path) -> list[Path]:
     candidates: list[Path] = []
     ndk_root = docs_root / "ndk"
     if ndk_root.is_dir():
-        for path in sorted(ndk_root.rglob("fd")):
-            if path.is_dir() and any(child.suffix == ".fd" for child in path.iterdir()):
+        for path in sorted(ndk_root.rglob("*")):
+            if (
+                path.is_dir()
+                and path.name.lower() == "fd"
+                and any(child.is_file() and child.suffix.lower() == ".fd" for child in path.iterdir())
+            ):
                 candidates.append(path)
     return candidates
+
+
+def _fd_introduced_versions(fd_path: Path) -> dict[str, int]:
+    """Return per-function introduction versions parsed from FD comment blocks."""
+
+    versions: dict[str, int] = {}
+    current_version: int | None = None
+    for raw_line in fd_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw_line.strip()
+        marker = VERSION_MARKER_RE.search(line)
+        if marker:
+            current_version = int(marker.group("version"))
+            continue
+        if not line or line.startswith("*") or line.startswith("##"):
+            continue
+        func = FD_FUNCTION_RE.match(line)
+        if func and current_version is not None:
+            versions[func.group("name")] = current_version
+    return versions
 
 
 def _implementation_statuses(library_name: str, fd: Any | None) -> tuple[dict[str, str], Path | None]:

@@ -24,7 +24,7 @@ On a fresh Linux machine or agent container, the shared project bootstrap path i
 2. Run `bash tools/bootstrap.sh` from the repository root.
 3. Use `uv run amiga-ui-xvfb -- <command>` for headless GUI checks when no desktop session is available.
 
-The bootstrap script runs `uv sync --group dev`, verifies required host tools with `./check_dependencies.sh`, reports the current branch, and prints the next recommended validation commands. It does not change branches. It also uses `/tmp/uv-cache` as the default `uv` cache location so container users are less likely to hit read-only or cross-user cache ownership problems.
+The bootstrap script runs `uv sync --group dev`, verifies required host tools with `./check_dependencies.sh`, reports the current branch, and prints the next recommended validation commands. The default platform target is recorded in `docs/architecture/platform-target.md`; read it before interpreting NDK, AutoDoc, or `vamos` library-vector evidence. It does not change branches. It also uses `/tmp/uv-cache` as the default `uv` cache location so container users are less likely to hit read-only or cross-user cache ownership problems.
 
 The project currently requires `Xvfb` for headless GUI execution and `7z` for archive and asset handling. `Xvfb` is the project-standard virtual display server because it provides a real X11 environment for machines with no physical display hardware [S20 §Description ¶1-2].
 
