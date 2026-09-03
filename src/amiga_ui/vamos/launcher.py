@@ -35,6 +35,11 @@ class ProjectSetupLibManager(SetupLibManager):
         # repo-owned impls (e.g. Intuition's public screen) can allocate real
         # host-side state in the same address space as the emulated program.
         lib_mgr.vlib_mgr.set_ctx_extra_attr("alloc", self.alloc)
+        # Expose the VLibManager to library contexts so repo-owned impls that
+        # need exec-level services (e.g. Intuition registering a window's
+        # UserPort/WindowPort with the PortManager) can reach the port manager
+        # without a VLib -> manager back-reference.
+        lib_mgr.vlib_mgr.set_ctx_extra_attr("vlib_mgr", lib_mgr.vlib_mgr)
         # Resolve jump-table layouts for libraries missing from the bundled FD
         # data (gadtools, diskfont, workbench, asl) from the repository's NDK
         # FD tables, so their library-specific entries (e.g. GetVisualInfo)
