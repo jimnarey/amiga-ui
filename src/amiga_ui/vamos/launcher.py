@@ -30,6 +30,10 @@ class ProjectSetupLibManager(SetupLibManager):
         lib_mgr = super().setup()
         for name, impl_cls in get_library_impl_overrides().items():
             lib_mgr.add_impl_cls(name, impl_cls)
+        # Expose the run's MemoryAlloc to every lazily-created library context so
+        # repo-owned impls (e.g. Intuition's public screen) can allocate real
+        # host-side state in the same address space as the emulated program.
+        lib_mgr.vlib_mgr.set_ctx_extra_attr("alloc", self.alloc)
         return lib_mgr
 
 
