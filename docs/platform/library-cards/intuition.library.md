@@ -49,6 +49,12 @@ That list is not exhaustive, but it covers most of the Intuition calls a normal 
 
 The Window Communication docs explain that Intuition notifies applications of user activity primarily through the IDCMP message-port mechanism, where input events arrive as Exec messages associated with a window [S27 §Communicating with Intuition ¶1-4] [S27 §The IDCMP ¶1-3]. This is a crucial architectural clue for the host translation layer: native Amiga GUI logic is fundamentally message-driven.
 
+### Event-loop boundary in the in-process emulator
+
+The repo-owned in-process `vamos` launcher runs the m68k code but cannot block and wait for interactive input. Its `WaitPort()` implementation raises an `UnsupportedFeatureError` when the port's queue is empty rather than suspending until a message arrives. As a result, a correctly initialized GUI reaches the event loop (`WaitPort(window->UserPort)`) and stops there: the window, gadgets, menus and initial drawing all succeed, but the app cannot wait for the first real IDCMP message.
+
+This is an honest missing capability of the in-process execution path, not a defect in the repo's `intuition.library` state. `OpenWindowTagList` now registers genuine `UserPort`/`WindowPort` message ports so `WaitPort` sees valid, queue-backed ports (matching what `OpenWindow` produces on real AmigaOS); what the emulator lacks is a host-side input source that would enqueue IDCMP messages for the port to drain. Driving the loop with fabricated messages would inject behaviour the app never requested and is deliberately out of scope.
+
 ## Gadgets
 
 The Intuition gadget docs describe gadgets as the Amiga equivalent of buttons, knobs, and similar controls, and distinguish between:
