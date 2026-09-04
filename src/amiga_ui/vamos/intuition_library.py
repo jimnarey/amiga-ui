@@ -24,11 +24,16 @@ _OFF_TITLE = 0x18
 _OFF_BAR_HEIGHT = 0x20
 _OFF_WBOR_TOP = 0x25
 _OFF_FONT = 0x2C
+# NOTE: the ViewPort here is the pre-``RasInfo`` layout (0x24 bytes, AmigaOS
+# 3.0 / NDK without the graphics rasterizer extension). ``iTidy`` is compiled
+# against that layout, so its ``Screen.RastPort`` sits at 0x54 — NOT the 0x58
+# the NDK 3.2 ``RasInfo``-bearing ViewPort would imply. Reading
+# ``RastPort.TxHeight`` from the 3.2 offset yields garbage gadget geometry.
 _OFF_VIEWPORT = 0x30
-_OFF_RASTPORT = 0x58
-_OFF_BITMAP = 0xBC
+_OFF_RASTPORT = 0x54
+_OFF_BITMAP = 0xB8
 
-# --- struct ViewPort (40 bytes / 0x28) ---------------------------------------
+# --- struct ViewPort (pre-``RasInfo``: 36 bytes / 0x24) ----------------------
 _VP_OFF_COLORMAP = _OFF_VIEWPORT + 0x04
 _VP_OFF_DWIDTH = _OFF_VIEWPORT + 0x18
 _VP_OFF_DHEIGHT = _OFF_VIEWPORT + 0x1A
