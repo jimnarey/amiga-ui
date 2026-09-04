@@ -56,6 +56,7 @@ The helper inspects markdown paths and front matter only. Use it to discover wha
 - `workflows/`: repeatable setup, porting, regression, and implementation-boundary routines.
 - `assets/`: the resource inventory section explaining what resource classes exist and why they matter to the project.
 - `apps/`: app-specific notes, beginning with `iTidy`.
+- `sessions/`: dated, distilled session logs of notable autonomous work (what was discovered, changed, and left open).
 - `prompts/`: copy-paste prompts for supported autonomous harnesses.
 - `research/`: open questions, deferred decisions, and source priorities.
 
