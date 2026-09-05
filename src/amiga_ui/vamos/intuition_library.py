@@ -6,8 +6,9 @@ The app dereferences ``screen->WBorTop``, ``screen->RastPort.TxHeight`` and the
 embedded ``RastPort`` / ``ViewPort`` / ``BitMap``; returning an unallocated
 constant made those reads land on stale memory and the visual-info gate failed.
 
-Struct layout follows the AmigaOS-4-style ``struct Screen`` the binary was built
-against (embedded classic ``RastPort`` and ``ViewPort``), see
+Struct layout follows the classic Workbench-era ``struct Screen`` shape the
+target binary expects, including the pre-``RasInfo`` embedded ``ViewPort`` that
+places ``RastPort`` at ``Screen+0x54``. See
 ``docs/platform/library-cards/intuition.library.md``.
 """
 
@@ -15,7 +16,7 @@ from __future__ import annotations
 
 from .base_library import BaseLibrary
 
-# --- struct Screen (AmigaOS-4-style, classic RastPort/ViewPort embedded) -----
+# --- struct Screen (classic, pre-RasInfo ViewPort embedded) ------------------
 _SCREEN_SIZE = 0x200
 _OFF_WIDTH = 0x0C
 _OFF_HEIGHT = 0x0E

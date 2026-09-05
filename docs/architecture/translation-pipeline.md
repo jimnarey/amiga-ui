@@ -108,6 +108,40 @@ The Amiga-side event pattern is explicit waiting plus message draining. `WaitPor
 
 The host-side translation should preserve that meaning even if Qt delivers the originating interaction through its own signal or event system.
 
+The intended bridge is:
+
+1. a deterministic test event or real Qt event occurs,
+2. project code allocates a correctly shaped `struct IntuiMessage`,
+3. the message is enqueued on the target `Window.UserPort` via the Exec `PortManager`,
+4. `WaitPort(window->UserPort)` observes a non-empty queue and wakes,
+5. `GT_GetIMsg(window->UserPort)` returns the queued message,
+6. `GT_ReplyIMsg(message)` releases or recycles it.
+
+Do not bypass `WaitPort()` or make it succeed on an empty queue. The empty-queue
+failure is useful: it marks that the application has reached a genuine
+interactive boundary. The compatibility fix belongs in the producer side of the
+pipeline, where host or test input becomes Amiga-shaped IDCMP traffic.
+
+The first implementation milestone should be deterministic and testable before
+it is interactive: enqueue an `IDCMP_REFRESHWINDOW` or `IDCMP_CLOSEWINDOW`
+message for a known window port, prove the normal wait/get/reply sequence works,
+and only then connect Qt widget events to the same path.
+
+## Example: Disassembling 68k Call Sites
+
+When the observed behavior suggests a library call is not reaching a `vamos`
+trap, prefer a repo-owned disassembly path over ad hoc opcode decoding. Use
+`tools/disassemble_m68k.py` for raw binary, segment, or memory-dump inspection:
+
+```bash
+uv run python tools/disassemble_m68k.py path/to/blob --offset 0x120 --size 0x80 --base 0x20000
+```
+
+Remember that Amiga hunk file offsets are not automatically runtime addresses.
+For relocated `vamos` code, first identify the loaded segment base or dump the
+relocated bytes, then pass `--base` or `--address` so printed instructions line
+up with addresses from `vamos.log`.
+
 ## Design Rules
 
 ### Keep Boundaries Visible
