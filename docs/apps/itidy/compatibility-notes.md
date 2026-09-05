@@ -90,3 +90,40 @@ When `iTidy` fails under the project runtime, the most probable first buckets ar
 - missing command execution support for `LhA`
 
 This ordering comes directly from the published feature set and the current source structure, which bundles GUI, icon, scan, default-tool, and backup subsystems into one executable [S11 L15-L26] [S29 L38-L116].
+
+## Unresolved Struct-Offset Questions (binary confirmation pending)
+
+The classic `struct Gadget` tail fields (`GadgetID`, `UserData`, `SpecialInfo`) and
+the event `IAddress` are settled: the repo offsets (`GadgetID@0x26`, `UserData@0x28`,
+`SpecialInfo@0x22`, `IntuiMessage.IAddress@0x18`) match both the classic m68k NDK and
+the header cached in the repo, and the `IAddress` value is exercised end-to-end by the
+working event bridge (`WaitPort -> GT_GetIMsg -> GT_ReplyIMsg`). `struct NewGadget`
+matches the classic layout. `struct IntuiText` was corrected in this change to the
+classic 3.x `iT_*` layout (the previous layout matched no known NDK); nothing in the
+implemented path dereferences IntuiText fields yet, so this is low-risk.
+
+The following remain **unconfirmed against the binary** and should be settled by
+disassembling `iTidy`'s event handler and RastPort reads (the HUNK CODE segment is the
+ground truth; see `docs/architecture/platform-target.md` evidence order) before they are
+treated as settled:
+
+- **RastPort field offsets.** `intuition_library.py` writes `RpFont`/`TxHeight`/`TxWidth`
+  at `RastPort+0x34`/`+0x3A`/`+0x3C`. The classic AmigaOS 3.x `RastPort` (with the 3.0
+  `RasInfo` field) places them at `+0x22`/`+0x2E`/`+0x30`. The app currently reads
+  `RPort->TxHeight` and the screen font and gets usable values, but that is not proof the
+  offsets are right (zeroed memory yields plausible values). Confirm the binary's actual
+  offsets; if they differ, update `intuition_library.py`.
+- **`struct Screen` field offsets.** `intuition_library.py` uses `Flags@0x14`,
+  `Title@0x18`, `BarHeight@0x20`, `WBorTop@0x25`, `Font@0x2C`, embedded `ViewPort@0x30`,
+  `RastPort@0x54`, `BitMap@0xB8`. These differ from the classic 3.x `Screen` layout the
+  project otherwise targets; confirm `WBorTop`, `Font`, `BitMap`, and especially
+  `RastPort`-within-`Screen` against the binary.
+- **`GadgetID` offset.** High confidence in `0x26` (three sources agree), but a prior
+  session log claimed `0x28`/size `0x30`. A definitive disassembly of the
+  `switch (gad->GadgetID)` ladder in the binary would close this out.
+
+Note on references: the repo's cached `assets/docs/ndk/NDK3.2/` is actually the
+**AmigaOS 4.1** NDK (`$VER: intuition.h 47.7 (26.12.2021)`, © Hyperion), not the classic
+3.x NDK that citation `S1` points at. Its `struct Gadget` coincidentally matches the
+classic layout, but its `struct IntuiText` is the old pre-2.0 shape, so it must not be
+used as the reference for the default m68k 3.0-3.1 target.

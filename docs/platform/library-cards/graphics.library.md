@@ -45,9 +45,36 @@ Even a mostly standard GUI application may use raw raster drawing for:
 
 The current `iTidy` tree does exactly that. Its GUI helper code uses `SetAPen()`, `Move()`, `Draw()`, `RectFill()`, `Text()`, and `PrintIText()` for custom group boxes and progress/status displays [S31 L1795-L1860] [S31 L1812-L1813].
 
-## What It Does Not Mean
+## Repo Implementation Status
 
-Supporting the project-relevant slice of `graphics.library` does not mean reproducing full chipset-era graphics behavior, sprite systems, or demo-scene style hardware tricks. The target class is still Workbench utilities. The value here is the conventional raster API that those utilities use inside normal windows, not direct hardware emulation.
+`src/amiga_ui/vamos/graphics_library.py` (`GraphicsLibrary`, registered in
+`extensions.py`) now owns a real dispatch surface and a host-side drawing model:
+
+- **Dispatch is wired.** Every method takes `ctx` first and its remaining
+  parameters match the pinned `graphics.library` `.fd` entry exactly (name and
+  count), so the `LibImplScanner` installs them as valid traps. Before this fix
+  the drawing methods lacked `ctx` and were scanner errors, so vamos dropped the
+  app's `SetAPen`/`Move`/`Draw`/`RectFill`/`SetBPen`/`SetDrMd` calls as
+  `UNKNOWN` traps and the drawing was silently lost.
+- **RastPort drawing is recorded, not no-op'ed.** `SetFont`, `SetAPen`,
+  `SetBPen`, `SetDrMd`, `SetABPenDrMd`, `SetMaxPen`, `SetOutlinePen`, `Move`,
+  `AreaMove`, `Draw`, `AreaDraw`, `RectFill`, and `InitRastPort` update a
+  host-side `RastPortState` (see `src/amiga_ui/vamos/rastport_state.py`) keyed
+  by the emulated RastPort pointer: the pen/draw-mode/font state the app
+  configured plus the ordered sequence of drawing operations. There is no host
+  window yet, so this record — not a fake success — is what makes the calls
+  meaningful; a later renderer can replay the ops.
+- **Frontier calls are recorded, not faked.** Color/BitMap/display-info/font
+  entry points the app has not driven yet record their invocation in
+  `GraphicsLibrary.call_log` and return honest defaults (e.g. `AllocBitMap`
+  returns `0`, `GetVPModeID` returns `0`) rather than a fabricated success.
+- **Text metrics remain frontier.** `Text`, `TextLength`, `PrintIText`, and
+  `IntuiTextLength` are not implemented; the app's calls to them log as honest
+  missing-function warnings (`d0=0`) rather than being dropped.
+
+Coverage: `tests/test_graphics_library.py` (model, dispatch, and a scanner
+regression guard asserting zero scanner errors and that the six drawing
+functions are wired) — no target binary required.
 
 ## Working Rule
 

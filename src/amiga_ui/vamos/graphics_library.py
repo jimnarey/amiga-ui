@@ -1,382 +1,285 @@
-"""Repo-owned minimal ``graphics.library`` implementation for vamos."""
+"""Repo-owned ``graphics.library`` implementation for vamos.
+
+Every method takes ``ctx`` first (after ``self``) and its remaining parameters
+match the pinned ``graphics.library`` ``.fd`` entry exactly (name + count), so
+``amitools``' ``LibImplScanner`` wires them into the library jump table instead
+of dropping them as ``UNKNOWN`` traps. See ``docs/runtime/writing-a-library-impl.md``.
+
+Drawing calls (``SetFont``/``SetAPen``/``SetBPen``/``SetDrMd``/``SetABPenDrMd``/
+``SetMaxPen``/``SetOutlinePen``/``Move``/``AreaMove``/``Draw``/``AreaDraw``/
+``RectFill``/``InitRastPort``) update a host-side :class:`RastPortState` (see
+``rastport_state.py``): the drawing state the app configured and the ordered
+sequence of drawing operations it issued. There is no host window yet, so this
+record — not a silent no-op — is what makes the calls meaningful. Other
+frontier functions record their invocation in ``call_log`` rather than faking a
+success, and return honest defaults.
+"""
 
 from __future__ import annotations
 
+from typing import Any
+
 from .base_library import BaseLibrary
+from .rastport_state import RastPortRegistry
 
 
 class GraphicsLibrary(BaseLibrary):
-    """Provide the first project-owned ``graphics.library`` implementation seam."""
+    """Project-owned ``graphics.library`` with a real RastPort drawing model."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        # Host-side drawing state, keyed by emulated RastPort pointer.
+        self.rastports = RastPortRegistry()
+        # Ordered record of non-drawing graphics calls (frontier functions the
+        # app has not driven yet): {"func": name, "args": {...}}.
+        self.call_log: list[dict[str, Any]] = []
 
     def get_version(self) -> int:
         """Report a plausible baseline library version for Workbench 3.x startup."""
         # Use the same baseline as icon.library for consistency.
         return 40
 
-    def InitRastPort(self, rp):
-        """Initialize a RastPort.
+    # -- helpers -------------------------------------------------------------
+    def _log_call(self, name: str, **args: Any) -> None:
+        self.call_log.append({"func": name, "args": args})
 
-        Args:
-            rp: RastPort pointer (a1 register)
-        """
+    def _rp(self, rp: int):
+        """The host-side drawing state for an emulated RastPort pointer."""
+        return self.rastports.get_or_create(rp)
+
+    # -- RastPort drawing state (recorded, not no-op'ed) --------------------
+    def InitRastPort(self, ctx, rp):
+        """graphics.library InitRastPort(rp)(a1): reset a RastPort's state."""
+        self._rp(rp).init()
         return None
 
-    def InitVPort(self, vp):
-        """Initialize a ViewPort.
+    def SetFont(self, ctx, rp, textFont):
+        """graphics.library SetFont(rp, textFont)(a1, a0): set the RastPort font.
 
-        Args:
-            vp: ViewPort pointer (a0 register)
+        Records the font on the host-side RastPort state and returns the
+        previous font pointer, per the classic contract.
         """
+        return self._rp(rp).set_font(textFont)
+
+    def SetAPen(self, ctx, rp, pen):
+        """graphics.library SetAPen(rp, pen)(a1, d0): set the active pen."""
+        self._rp(rp).set_apen(pen)
         return None
 
-    def MakeVPort(self, view, vp):
-        """Create a ViewPort from a View.
-
-        Args:
-            view: View pointer (a0 register)
-            vp: ViewPort pointer (a1 register)
-        """
+    def SetBPen(self, ctx, rp, pen):
+        """graphics.library SetBPen(rp, pen)(a1, d0): set the background pen."""
+        self._rp(rp).set_bpen(pen)
         return None
 
-    def SetAPen(self, rp, pen):
-        """Set the active pen in a RastPort.
-
-        Args:
-            rp: RastPort pointer (a1 register)
-            pen: pen number (d0 register)
-        """
+    def SetDrMd(self, ctx, rp, drawMode):
+        """graphics.library SetDrMd(rp, drawMode)(a1, d0): set the draw mode."""
+        self._rp(rp).set_dr_md(drawMode)
         return None
 
-    def SetBPen(self, rp, pen):
-        """Set the background pen in a RastPort.
-
-        Args:
-            rp: RastPort pointer (a1 register)
-            pen: pen number (d0 register)
-        """
+    def SetABPenDrMd(self, ctx, rp, apen, bpen, drawmode):
+        """graphics.library SetABPenDrMd(rp, apen, bpen, drawmode)(a1, d0-d2)."""
+        self._rp(rp).set_ab_pen_dr_md(apen, bpen, drawmode)
         return None
 
-    def SetDrMd(self, rp, drawMode):
-        """Set the draw mode in a RastPort.
+    def SetMaxPen(self, ctx, rp, maxpen):
+        """graphics.library SetMaxPen(rp, maxpen)(a0, d0): returns prior max pen."""
+        return self._rp(rp).set_max_pen(maxpen)
 
-        Args:
-            rp: RastPort pointer (a1 register)
-            drawMode: draw mode (d0 register)
-        """
+    def SetOutlinePen(self, ctx, rp, pen):
+        """graphics.library SetOutlinePen(rp, pen)(a0, d0): returns prior pen."""
+        return self._rp(rp).set_outline_pen(pen)
+
+    def Move(self, ctx, rp, x, y):
+        """graphics.library Move(rp, x, y)(a1, d0, d1): move the pen position."""
+        self._rp(rp).move(x, y)
         return None
 
-    def Move(self, rp, x, y):
-        """Move the current position in a RastPort.
-
-        Args:
-            rp: RastPort pointer (a1 register)
-            x: x coordinate (d0 register)
-            y: y coordinate (d1 register)
-        """
+    def AreaMove(self, ctx, rp, x, y):
+        """graphics.library AreaMove(rp, x, y)(a1, d0, d1): area move."""
+        self._rp(rp).area_move(x, y)
         return None
 
-    def Draw(self, rp, x, y):
-        """Draw a line from the current position in a RastPort.
-
-        Args:
-            rp: RastPort pointer (a1 register)
-            x: x coordinate (d0 register)
-            y: y coordinate (d1 register)
-        """
+    def Draw(self, ctx, rp, x, y):
+        """graphics.library Draw(rp, x, y)(a1, d0, d1): draw a line to (x, y)."""
+        self._rp(rp).draw(x, y)
         return None
 
-    def AreaMove(self, rp, x, y):
-        """Move the current position for area operations.
-
-        Args:
-            rp: RastPort pointer (a1 register)
-            x: x coordinate (d0 register)
-            y: y coordinate (d1 register)
-        """
+    def AreaDraw(self, ctx, rp, x, y):
+        """graphics.library AreaDraw(rp, x, y)(a1, d0, d1): area line to (x, y)."""
+        self._rp(rp).area_draw(x, y)
         return None
 
-    def AreaDraw(self, rp, x, y):
-        """Draw an area line.
-
-        Args:
-            rp: RastPort pointer (a1 register)
-            x: x coordinate (d0 register)
-            y: y coordinate (d1 register)
-        """
+    def RectFill(self, ctx, rp, xMin, yMin, xMax, yMax):
+        """graphics.library RectFill(rp, xMin, yMin, xMax, yMax)(a1, d0-d3)."""
+        self._rp(rp).rect_fill(xMin, yMin, xMax, yMax)
         return None
 
-    def SetRGB32(self, vp, n, r, g, b):
-        """Set a RGB32 color in a ViewPort.
-
-        Args:
-            vp: ViewPort pointer (a0 register)
-            n: color index (d0 register)
-            r: red component (d1 register)
-            g: green component (d2 register)
-            b: blue component (d3 register)
-        """
+    # -- ViewPort / colour (frontier: recorded, honest default) --------------
+    def SetRGB32(self, ctx, vp, n, r, g, b):
+        """graphics.library SetRGB32(vp, n, r, g, b)(a0, d0-d3)."""
+        self._log_call("SetRGB32", vp=vp, n=n, r=r, g=g, b=b)
         return None
 
-    def SetRGB32CM(self, cm, n, r, g, b):
-        """Set a RGB32 color in a ColorMap.
-
-        Args:
-            cm: ColorMap pointer (a0 register)
-            n: color index (d0 register)
-            r: red component (d1 register)
-            g: green component (d2 register)
-            b: blue component (d3 register)
-        """
+    def SetRGB32CM(self, ctx, cm, n, r, g, b):
+        """graphics.library SetRGB32CM(cm, n, r, g, b)(a0, d0-d3)."""
+        self._log_call("SetRGB32CM", cm=cm, n=n, r=r, g=g, b=b)
         return None
 
-    def SetMaxPen(self, rp, maxpen):
-        """Set the maximum pen number.
-
-        Args:
-            rp: RastPort pointer (a0 register)
-            maxpen: maximum pen number (d0 register)
-        """
-        return maxpen
-
-    def SetOutlinePen(self, rp, pen):
-        """Set the outline pen in a RastPort.
-
-        Args:
-            rp: RastPort pointer (a0 register)
-            pen: pen number (d0 register)
-        """
-        return pen
-
-    def LoadRGB32(self, vp, table):
-        """Load RGB32 color table into a ViewPort.
-
-        Args:
-            vp: ViewPort pointer (a0 register)
-            table: color table pointer (a1 register)
-        """
+    def SetRGB4(self, ctx, vp, index, red, green, blue):
+        """graphics.library SetRGB4(vp, index, red, green, blue)(a0, d0-d3)."""
+        self._log_call("SetRGB4", vp=vp, index=index, red=red, green=green, blue=blue)
         return None
 
-    def LoadRGB4(self, vp, colors, count):
-        """Load RGB4 color table into a ViewPort.
-
-        Args:
-            vp: ViewPort pointer (a0 register)
-            colors: color table (a1 register)
-            count: number of entries (d0 register)
-        """
+    def LoadRGB32(self, ctx, vp, table):
+        """graphics.library LoadRGB32(vp, table)(a0, a1)."""
+        self._log_call("LoadRGB32", vp=vp, table=table)
         return None
 
-    def GetVPModeID(self, vp):
-        """Get the ViewPort mode ID.
+    def LoadRGB4(self, ctx, vp, colors, count):
+        """graphics.library LoadRGB4(vp, colors, count)(a0, a1, d0)."""
+        self._log_call("LoadRGB4", vp=vp, colors=colors, count=count)
+        return None
 
-        Args:
-            vp: ViewPort pointer (a0 register)
-        """
+    def GetVPModeID(self, ctx, vp):
+        """graphics.library GetVPModeID(vp)(a0). No host display: report 0."""
+        self._log_call("GetVPModeID", vp=vp)
         return 0
 
-    def FreeDBufInfo(self, dbi):
-        """Free a Display Buffer Info object.
-
-        Args:
-            dbi: Display Buffer Info pointer (a1 register)
-        """
+    # -- View / ViewPort construction (frontier) -----------------------------
+    def InitVPort(self, ctx, vp):
+        """graphics.library InitVPort(vp)(a0)."""
+        self._log_call("InitVPort", vp=vp)
         return None
 
-    def GetDisplayInfoData(self, tag, buffer, length):
-        """Get display info data.
-
-        Args:
-            tag: tag item address (a0 register)
-            buffer: data buffer (a1 register)
-            length: buffer length (d0 register)
-        """
-        # Return a minimal display info structure
-        return 0x10000
-
-    def InitView(self, view):
-        """Initialize a View.
-
-        Args:
-            view: View pointer (a1 register)
-        """
+    def MakeVPort(self, ctx, view, vp):
+        """graphics.library MakeVPort(view, vp)(a0, a1)."""
+        self._log_call("MakeVPort", view=view, vp=vp)
         return None
 
-    def FindDisplayInfo(self, tag):
-        """Find a DisplayInfo structure.
-
-        Args:
-            tag: tag item address (a0 register)
-        """
+    def InitView(self, ctx, view):
+        """graphics.library InitView(view)(a1)."""
+        self._log_call("InitView", view=view)
         return None
 
-    def NextDisplayInfo(self, dnode):
-        """Get the next DisplayInfo node.
-
-        Args:
-            dnode: DisplayInfo node pointer (a0 register)
-        """
-        return None
-
-    def AllocBitMap(self, bitMap, depth, width, height):
-        """Allocate a bitmap.
-
-        Args:
-            bitMap: bitMap pointer (a0 register)
-            depth: bit depth (d0 register)
-            width: bitmap width (d1 register)
-            height: bitmap height (d2 register)
-        """
-        return None
-
-    def FreeBitMap(self, bitMap):
-        """Free a bitmap.
-
-        Args:
-            bitMap: bitMap pointer (a0 register)
-        """
-        return None
-
-    def SetRPAttrsA(self, rp, attrs):
-        """Set RastPort attributes.
-
-        Args:
-            rp: RastPort pointer (a1 register)
-            attrs: attribute list (a0 register)
-        """
-        return None
-
-    def GetRPAttrsA(self, rp, attrs):
-        """Get RastPort attributes.
-
-        Args:
-            rp: RastPort pointer (a1 register)
-            attrs: attribute list (a0 register)
-        """
-        return None
-
-    def ObtainBestPenA(self, cm, penType, *args):
-        """Obtain the best pen for a colormap.
-
-        Args:
-            colormap: colormap pointer (a0 register)
-            penType: pen type (d0 register)
-        """
+    # -- display info (frontier) ---------------------------------------------
+    def FindDisplayInfo(self, ctx, displayID):
+        """graphics.library FindDisplayInfo(displayID)(d0). No host display."""
+        self._log_call("FindDisplayInfo", displayID=displayID)
         return 0
 
-    def ObtainPen(self, cm, penType):
-        """Obtain a pen from a colormap.
-
-        Args:
-            colormap: colormap pointer (a0 register)
-            penType: pen type (d0 register)
-        """
+    def NextDisplayInfo(self, ctx, displayID):
+        """graphics.library NextDisplayInfo(displayID)(d0)."""
+        self._log_call("NextDisplayInfo", displayID=displayID)
         return 0
 
-    def ReleasePen(self, cm, pen):
-        """Release a pen back to a colormap.
-
-        Args:
-            colormap: colormap pointer (a0 register)
-            pen: pen number (d0 register)
-        """
-        return None
-
-    def GetBestPen(self, cm, r, g, b):
-        """Get the best pen match for RGB values.
-
-        Args:
-            colormap: colormap pointer (a0 register)
-            red: red component (d1 register)
-            green: green component (d2 register)
-            blue: blue component (d3 register)
-        """
+    def GetDisplayInfoData(self, ctx, handle, buf, size, tagID, displayID):
+        """graphics.library GetDisplayInfoData(handle, buf, size, tagID, displayID)
+        (a0, a1, d0, d1, d2). No host display: report no data written (0)."""
+        self._log_call(
+            "GetDisplayInfoData",
+            handle=handle,
+            buf=buf,
+            size=size,
+            tagID=tagID,
+            displayID=displayID,
+        )
         return 0
 
-    def SetABPenDrMd(self, rp, apen, bpen, drMode):
-        """Set active, background, and draw mode pens.
-
-        Args:
-            rp: RastPort pointer (a1 register)
-            apen: active pen (d0 register)
-            bpen: background pen (d1 register)
-            drMode: draw mode (d2 register)
-        """
+    def FreeDBufInfo(self, ctx, dbi):
+        """graphics.library FreeDBufInfo(dbi)(a1)."""
+        self._log_call("FreeDBufInfo", dbi=dbi)
         return None
 
-    def CreateEasyFont(self, font, name, height):
-        """Create an EasyFont.
+    # -- BitMap (frontier) ----------------------------------------------------
+    def AllocBitMap(self, ctx, sizex, sizey, depth, flags, friend_bitmap):
+        """graphics.library AllocBitMap(sizex, sizey, depth, flags, friend_bitmap)
+        (d0, d1, d2, d3, a0). No host BitMap allocation yet: honest failure (0)."""
+        self._log_call(
+            "AllocBitMap",
+            sizex=sizex,
+            sizey=sizey,
+            depth=depth,
+            flags=flags,
+            friend_bitmap=friend_bitmap,
+        )
+        return 0
 
-        Args:
-            font: font pointer (a0 register)
-            font name: font name (d0 register)
-            height: font height (d1 register)
-        """
+    def FreeBitMap(self, ctx, bm):
+        """graphics.library FreeBitMap(bm)(a0)."""
+        self._log_call("FreeBitMap", bm=bm)
         return None
 
-    def OpenFont(self, textAttr):
-        """Open a font.
-
-        Args:
-            textAttr: text attribute pointer (a0 register)
-        """
+    def BltBitMap(
+        self,
+        ctx,
+        srcBitMap,
+        xSrc,
+        ySrc,
+        destBitMap,
+        xDest,
+        yDest,
+        xSize,
+        ySize,
+        minterm,
+        mask,
+        tempA,
+    ):
+        """graphics.library BltBitMap(...)(a0, d0-d7, a1, a2)."""
+        self._log_call(
+            "BltBitMap",
+            srcBitMap=srcBitMap,
+            xSrc=xSrc,
+            ySrc=ySrc,
+            destBitMap=destBitMap,
+            xDest=xDest,
+            yDest=yDest,
+            xSize=xSize,
+            ySize=ySize,
+            minterm=minterm,
+            mask=mask,
+            tempA=tempA,
+        )
         return None
 
-    def CloseFont(self, font):
-        """Close a font.
-
-        Args:
-            font: font pointer (a1 register)
-        """
+    def BltClear(self, ctx, memBlock, byteCount, flags):
+        """graphics.library BltClear(memBlock, byteCount, flags)(a1, d0, d1)."""
+        self._log_call("BltClear", memBlock=memBlock, byteCount=byteCount, flags=flags)
         return None
 
-    def SetRGB4(self, vp, index, red, green, blue):
-        """Set RGB4 color in a ViewPort.
-
-        Args:
-            vp: ViewPort pointer (a0 register)
-            index: color index (d0 register)
-            red: red component (d1 register)
-            green: green component (d2 register)
-            blue: blue component (d3 register)
-        """
+    # -- RastPort attributes (frontier) ---------------------------------------
+    def SetRPAttrsA(self, ctx, rp, tags):
+        """graphics.library SetRPAttrsA(rp, tags)(a0, a1)."""
+        self._log_call("SetRPAttrsA", rp=rp, tags=tags)
         return None
 
-    def BltClear(self, memBlock, byteCount, flags):
-        """Block clear memory.
+    def GetRPAttrsA(self, ctx, rp, tags):
+        """graphics.library GetRPAttrsA(rp, tags)(a0, a1)."""
+        self._log_call("GetRPAttrsA", rp=rp, tags=tags)
+        return 0
 
-        Args:
-            memBlock: memory block address (a1 register)
-            byteCount: byte count (d0 register)
-            flags: flags (d1 register)
-        """
+    # -- pens on a ColorMap (frontier) ----------------------------------------
+    def ObtainBestPenA(self, ctx, cm, r, g, b, tags):
+        """graphics.library ObtainBestPenA(cm, r, g, b, tags)(a0, d1-d3, a1)."""
+        self._log_call("ObtainBestPenA", cm=cm, r=r, g=g, b=b, tags=tags)
+        return 0
+
+    def ObtainPen(self, ctx, cm, n, r, g, b, f):
+        """graphics.library ObtainPen(cm, n, r, g, b, f)(a0, d0-d4)."""
+        self._log_call("ObtainPen", cm=cm, n=n, r=r, g=g, b=b, f=f)
+        return 0
+
+    def ReleasePen(self, ctx, cm, n):
+        """graphics.library ReleasePen(cm, n)(a0, d0)."""
+        self._log_call("ReleasePen", cm=cm, n=n)
         return None
 
-    def RectFill(self, rp, xMin, yMin, xMax, yMax):
-        """Fill a rectangle in a RastPort.
+    # -- fonts (frontier) ------------------------------------------------------
+    def OpenFont(self, ctx, textAttr):
+        """graphics.library OpenFont(textAttr)(a0). No host font: NULL (0)."""
+        self._log_call("OpenFont", textAttr=textAttr)
+        return 0
 
-        Args:
-            rp: RastPort pointer (a1 register)
-            xMin: x minimum (d0 register)
-            yMin: y minimum (d1 register)
-            xMax: x maximum (d2 register)
-            yMax: y maximum (d3 register)
-        """
-        return None
-
-    def BltBitMap(self, srcBitMap, xSrc, ySrc, destBitMap, xDest, yDest, xSize, ySize, minterm, mask, tempA):
-        """Block transfer between bitmaps.
-
-        Args:
-            srcBitMap: source bitmap (a0 register)
-            xSrc: source x (d0 register)
-            ySrc: source y (d1 register)
-            destBitMap: destination bitmap (a1 register)
-            xDest: dest x (d2 register)
-            yDest: dest y (d3 register)
-            xSize: width (d4 register)
-            ySize: height (d5 register)
-            minterm: minterm (d6 register)
-            mask: mask (d7 register)
-            tempA: temp A (a2 register)
-        """
+    def CloseFont(self, ctx, textFont):
+        """graphics.library CloseFont(textFont)(a1)."""
+        self._log_call("CloseFont", textFont=textFont)
         return None

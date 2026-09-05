@@ -1,0 +1,224 @@
+"""Tests for the repo ``graphics.library`` and its host-side RastPort model.
+
+Covers, without depending on the iTidy binary:
+
+- the ``RastPortState`` / ``RastPortRegistry`` model directly (state updates and
+  the ordered op log);
+- the ``GraphicsLibrary`` entry points against a fake 68k context, asserting the
+  six drawing calls the target app actually issues (``SetAPen``/``SetBPen``/
+  ``SetDrMd``/``Move``/``Draw``/``RectFill``) record real state instead of
+  no-op'ing, and that the classic return contracts hold (``SetFont``/``SetMaxPen``/
+  ``SetOutlinePen`` return the *previous* value);
+- a scanner regression guard: every ``GraphicsLibrary`` method must be a *valid*
+  ``.fd`` trap (``ctx`` first, exact arg count). Before the dispatch fix the six
+  drawing methods lacked ``ctx`` and were scanner errors, so vamos dropped them
+  as ``UNKNOWN`` traps and the app's drawing was silently lost.
+"""
+
+import unittest
+from types import SimpleNamespace
+
+from amiga_ui.vamos.graphics_library import GraphicsLibrary
+from amiga_ui.vamos.rastport_state import RastPortRegistry, RastPortState
+
+
+def _ctx() -> SimpleNamespace:
+    """A minimal call context; the RastPort drawing methods never dereference it."""
+    return SimpleNamespace()
+
+
+class RastPortStateTest(unittest.TestCase):
+    def test_set_pen_and_draw_mode_record_state(self) -> None:
+        st = RastPortState(rp=0x1000)
+        st.set_apen(7)
+        st.set_bpen(12)
+        st.set_dr_md(0xC0)
+
+        self.assertEqual(st.apen, 7)
+        self.assertEqual(st.bpen, 12)
+        self.assertEqual(st.draw_mode, 0xC0)
+        self.assertEqual([op["op"] for op in st.ops], ["SetAPen", "SetBPen", "SetDrMd"])
+        # Each op carries the pen/draw-mode state in effect when it ran.
+        self.assertEqual(st.ops[0]["apen"], 7)
+        self.assertEqual(st.ops[2]["draw_mode"], 0xC0)
+
+    def test_move_then_draw_records_line_from_and_to(self) -> None:
+        st = RastPortState()
+        st.move(4, 9)
+        st.draw(20, 30)
+
+        self.assertEqual((st.x, st.y), (20, 30))
+        draw = st.ops[-1]
+        self.assertEqual(draw["op"], "Draw")
+        self.assertEqual((draw["from_x"], draw["from_y"]), (4, 9))
+        self.assertEqual((draw["x"], draw["y"]), (20, 30))
+
+    def test_rect_fill_records_bounds(self) -> None:
+        st = RastPortState()
+        st.rect_fill(1, 2, 100, 50)
+
+        fill = st.ops[-1]
+        self.assertEqual(fill["op"], "RectFill")
+        self.assertEqual((fill["x_min"], fill["y_min"], fill["x_max"], fill["y_max"]), (1, 2, 100, 50))
+
+    def test_set_max_pen_returns_previous(self) -> None:
+        st = RastPortState()
+        self.assertEqual(st.set_max_pen(15), 0)  # previous default
+        self.assertEqual(st.maxpen, 15)
+        self.assertEqual(st.set_max_pen(31), 15)  # previous value
+        self.assertEqual(st.maxpen, 31)
+
+    def test_set_font_returns_previous(self) -> None:
+        st = RastPortState()
+        self.assertEqual(st.set_font(0x0A0000), 0)
+        self.assertEqual(st.font, 0x0A0000)
+        self.assertEqual(st.set_font(0x0B0000), 0x0A0000)
+
+    def test_init_resets_state_and_clears_ops(self) -> None:
+        st = RastPortState()
+        st.set_apen(7)
+        st.move(5, 5)
+        st.init()
+
+        self.assertEqual(st.apen, 0)
+        self.assertEqual((st.x, st.y), (0, 0))
+        self.assertEqual([op["op"] for op in st.ops], ["InitRastPort"])
+
+
+class RastPortRegistryTest(unittest.TestCase):
+    def test_get_or_create_is_idempotent_per_pointer(self) -> None:
+        reg = RastPortRegistry()
+        a1 = reg.get_or_create(0x06A000)
+        a2 = reg.get_or_create(0x06A000)
+        b = reg.get_or_create(0x06B000)
+
+        self.assertIs(a1, a2)
+        self.assertIsNot(a1, b)
+        self.assertIs(reg.state(0x06A000), a1)
+        self.assertIsNone(reg.state(0x06C000))
+        self.assertEqual(len(reg.all_states()), 2)
+
+    def test_total_ops_sums_across_rastports(self) -> None:
+        reg = RastPortRegistry()
+        reg.get_or_create(0x1).set_apen(1)
+        reg.get_or_create(0x2).set_apen(2)
+        reg.get_or_create(0x2).set_bpen(3)
+
+        self.assertEqual(reg.total_ops(), 3)
+
+
+class GraphicsLibraryDispatchTest(unittest.TestCase):
+    """The six drawing calls the target app issues must record real state."""
+
+    def setUp(self) -> None:
+        self.lib = GraphicsLibrary()
+        self.ctx = _ctx()
+        self.rp = 0x06A868  # the window RPort the app draws into (from the probe log)
+
+    def _state(self, rp: int):
+        """The tracked RastPort state for ``rp``; fails the test if absent."""
+        st = self.lib.rastports.state(rp)
+        if st is None:
+            self.fail(f"no RastPort state tracked for {rp:#x}")
+        return st
+
+    def test_set_apen_bp_en_dr_md_record(self) -> None:
+        self.lib.SetAPen(self.ctx, self.rp, 7)
+        self.lib.SetBPen(self.ctx, self.rp, 12)
+        self.lib.SetDrMd(self.ctx, self.rp, 0xC0)
+
+        st = self._state(self.rp)
+        self.assertEqual(st.apen, 7)
+        self.assertEqual(st.bpen, 12)
+        self.assertEqual(st.draw_mode, 0xC0)
+        self.assertEqual([op["op"] for op in st.ops], ["SetAPen", "SetBPen", "SetDrMd"])
+
+    def test_move_draw_rectfill_record(self) -> None:
+        self.lib.Move(self.ctx, self.rp, 0, 0)
+        self.lib.Draw(self.ctx, self.rp, 319, 0)
+        self.lib.RectFill(self.ctx, self.rp, 0, 0, 319, 199)
+
+        st = self._state(self.rp)
+        ops = [op["op"] for op in st.ops]
+        self.assertEqual(ops, ["Move", "Draw", "RectFill"])
+        self.assertEqual((st.x, st.y), (319, 0))
+        self.assertEqual(st.ops[1]["from_x"], 0)
+        self.assertEqual(st.ops[1]["x"], 319)
+        self.assertEqual(st.ops[2]["y_max"], 199)
+
+    def test_setfont_records_and_returns_previous(self) -> None:
+        first = self.lib.SetFont(self.ctx, self.rp, 0x06AA48)
+        second = self.lib.SetFont(self.ctx, self.rp, 0x06BB00)
+
+        self.assertEqual(first, 0)
+        self.assertEqual(second, 0x06AA48)
+        self.assertEqual(self._state(self.rp).font, 0x06BB00)
+
+    def test_set_max_pen_and_outline_pen_return_previous(self) -> None:
+        self.assertEqual(self.lib.SetMaxPen(self.ctx, self.rp, 15), 0)
+        self.assertEqual(self.lib.SetMaxPen(self.ctx, self.rp, 31), 15)
+        self.assertEqual(self.lib.SetOutlinePen(self.ctx, self.rp, 9), 0)
+        self.assertEqual(self.lib.SetOutlinePen(self.ctx, self.rp, 10), 9)
+
+    def test_set_ab_pen_dr_md_updates_all_three(self) -> None:
+        self.lib.SetABPenDrMd(self.ctx, self.rp, 3, 4, 0x8C)
+
+        st = self._state(self.rp)
+        self.assertEqual((st.apen, st.bpen, st.draw_mode), (3, 4, 0x8C))
+        self.assertEqual(st.ops[-1]["op"], "SetABPenDrMd")
+
+    def test_area_move_draw_record(self) -> None:
+        self.lib.AreaMove(self.ctx, self.rp, 10, 20)
+        self.lib.AreaDraw(self.ctx, self.rp, 30, 40)
+
+        st = self._state(self.rp)
+        self.assertEqual([op["op"] for op in st.ops], ["AreaMove", "AreaDraw"])
+        self.assertEqual((st.x, st.y), (30, 40))
+        self.assertEqual(st.ops[1]["from_x"], 10)
+
+    def test_init_rast_port_resets(self) -> None:
+        self.lib.SetAPen(self.ctx, self.rp, 7)
+        self.lib.InitRastPort(self.ctx, self.rp)
+
+        st = self._state(self.rp)
+        self.assertEqual(st.apen, 0)
+        self.assertEqual([op["op"] for op in st.ops], ["InitRastPort"])
+
+    def test_frontier_functions_record_in_call_log_not_rastport(self) -> None:
+        self.lib.SetRGB32(self.ctx, 0x060000, 5, 255, 128, 0)
+        self.lib.AllocBitMap(self.ctx, 320, 200, 1, 0, 0)
+
+        self.assertEqual(len(self.lib.call_log), 2)
+        self.assertEqual(self.lib.call_log[0]["func"], "SetRGB32")
+        self.assertEqual(self.lib.call_log[0]["args"]["n"], 5)
+        self.assertEqual(self.lib.call_log[1]["func"], "AllocBitMap")
+        # Frontier calls must not leak into the RastPort drawing model.
+        self.assertEqual(self.lib.rastports.total_ops(), 0)
+
+
+class GraphicsLibraryScannerTest(unittest.TestCase):
+    """Regression guard: every method must be a valid .fd trap (ctx + arg count)."""
+
+    def _scan(self):
+        from amitools.fd import read_lib_fd
+        from amitools.vamos.libcore.impl import LibImplScanner
+
+        impl = GraphicsLibrary()
+        fd = read_lib_fd("graphics.library")
+        return LibImplScanner().scan("graphics.library", impl, fd, True)
+
+    def test_no_scanner_errors(self) -> None:
+        scan = self._scan()
+        self.assertEqual(scan.get_num_error_funcs(), 0, scan.get_error_func_names())
+        self.assertEqual(scan.get_num_invalid_funcs(), 0, scan.get_invalid_func_names())
+        self.assertGreater(scan.get_num_valid_funcs(), 0)
+
+    def test_six_named_drawing_functions_are_wired(self) -> None:
+        scan = self._scan()
+        valid = set(scan.get_valid_func_names())
+        for name in ("SetAPen", "SetBPen", "SetDrMd", "Move", "Draw", "RectFill"):
+            self.assertIn(name, valid)
+
+
+if __name__ == "__main__":
+    unittest.main()

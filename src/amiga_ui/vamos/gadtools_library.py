@@ -84,11 +84,25 @@ _NG_OFF_VISUAL = 0x16  # APTR ng_VisualInfo
 _NG_OFF_USERDATA = 0x1A  # APTR ng_UserData
 
 # --- struct IntuiText (gadget label) ----------------------------------------
-_IT_SIZE = 0x1C
-_IT_OFF_FACE = 0x0C  # UBYTE iT_Face
-_IT_OFF_HEIGHT = 0x0D  # UBYTE iT_Height
-_IT_OFF_WIDTH = 0x0E  # UBYTE iT_Width
-_IT_OFF_TEXT = 0x18  # CONST_STRPTR iT_Text
+# Classic m68k AmigaOS 3.x ``iT_*`` layout (default target per
+# docs/architecture/platform-target.md). The old pre-2.0 ``FrontPen``/``IText``
+# shape found in the repo's mislabelled "NDK3.2" (actually the AmigaOS 4.1 NDK)
+# does NOT apply here.
+_IT_SIZE = 0x24
+_IT_OFF_FACE = 0x00  # UWORD iT_Face
+_IT_OFF_FACE_REL = 0x02  # UBYTE iT_FaceRelative
+_IT_OFF_LEFT = 0x04  # WORD iT_Left
+_IT_OFF_TOP = 0x06  # WORD iT_Top
+_IT_OFF_WIDTH = 0x08  # WORD iT_Width
+_IT_OFF_HEIGHT = 0x0A  # WORD iT_Height
+_IT_OFF_FORE = 0x0C  # UBYTE iT_ForePen
+_IT_OFF_BACK = 0x0D  # UBYTE iT_BackPen
+_IT_OFF_DRMODE = 0x0E  # UBYTE iT_DrawMode
+_IT_OFF_PROP = 0x0F  # UBYTE iT_Proportion
+_IT_OFF_QUALITY = 0x10  # UBYTE iT_Quality
+_IT_OFF_TEXT = 0x14  # CONST_STRPTR iT_Text
+_IT_OFF_FACE_FONT = 0x18  # APTR iT_FaceFont
+_IT_OFF_PENMAP = 0x1C  # UBYTE iT_PenMap[8]
 
 # Sentinel GadgetType for the invisible, unselectable context gadget.
 _CONTEXT_KIND = 0xFFFF
@@ -278,9 +292,9 @@ class GadToolsLibrary(BaseLibrary):
         text_ptr = mem.r32(ng + _NG_OFF_TEXT)
         if text_ptr:
             it = alloc.alloc_memory(_IT_SIZE, label="GadTools.IntuiText")
-            mem.w8(it.addr + _IT_OFF_FACE, 0)
-            mem.w8(it.addr + _IT_OFF_HEIGHT, _DEFAULT_FONT_HEIGHT)
-            mem.w8(it.addr + _IT_OFF_WIDTH, 5)
+            mem.w16(it.addr + _IT_OFF_FACE, 0)
+            mem.w16(it.addr + _IT_OFF_WIDTH, 5)
+            mem.w16(it.addr + _IT_OFF_HEIGHT, _DEFAULT_FONT_HEIGHT)
             mem.w32(it.addr + _IT_OFF_TEXT, text_ptr)
             mem.w32(addr + _GAD_OFF_TEXT, it.addr)
             self._gadgets[it.addr] = it
@@ -415,9 +429,9 @@ class GadToolsLibrary(BaseLibrary):
             is_separator = label == _NM_BARLABEL or bool(type_val & _MENU_IMAGE)
             if not is_separator and label:
                 it = alloc.alloc_memory(_IT_SIZE, label="GadTools.MenuIntuiText")
-                mem.w8(it.addr + _IT_OFF_FACE, 0)
-                mem.w8(it.addr + _IT_OFF_HEIGHT, _DEFAULT_FONT_HEIGHT)
-                mem.w8(it.addr + _IT_OFF_WIDTH, 5)
+                mem.w16(it.addr + _IT_OFF_FACE, 0)
+                mem.w16(it.addr + _IT_OFF_WIDTH, 5)
+                mem.w16(it.addr + _IT_OFF_HEIGHT, _DEFAULT_FONT_HEIGHT)
                 mem.w32(it.addr + _IT_OFF_TEXT, label)
                 mem.w32(iaddr + _MI_OFF_FILL, it.addr)
                 self._menu_blocks[it.addr] = it
