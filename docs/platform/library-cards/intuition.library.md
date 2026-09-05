@@ -8,6 +8,9 @@ citations_used:
   - "S26"
   - "S27"
   - "S28"
+  - "S40"
+  - "S41"
+  - "S42"
 ---
 
 # intuition.library
@@ -51,9 +54,19 @@ The Window Communication docs explain that Intuition notifies applications of us
 
 ### Event-loop boundary in the in-process emulator
 
-The repo-owned in-process `vamos` launcher runs the m68k code but cannot block and wait for interactive input. Its `WaitPort()` implementation raises an `UnsupportedFeatureError` when the port's queue is empty rather than suspending until a message arrives. As a result, a correctly initialized GUI reaches the event loop (`WaitPort(window->UserPort)`) and stops there: the window, gadgets, menus and initial drawing all succeed, but the app cannot wait for the first real IDCMP message.
+The repo-owned in-process `vamos` launcher runs the m68k code but cannot block and wait for interactive input. Its `WaitPort()` implementation is the classic *peek*: it returns the address of the first queued message **without removing it** (matching `WaitPort()`'s documented behavior of returning the first message in the queue without removing it [S41 §FUNCTION]) and it raises an `UnsupportedFeatureError` when the queue is empty rather than suspending. It never fabricates a message to make an empty wait succeed.
 
-This is an honest missing capability of the in-process execution path, not a defect in the repo's `intuition.library` state. `OpenWindowTagList` now registers genuine `UserPort`/`WindowPort` message ports so `WaitPort` sees valid, queue-backed ports (matching what `OpenWindow` produces on real AmigaOS); what the emulator lacks is a host-side input source that would enqueue IDCMP messages for the port to drain. Driving the loop with fabricated messages would inject behaviour the app never requested and is deliberately out of scope.
+A host-side **IntuiMessage event bridge** (`src/amiga_ui/vamos/event_bridge.py`) supplies the input source that a headless process lacks. A scheduled host event (for example a test-driven close) is turned into a real `struct IntuiMessage` block — `Class`, `Code`, `Qualifier`, `IAddress`, `MouseX`, `MouseY`, `Seconds`, `Micros`, `IDCMPWindow`, `SpecialLink` laid out exactly as NDK 3.2's `intuition.h` defines them [S1 Include_H/intuition/intuition.h struct IntuiMessage] — and enqueued on the window's real `UserPort` (the genuine `UserPort`/`WindowPort` ports that `OpenWindowTagList` now registers, matching what `OpenWindow` produces on real AmigaOS). Real Intuition never generates a class a window did not request, so the bridge only delivers a class the window's `IDCMPFlags` admit.
+
+The app then drives the loop with the sanctioned path:
+
+```text
+host/test event  ->  IntuiMessage  ->  Window.UserPort  ->  WaitPort  ->  GT_GetIMsg  ->  GT_ReplyIMsg
+```
+
+`WaitPort` reports the queued message (classic peek, left in the queue); `GT_GetIMsg` (GadTools) performs the classic `GetMsg` — it removes the message from the port and returns its address [S40 §FUNCTION] [S42 item GT_GetIMsg]; `GT_ReplyIMsg` releases the block [S42 item GT_ReplyIMsg]. This path has been proven end-to-end against the iTidy target with a real message on the real port.
+
+**Honest-failure note.** The in-process run is not a clean interactive session: after the target's event loop consumes the delivered message it `WaitPort`s the now-empty queue, which fails honestly with `UnsupportedFeatureError` because the queue really is empty. That failure is the intended behavior — the emulator refusing to invent a message — not a bridge defect. The compiled target's event handling also differs from the checked-in repo source (it drains the message before its real event loop), so a delivered close event is not guaranteed to produce a clean process exit; delivery and consumption are what the bridge guarantees.
 
 ## Gadgets
 

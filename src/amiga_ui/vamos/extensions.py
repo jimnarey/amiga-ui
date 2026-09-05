@@ -1,5 +1,6 @@
 from .asllibrary import ASLLibrary
 from .diskfont_library import DiskFontLibrary
+from .exec_library import RepoExecLibrary
 from .gadtools_library import GadToolsLibrary
 from .graphics_library import GraphicsLibrary
 from .icon_library import IconLibrary
@@ -13,12 +14,14 @@ def get_library_impl_overrides() -> dict[str, type]:
 
     The launcher will query this function to see if any library implementations
     should override the default loading mechanism. At present we expose the
-    ASLLibrary, DiskFontLibrary, GadToolsLibrary, GraphicsLibrary, IconLibrary,
-    IffParseLibrary, WorkbenchLibrary, and IntuitionLibrary implementations.
+    ASLLibrary, DiskFontLibrary, RepoExecLibrary, GadToolsLibrary,
+    GraphicsLibrary, IconLibrary, IffParseLibrary, WorkbenchLibrary, and
+    IntuitionLibrary implementations.
     """
     return {
         "asl.library": ASLLibrary,
         "diskfont.library": DiskFontLibrary,
+        "exec.library": RepoExecLibrary,
         "gadtools.library": GadToolsLibrary,
         "icon.library": IconLibrary,
         "graphics.library": GraphicsLibrary,
