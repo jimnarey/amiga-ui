@@ -20,12 +20,20 @@ from amitools.vamos.trace import TraceManager
 from amiga_ui.config import PROJECT_ROOT
 
 from .bootstrap import apply_runtime_patches
+from .event_bridge import IntuitionEventBridge
 from .extensions import get_library_impl_overrides
 from .fd_creator import install_repo_fd_creator
 
 
 class ProjectSetupLibManager(SetupLibManager):
     """Setup manager that layers repo-owned library overrides onto vamos."""
+
+    def __init__(self, *args, event_bridge: IntuitionEventBridge | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Host event source for IntuiMessages (test/Qt). ``None`` means "no
+        # scripted events"; setup() then installs a fresh empty bridge so
+        # impls always find the ``event_bridge`` context attribute.
+        self.event_bridge = event_bridge
 
     def setup(self):
         lib_mgr = super().setup()
@@ -40,6 +48,13 @@ class ProjectSetupLibManager(SetupLibManager):
         # UserPort/WindowPort with the PortManager) can reach the port manager
         # without a VLib -> manager back-reference.
         lib_mgr.vlib_mgr.set_ctx_extra_attr("vlib_mgr", lib_mgr.vlib_mgr)
+        # Expose the host event bridge to library contexts so Intuition
+        # (OpenWindowTagList) and GadTools (GT_GetIMsg/GT_ReplyIMsg) can
+        # deliver scheduled test/Qt events as real IntuiMessages on the
+        # window's real UserPort.
+        if self.event_bridge is None:
+            self.event_bridge = IntuitionEventBridge()
+        lib_mgr.vlib_mgr.set_ctx_extra_attr("event_bridge", self.event_bridge)
         # Resolve jump-table layouts for libraries missing from the bundled FD
         # data (gadtools, diskfont, workbench, asl) from the repository's NDK
         # FD tables, so their library-specific entries (e.g. GetVisualInfo)
@@ -159,6 +174,7 @@ class VamosSessionRunner:
         scheduler: Scheduler,
         path_mgr: VamosPathManager,
         main_profiler: MainProfiler,
+        event_bridge: IntuitionEventBridge | None = None,
     ) -> ProjectSetupLibManager:
         """Create the repo-owned library manager wrapper."""
 
@@ -168,6 +184,7 @@ class VamosSessionRunner:
             scheduler,
             path_mgr,
             main_profiler=main_profiler,
+            event_bridge=event_bridge,
         )
 
     @staticmethod
@@ -176,8 +193,11 @@ class VamosSessionRunner:
 
         return task.get_run_state()
 
-    def __init__(self, args: list[str]):
+    def __init__(self, args: list[str], event_bridge: IntuitionEventBridge | None = None):
         self.args = args
+        # Host event source for IntuiMessages (test/Qt). ``None`` -> setup
+        # installs a fresh empty bridge (no scripted events).
+        self.event_bridge = event_bridge
         self.mp: VamosMainParser | None = None
         self.main_profiler: MainProfiler | None = None
         self.machine: Machine | None = None
@@ -286,7 +306,14 @@ class VamosSessionRunner:
         path_mgr = self._require_path_manager()
         main_profiler = self._require_profiler()
 
-        slm = self.create_lib_manager(machine, mem_map, scheduler, path_mgr, main_profiler)
+        slm = self.create_lib_manager(
+            machine,
+            mem_map,
+            scheduler,
+            path_mgr,
+            main_profiler,
+            event_bridge=self.event_bridge,
+        )
         lib_cfg = mp.get_libs_dict()
         if not slm.parse_config(lib_cfg):
             log_main.error("lib manager setup failed!")
@@ -424,9 +451,19 @@ class VamosSessionRunner:
         return self.main_proc
 
 
-def run_vamos_in_process(*, args: list[str]) -> int:
-    """Run vamos in-process with project bootstrap hooks."""
+def run_vamos_in_process(
+    *,
+    args: list[str],
+    event_bridge: IntuitionEventBridge | None = None,
+) -> int:
+    """Run vamos in-process with project bootstrap hooks.
+
+    ``event_bridge`` is an optional host event source (test/Qt): when
+    provided, its scheduled IntuiMessages are delivered to the windows the
+    app opens. When omitted, a fresh empty bridge is installed and behaviour
+    is unchanged (``WaitPort`` on an empty queue still fails honestly).
+    """
 
     with apply_runtime_patches():
-        runner = VamosSessionRunner(args)
+        runner = VamosSessionRunner(args, event_bridge=event_bridge)
         return runner.run()

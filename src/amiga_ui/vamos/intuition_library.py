@@ -262,7 +262,27 @@ class IntuitionLibrary(BaseLibrary):
         mem.w32(addr + _WIN_OFF_WINDOWPORT, window_port.addr)
         # (Window, UserPort, WindowPort) Memory blocks, all freed on CloseWindow.
         self._windows[addr] = (win, user_port, window_port)
+        # Host event bridge hook: register the window (with its real ports
+        # and IDCMP flags) so scheduled test/Qt events can be delivered to
+        # the UserPort before the app's first WaitPort. No-op without a
+        # bridge (plain probes).
+        bridge = getattr(ctx, "event_bridge", None)
+        if bridge is not None:
+            title = self._read_cstr(ctx, title) if title else ""
+            bridge.on_window_opened(ctx, addr, user_port.addr, window_port.addr, idcmp, title)
         return addr
+
+    @staticmethod
+    def _read_cstr(ctx, ptr, max_len=128) -> str:
+        """Read a bounded NUL-terminated C string from 68k memory."""
+        mem = ctx.mem
+        out = bytearray()
+        for i in range(max_len):
+            byte = mem.r8(ptr + i)
+            if byte == 0:
+                break
+            out.append(byte)
+        return out.decode("latin-1")
 
     @staticmethod
     def _get_port_mgr(ctx):

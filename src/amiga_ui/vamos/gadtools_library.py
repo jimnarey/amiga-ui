@@ -287,6 +287,11 @@ class GadToolsLibrary(BaseLibrary):
         # chain the new gadget after the previous one in the list
         mem.w32(prev_gad + _GAD_OFF_NEXT, addr)
         self._gadgets[addr] = gad
+        # Let the host event bridge resolve IDCMP_GadgetUp IAddress targets to
+        # a real gadget struct carrying this id (no-op without a bridge).
+        bridge = getattr(ctx, "event_bridge", None)
+        if bridge is not None:
+            bridge.register_gadget(addr, mem.r16(ng + _NG_OFF_ID))
         return addr
 
     def FreeGadgets(self, ctx, gad):
@@ -310,6 +315,52 @@ class GadToolsLibrary(BaseLibrary):
                 alloc.free_memory(obj)
             cur = mem.r32(cur + _GAD_OFF_NEXT)
         return None
+
+    # -- IntuiMessage consumption (the app's event loop) ----------------------
+    def GT_GetIMsg(self, ctx, iport):
+        """Classic GadTools: ``GetMsg`` on a window's ``UserPort``.
+
+        Returns the address of the next queued ``IntuiMessage`` or ``NULL``
+        when the queue is empty. This is what the app's event loop drains
+        with after ``WaitPort``; the message it returns is a real
+        ``struct IntuiMessage`` block (posted by the host event bridge, see
+        ``event_bridge.py``) whose ``Class``/``Code``/``IAddress``/
+        ``MouseX``/``MouseY`` the app dereferences directly.
+        """
+        if not iport:
+            return 0
+        port_mgr = self._get_port_mgr(ctx)
+        if port_mgr is None or not port_mgr.has_port(iport):
+            return 0
+        result = port_mgr.get_msg(iport) or 0
+        return result
+
+    def GT_ReplyIMsg(self, ctx, imsg):
+        """Classic GadTools: reply to and release an ``IntuiMessage``.
+
+        The classic reply (``PutMsg`` to ``msg->ReplyMsg``, i.e. the window's
+        ``WindowPort``) has no consumer on the headless host — nothing ever
+        waits on the ``WindowPort`` — so the observable work is releasing
+        the message block, which the host event bridge tracks. Addresses the
+        bridge did not allocate are ignored (honest no-op, not a fake free).
+        """
+        if not imsg:
+            return None
+        bridge = getattr(ctx, "event_bridge", None)
+        if bridge is not None:
+            bridge.release_message(ctx, imsg)
+        return None
+
+    @staticmethod
+    def _get_port_mgr(ctx):
+        """Reach the exec PortManager without a hard dependency (None if absent)."""
+        vlib_mgr = getattr(ctx, "vlib_mgr", None)
+        if vlib_mgr is None:
+            return None
+        vlib = vlib_mgr.get_vlib_by_name("exec.library")
+        if vlib is None or vlib.impl is None:
+            return None
+        return vlib.impl.port_mgr
 
     # -- menu strip creation --------------------------------------------------
     def CreateMenusA(self, ctx, newmenu, taglist):
