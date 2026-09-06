@@ -7,6 +7,7 @@ depends_on:
   - "error-driven-porting.md"
   - "branching-and-merging.md"
   - "asset-acquisition.md"
+  - "../architecture/hosted-application-mode.md"
   - "../host-gui/translation-obligations.md"
 citations_used:
   - "S67"
@@ -52,12 +53,13 @@ At the beginning of a run, DSH should establish the repository baseline before f
 
 1. Read `AGENTS.md` and this document.
 2. Read `docs/architecture/platform-target.md` before making version-sensitive API, structure, or UI decisions.
-3. Run `bash tools/bootstrap.sh` unless the user has already bootstrapped the environment.
-4. Run `uv run python tools/docs_triage.py` to choose a small, relevant doc set.
-5. Run `uv run amiga-ui check` before making behavior changes unless an earlier dependency/bootstrap failure blocks it.
-6. Run `uv run python tools/generate_api_index.py` when the generated API index is missing or stale. Treat an FD that exists under `assets/docs/ndk/` but is absent from the index as a bootstrap problem, not proof that the function is unavailable.
-7. Run `uv run python tools/analyze_target_failure.py --latest` after each probe failure to identify the defaulted API calls, missing paths, target-version classification, and any UI obligation attached to the blocker.
-8. Use `UV_CACHE_DIR=/tmp/uv-cache`, `UV_LINK_MODE=copy`, and `PRE_COMMIT_HOME=/tmp/pre-commit-home` if container cache ownership or cross-filesystem hardlinking prevents `uv` or `pre-commit` from writing cleanly under the default home directory.
+3. Read `docs/architecture/hosted-application-mode.md` before implementing visible host GUI behavior, window projection, menu projection, requesters, or event delivery from host UI.
+4. Run `bash tools/bootstrap.sh` unless the user has already bootstrapped the environment.
+5. Run `uv run python tools/docs_triage.py` to choose a small, relevant doc set.
+6. Run `uv run amiga-ui check` before making behavior changes unless an earlier dependency/bootstrap failure blocks it.
+7. Run `uv run python tools/generate_api_index.py` when the generated API index is missing or stale. Treat an FD that exists under `assets/docs/ndk/` but is absent from the index as a bootstrap problem, not proof that the function is unavailable.
+8. Run `uv run python tools/analyze_target_failure.py --latest` after each probe failure to identify the defaulted API calls, missing paths, target-version classification, and any UI obligation attached to the blocker.
+9. Use `UV_CACHE_DIR=/tmp/uv-cache`, `UV_LINK_MODE=copy`, and `PRE_COMMIT_HOME=/tmp/pre-commit-home` if container cache ownership or cross-filesystem hardlinking prevents `uv` or `pre-commit` from writing cleanly under the default home directory.
 
 The bootstrap script intentionally prints the next recommended checks instead of running every expensive command itself.
 
@@ -87,6 +89,15 @@ When `vamos` reports a missing library function, do not implement from the funct
 7. Rerun the same probe command immediately, then document the new stopping point in `docs/apps/<app>/run-log.md`.
 
 AutoDocs fit between FD/proto discovery and implementation: FD files identify which function is being called, how `vamos` dispatches it, and often which library version introduced it; AutoDocs explain the expected AmigaOS API behavior and edge cases. Decompiled code is evidence of last resort, not the default design source. Do not reclassify a classic GadTools or Intuition call as OS4-era without proving that the target m68k binary requires an OS4-only API or layout.
+
+## Hosted Application Mode
+
+Before changing host GUI behavior, read
+[../architecture/hosted-application-mode.md](../architecture/hosted-application-mode.md).
+The default user experience is Wine-like: no visible Workbench desktop canvas,
+and each app-facing Amiga window projects as its own host top-level window.
+Attach a normal host menu bar only to windows that have an Amiga menu strip.
+Do not implement right-click menu activation for the default mode.
 
 ## Tool Behavior Expectations
 

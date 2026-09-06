@@ -3,6 +3,7 @@ title: "Host GUI"
 status: index
 depends_on:
   - "../architecture/gui-strategy.md"
+  - "../architecture/hosted-application-mode.md"
   - "../runtime/headless-gui.md"
 citations_used:
   - "S57"
@@ -17,14 +18,15 @@ Qt Widgets are the project-standard host GUI technology. The Qt docs describe th
 
 ## Read First
 
-1. `qt-widgets-primer.md`
-2. `widget-mapping.md`
-3. `translation-obligations.md`
-4. `component-implementation-standard.md`
-5. `menus-dialogs-and-requesters.md`
-6. `painting-styling-and-layout.md`
-7. `threading-and-desktop-boundaries.md`
-8. `testing-host-ui.md`
+1. `../architecture/hosted-application-mode.md`
+2. `qt-widgets-primer.md`
+3. `widget-mapping.md`
+4. `translation-obligations.md`
+5. `component-implementation-standard.md`
+6. `menus-dialogs-and-requesters.md`
+7. `painting-styling-and-layout.md`
+8. `threading-and-desktop-boundaries.md`
+9. `testing-host-ui.md`
 
 ## Project Rules
 
@@ -32,5 +34,6 @@ Qt Widgets are the project-standard host GUI technology. The Qt docs describe th
 - Prefer built-in widgets and layouts first.
 - Translate visible Amiga UI behavior into real host UI behavior or fail honestly; do not satisfy it with fabricated success values by default.
 - Use custom `QWidget` painting only when standard widgets would erase required Workbench semantics.
+- Do not render a visible Workbench desktop canvas by default; hosted application mode projects app-facing Amiga windows as ordinary host top-level windows.
 - Keep menus inside the app window rather than treating Workbench's screen-top menu bar as a desktop-global integration point.
 - Keep GUI code simple enough to run consistently both in a normal Linux desktop session and under the project `Xvfb` path.

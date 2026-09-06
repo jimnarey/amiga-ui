@@ -4,6 +4,7 @@ status: draft
 depends_on:
   - "widget-mapping.md"
   - "../architecture/translation-pipeline.md"
+  - "../architecture/hosted-application-mode.md"
   - "../apps/itidy/runbook.md"
 citations_used:
   - "S26"
@@ -30,6 +31,12 @@ Workbench applications are fundamentally about windows, menus, gadgets, and requ
 The current `iTidy` target already puts real pressure on this rule because it constructs menus, requesters, and a main window as part of its normal behavior [S31 L174-L227] [S31 L470-L518] [S31 L1006-L1085].
 
 The generated API index from `uv run python tools/generate_api_index.py` adds a mechanical first pass over this rule. Entries marked `host-ui-required`, `workbench-visible-state`, or `likely-ui-support` should send an agent to this page before it writes a stub. The marker is not a complete design decision, but it is a warning that a fake pointer or no-op return probably hides the real compatibility work.
+
+The default presentation target for that translation is hosted application mode:
+keep the Workbench public screen internal, project app-facing Amiga windows as
+host top-level windows, and attach host menu bars only for Amiga windows that
+have menu strips. Do not create a visible Workbench desktop canvas as the default
+answer to a UI obligation.
 
 ## The Main Rule
 

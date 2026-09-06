@@ -1,6 +1,6 @@
 # Repository Guidance
 
-This repository develops a Python-based compatibility layer for selected classic Amiga Workbench applications. The default runtime target is classic m68k Workbench/AmigaOS 3.0-3.1; see `docs/architecture/platform-target.md` before making version-sensitive API or structure decisions.
+This repository develops a Python-based compatibility layer for selected classic Amiga Workbench applications. The default runtime target is classic m68k Workbench/AmigaOS 3.0-3.1; see `docs/architecture/platform-target.md` before making version-sensitive API or structure decisions. The default host presentation is hosted application mode: an invisible/notional public Workbench screen internally, with app-facing Amiga windows projected as ordinary host windows; see `docs/architecture/hosted-application-mode.md` before implementing visible host GUI behavior.
 
 Read `docs/README.md` for the documentation map, then `docs/workflows/dsh.md` for the current DeepSeek Harness autonomous workflow. Older OpenHands, Goose, and bespoke local-agent material is preserved under `.deprecated/`; ignore that directory unless the user explicitly asks you to inspect or revive legacy harness behavior.
 
@@ -33,6 +33,7 @@ Every harness working in this repository must follow the shared rules in [docs/w
 - Use `uv run python tests/run_gui_smoke_test.py` for the headless GUI smoke test.
 - Use `uv run amiga-ui smoke-gui --direct` for manual desktop smoke testing.
 - Use `uv run amiga-ui-xvfb -- <command>` for ad hoc headless GUI commands.
+- Do not introduce a visible Workbench desktop canvas by default. Preserve the internal public-screen model, but project each app-facing Amiga window as its own host top-level window; attach a host menu bar only when that Amiga window has a menu strip.
 
 ## Assets And Scope
 - Do not commit copyrighted binary assets unless the repo already treats them as allowed.

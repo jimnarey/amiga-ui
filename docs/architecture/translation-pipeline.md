@@ -5,6 +5,7 @@ depends_on:
   - "runtime-model.md"
   - "../platform/library-cards/README.md"
   - "gui-strategy.md"
+  - "hosted-application-mode.md"
 citations_used:
   - "S7"
   - "S8"
@@ -126,6 +127,24 @@ The first implementation milestone should be deterministic and testable before
 it is interactive: enqueue an `IDCMP_REFRESHWINDOW` or `IDCMP_CLOSEWINDOW`
 message for a known window port, prove the normal wait/get/reply sequence works,
 and only then connect Qt widget events to the same path.
+
+## Example: Hosted Window And Menu Projection
+
+The default host presentation is hosted application mode. The compatibility
+layer keeps a notional public Workbench screen internally, but the host does not
+render a Workbench desktop canvas. Each app-facing Amiga `Window` is projected as
+its own top-level host window.
+
+Menu projection follows the owning Amiga window, not a host-global desktop menu.
+When `SetMenuStrip(window, menu)` succeeds, the parsed menu tree belongs to that
+Amiga window. In hosted application mode the corresponding host window gets a
+normal menu bar for that menu strip. A window with no menu strip has no host menu
+bar, and right-click menu activation is intentionally not part of the default
+mode.
+
+The return path stays Amiga-shaped. A host menu action should become an
+`IDCMP_MENUPICK` message on the owning window's `UserPort`, then flow through the
+same `WaitPort -> GT_GetIMsg -> GT_ReplyIMsg` path as other input.
 
 ## Example: Disassembling 68k Call Sites
 
