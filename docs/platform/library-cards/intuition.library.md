@@ -75,6 +75,18 @@ host/test event  ->  IntuiMessage  ->  Window.UserPort  ->  WaitPort  ->  GT_Get
 - `IntuiTextLength(iText)` reads the string pointer from the IntuiText, measures the string to NUL, and returns `count * font width` (the fixed-pitch font width, `RastPort.TxWidth` with the Topaz baseline fallback — the same policy as `graphics.library` `TextLength`). It records the measurement (string, count, width, decoded text) for inspection.
 - `PrintIText(rp, iText, left, top)` records a draw op at the explicit `(left, top)` in the IntuiText's own front pen on the host-side RastPort op log, **without** moving the RastPort origin (unlike `graphics.library` `Text`). It routes through the run-wide shared RastPort registry the launcher installs on `ctx.rastports`, so Intuition text and graphics drawing land in one per-RastPort op log in chronological order — the state a future host renderer needs to replay the group-box / requester titles. There is no host window yet, so this record (not a silent no-op) is what makes the call meaningful.
 
+## Window Pointer (Busy Cursor)
+
+`SetWindowPointerA(win, taglist)` is implemented. `iTidy` uses it to toggle the
+window's **busy pointer** — `SetWindowPointer(win, WA_BusyPointer, TRUE/FALSE,
+TAG_DONE)` around listview resorting — which on real AmigaOS disables deferred
+refresh and drives the animated busy cursor. There is no host window yet, so the
+call records the request (window address, busy-pointer state, and any new
+`WA_Left`/`WA_Top` position) as a host-side op for the future renderer rather
+than silently dropping it. The target's NDK encodes `TAG_USER` as the high bit,
+so `WA_BusyPointer = (1<<31) + 99 + 0x35 = 0x80000098` — the value the running
+binary uses.
+
 ## Gadgets
 
 The Intuition gadget docs describe gadgets as the Amiga equivalent of buttons, knobs, and similar controls, and distinguish between:

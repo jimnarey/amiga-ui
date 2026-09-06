@@ -91,6 +91,33 @@ def _write_string(mem: _FakeMem, addr: int, text: bytes) -> None:
     mem.w8(addr + len(text), 0)  # NUL terminator
 
 
+# Intuition window tags (WA_*): the target's NDK defines TAG_USER as the high
+# bit (1 << 31), so WA_Dummy = (1 << 31) + 99 and WA_BusyPointer = WA_Dummy + 0x35.
+_WA_DUMMY = (1 << 31) + 99
+_WA_LEFT = _WA_DUMMY + 0x01
+_WA_TOP = _WA_DUMMY + 0x02
+_WA_BUSY_POINTER = _WA_DUMMY + 0x35
+_TAG_END = 0
+
+
+def _write_pointer_taglist(mem: _FakeMem, taglist: int, busy: bool | None, left: int | None, top: int | None) -> None:
+    """Write a ``SetWindowPointerA`` tag list ending in ``TAG_END``."""
+    offset = 0
+    if busy is not None:
+        mem.w32(taglist + offset, _WA_BUSY_POINTER)
+        mem.w32(taglist + offset + 4, 1 if busy else 0)
+        offset += 8
+    if left is not None:
+        mem.w32(taglist + offset, _WA_LEFT)
+        mem.w32(taglist + offset + 4, left)
+        offset += 8
+    if top is not None:
+        mem.w32(taglist + offset, _WA_TOP)
+        mem.w32(taglist + offset + 4, top)
+        offset += 8
+    mem.w32(taglist + offset, _TAG_END)
+
+
 class IntuitionIntuiTextLengthTest(unittest.TestCase):
     """``IntuiTextLength`` measures the IntuiText's string — not a fake zero."""
 
@@ -231,6 +258,60 @@ class IntuitionSharedRegistryTest(unittest.TestCase):
         self.assertIsNone(lib.rastports.state(rp))
 
 
+class IntuitionSetWindowPointerATest(unittest.TestCase):
+    """``SetWindowPointerA`` records the request — not a silent no-op."""
+
+    def setUp(self) -> None:
+        self.lib = IntuitionLibrary()
+        self.win = 0x0006B2C8  # the app's window address (probe log)
+        self.taglist = 0x00064C00
+
+    def _ctx_with(self, busy: bool | None, left: int | None = None, top: int | None = None) -> SimpleNamespace:
+        mem = _FakeMem()
+        _write_pointer_taglist(mem, self.taglist, busy, left, top)
+        return SimpleNamespace(mem=mem)
+
+    def test_records_busy_pointer_true(self) -> None:
+        ctx = self._ctx_with(True)
+        self.lib.SetWindowPointerA(ctx, self.win, self.taglist)
+
+        op = self.lib.set_window_pointer_ops[-1]
+        self.assertEqual(op["win"], self.win)
+        self.assertTrue(op["busy_pointer"])
+        self.assertIsNone(op["new_pos"])
+
+    def test_records_busy_pointer_false(self) -> None:
+        ctx = self._ctx_with(False)
+        self.lib.SetWindowPointerA(ctx, self.win, self.taglist)
+
+        self.assertFalse(self.lib.set_window_pointer_ops[-1]["busy_pointer"])
+
+    def test_records_new_position(self) -> None:
+        ctx = self._ctx_with(None, left=10, top=20)
+        self.lib.SetWindowPointerA(ctx, self.win, self.taglist)
+
+        op = self.lib.set_window_pointer_ops[-1]
+        self.assertIsNone(op["busy_pointer"])
+        self.assertEqual(op["new_pos"], (10, 20))
+
+    def test_no_mem_records_defaults(self) -> None:
+        # No 68k memory -> no tag list to read -> defaults (the request is still
+        # recorded, not dropped).
+        self.lib.SetWindowPointerA(_ctx(), self.win, self.taglist)
+
+        op = self.lib.set_window_pointer_ops[-1]
+        self.assertEqual(op["win"], self.win)
+        self.assertIsNone(op["busy_pointer"])
+        self.assertIsNone(op["new_pos"])
+
+    def test_multiple_calls_accumulate(self) -> None:
+        self.lib.SetWindowPointerA(self._ctx_with(True), self.win, self.taglist)
+        self.lib.SetWindowPointerA(self._ctx_with(False), self.win, self.taglist)
+
+        self.assertEqual(len(self.lib.set_window_pointer_ops), 2)
+        self.assertFalse(self.lib.set_window_pointer_ops[-1]["busy_pointer"])
+
+
 class IntuitionScannerTest(unittest.TestCase):
     """Regression guard: both IntuiText methods must be valid .fd traps."""
 
@@ -255,6 +336,10 @@ class IntuitionScannerTest(unittest.TestCase):
     def test_print_itext_is_a_wired_trap(self) -> None:
         scan = self._scan()
         self.assertIn("PrintIText", set(scan.get_valid_func_names()))
+
+    def test_set_window_pointer_a_is_a_wired_trap(self) -> None:
+        scan = self._scan()
+        self.assertIn("SetWindowPointerA", set(scan.get_valid_func_names()))
 
 
 if __name__ == "__main__":

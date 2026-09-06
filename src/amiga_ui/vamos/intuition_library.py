@@ -116,6 +116,16 @@ _IT_OFF_FONT = 0x08  # APTR struct TextAttr *ITextFont
 _IT_OFF_TEXT = 0x0C  # STRPTR IText (the string pointer)
 _IT_OFF_NEXT = 0x10  # APTR struct IntuiText *NextText
 
+# Intuition window tags (WA_*) the target uses with SetWindowPointerA. The
+# target's NDK defines TAG_USER as the high bit (1 << 31), so WA_Dummy =
+# (1 << 31) + 99 = 0x80000063 and WA_BusyPointer = WA_Dummy + 0x35. This is the
+# encoding the running binary uses (the app's .i interface expands WA_BusyPointer
+# to (1 << 31) + 99 + 0x35).
+_WA_DUMMY = (1 << 31) + 99  # WA_ tag base (TAG_USER + 99)
+_WA_LEFT = _WA_DUMMY + 0x01  # new window left edge
+_WA_TOP = _WA_DUMMY + 0x02  # new window top edge
+_WA_BUSY_POINTER = _WA_DUMMY + 0x35  # WA_BusyPointer (BOOL): busy cursor on/off
+
 # Char-width sanity bounds for the fixed-pitch disk font (Topaz) the repo
 # installs. A RastPort TxWidth read outside this range is an unpopulated or
 # mis-offset RastPort and falls back to the Topaz baseline rather than a
@@ -140,6 +150,10 @@ class IntuitionLibrary(BaseLibrary):
         # Ordered record of IntuiTextLength measurements: the app uses these
         # widths to centre group-box titles, so a probe can see what it measured.
         self.itext_measures: list[dict[str, Any]] = []
+        # Ordered record of SetWindowPointerA requests (the app toggles the busy
+        # pointer around listview resorting): a host-side op for the future
+        # renderer rather than a silent no-op.
+        self.set_window_pointer_ops: list[dict[str, Any]] = []
 
     def get_version(self) -> int:
         """Report a plausible baseline library version for Workbench 3.x startup."""
@@ -541,4 +555,52 @@ class IntuitionLibrary(BaseLibrary):
             port_mgr.unregister_port(port_mem.addr)
             ctx.alloc.free_memory(port_mem)
         ctx.alloc.free_memory(win)
+        return None
+
+    @staticmethod
+    def _parse_window_pointer_tags(mem, taglist: int) -> tuple[int | None, tuple[int, int] | None]:
+        """Walk a ``TagItem`` list for ``WA_BusyPointer`` / ``WA_Left`` / ``WA_Top``.
+
+        Returns ``(busy_pointer_or_None, (left, top)_or_None)``. The app uses
+        only ``WA_BusyPointer`` (TRUE/FALSE); the position tags are parsed for a
+        reusable implementation. Unknown tags are ignored.
+        """
+        busy: int | None = None
+        new_pos: tuple[int, int] | None = None
+        left: int | None = None
+        top: int | None = None
+        if not taglist:
+            return busy, new_pos
+        offset = 0
+        for _ in range(0x200):  # bounded: TAG_DONE always terminates
+            tag = mem.r32(taglist + offset)
+            if tag == 0:  # TAG_DONE
+                break
+            data = mem.r32(taglist + offset + 4)
+            if tag == _WA_BUSY_POINTER:
+                busy = bool(data)
+            elif tag == _WA_LEFT:
+                left = data
+            elif tag == _WA_TOP:
+                top = data
+            offset += 8
+        if left is not None and top is not None:
+            new_pos = (left, top)
+        return busy, new_pos
+
+    def SetWindowPointerA(self, ctx, win, taglist):
+        """intuition.library ``SetWindowPointerA(win, taglist)``.
+
+        The app uses this to toggle the window's busy pointer (``WA_BusyPointer``,
+        TRUE/FALSE) around listview resorting. There is no host window yet, so
+        this records the request (window address, busy-pointer state, and any new
+        position) as a host-side op for the future renderer, rather than silently
+        dropping it. Returns None (VOID).
+        """
+        mem = getattr(ctx, "mem", None)
+        busy: int | None = None
+        new_pos: tuple[int, int] | None = None
+        if mem is not None:
+            busy, new_pos = self._parse_window_pointer_tags(mem, taglist)
+        self.set_window_pointer_ops.append({"win": win, "busy_pointer": busy, "new_pos": new_pos})
         return None
