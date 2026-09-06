@@ -16,7 +16,10 @@ locked screen the app passed in, not constants.
 
 from __future__ import annotations
 
+from typing import Any
+
 from .base_library import BaseLibrary
+from .rastport_state import RastPortRegistry
 
 # --- struct VisualInfo (private GadTools block, screen‑derived) --------------
 _VI_SIZE = 0x20
@@ -42,6 +45,11 @@ _TA_OFF_HEIGHT = 0x20  # UBYTE TaHeight (31‑byte TaName + TaFlags)
 _GT_TAG_BASE = 0x88000  # TAG_USER (0x8000) + 0x80000
 _GTVI_LEFT_BORDER = _GT_TAG_BASE + 96
 _GTVI_TOP_BORDER = _GT_TAG_BASE + 97
+# DrawBevelBox(A) tags (the group-box / frame bevel). The app's call passes
+# only these two (plus TAG_END); the optional VB_Pen/VB_Bevel attributes are
+# ignored (recorded as defaults).
+_GTBB_RECESSED = _GT_TAG_BASE + 51  # make the bevel box recessed (TRUE/FALSE)
+_GT_VISUALINFO = _GT_TAG_BASE + 52  # a VisualInfo result (APTR)
 _TAG_DONE = 0
 
 # Sensible fallbacks when the screen font is not populated.
@@ -161,10 +169,20 @@ class GadToolsLibrary(BaseLibrary):
         self._visual_infos: dict[int, object] = {}
         self._gadgets: dict[int, object] = {}
         self._menu_blocks: dict[int, object] = {}
+        # Fallback RastPort op log for unit tests; the launcher installs a
+        # run-wide shared registry on the context (see _registry).
+        self.rastports = RastPortRegistry()
+        # Ordered record of GT_RefreshWindow repaint requests — a host-side
+        # signal for the future renderer to repaint the window's gadgets.
+        self.refresh_requests: list[dict[str, Any]] = []
 
     def get_version(self) -> int:
         """Report a plausible library version (non‑zero, V36 baseline or newer)."""
         return 40
+
+    def _registry(self, ctx):
+        """The host-side RastPort op log (run-wide shared, or the fallback)."""
+        return getattr(ctx, "rastports", None) or self.rastports
 
     # -- helpers --------------------------------------------------------------
     @staticmethod
@@ -205,6 +223,31 @@ class GadToolsLibrary(BaseLibrary):
                 top = data
             offset += 8
         return left, top
+
+    @staticmethod
+    def _parse_bevel_tags(mem, taglist: int) -> tuple[int | None, bool]:
+        """Walk a ``TagItem`` list for ``GT_VisualInfo`` / ``GTBB_Recessed``.
+
+        Returns ``(visual_info_ptr_or_None, recessed)``. Unknown tags (e.g. the
+        optional ``VB_Pen``/``VB_Bevel``) are ignored — the app's group-box call
+        passes only ``GT_VisualInfo`` and ``GTBB_Recessed`` (then ``TAG_END``).
+        """
+        vi: int | None = None
+        recessed = False
+        if not taglist:
+            return vi, recessed
+        offset = 0
+        for _ in range(0x200):  # bounded: TAG_DONE always terminates
+            tag = mem.r32(taglist + offset)
+            if tag == _TAG_DONE:
+                break
+            data = mem.r32(taglist + offset + 4)
+            if tag == _GT_VISUALINFO:
+                vi = data
+            elif tag == _GTBB_RECESSED:
+                recessed = bool(data)
+            offset += 8
+        return vi, recessed
 
     # -- gadtools.library entry points ---------------------------------------
     def GetVisualInfoA(self, ctx, screen, taglist):
@@ -507,4 +550,37 @@ class GadToolsLibrary(BaseLibrary):
             if menu_obj is not None:
                 alloc.free_memory(menu_obj)
             cur_menu = mem.r32(cur_menu + _MENU_OFF_NEXT)
+        return None
+
+    def DrawBevelBoxA(self, ctx, rport, left, top, width, height, taglist):
+        """gadtools.library ``DrawBevelBoxA(rport, left, top, width, height, taglist)``.
+
+        Draw a bevel box (the group-box / frame bevel) on ``rport``. The app's
+        group boxes call this (via the varargs ``DrawBevelBox`` wrapper) with
+        ``GT_VisualInfo`` and ``GTBB_Recessed`` tags. Reads those tags and records
+        a bevel-box op on the host-side RastPort op log (explicit position/size,
+        recessed flag, VisualInfo) so a future renderer can replay the frame.
+        There is no host window yet, so this record — not a silent no-op — is what
+        makes the call meaningful. Returns None (VOID).
+        """
+        mem = getattr(ctx, "mem", None)
+        vi: int | None = None
+        recessed = False
+        if mem is not None:
+            vi, recessed = self._parse_bevel_tags(mem, taglist)
+        self._registry(ctx).get_or_create(rport).draw_bevel_box(
+            left, top, width, height, recessed=recessed, visual_info=vi or 0
+        )
+        return None
+
+    def GT_RefreshWindow(self, ctx, win, req):
+        """gadtools.library ``GT_RefreshWindow(win, req)``: refresh a window's gadgets.
+
+        Triggers a redraw of the window's gadgets (the app calls it with a
+        ``NULL`` requester after drawing). There is no host window yet, so this
+        records the refresh request (window address) as a host-side repaint signal
+        for the future renderer, rather than silently dropping it. Returns None
+        (VOID).
+        """
+        self.refresh_requests.append({"win": win, "req": req})
         return None

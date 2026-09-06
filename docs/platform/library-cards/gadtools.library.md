@@ -72,3 +72,26 @@ For this project, `gadtools.library` support should first preserve:
 2. standard menu creation from `NewMenu`,
 3. correct `VisualInfo` and public-screen integration,
 4. the GadTools-flavored message loop on top of Intuition.
+
+## Bevel Box And Window Refresh
+
+`iTidy` draws its group-box frames (and a recessed folder-path box) with
+`DrawBevelBox`, the varargs wrapper that calls `DrawBevelBoxA`, and triggers a
+gadget redraw with `GT_RefreshWindow`. Both are implemented so the window's
+visible chrome is recorded rather than dropped:
+
+- `DrawBevelBoxA(rport, left, top, width, height, taglist)` reads the
+  `GT_VisualInfo` (`GT_TagBase+52`) and `GTBB_Recessed` (`GT_TagBase+51`) tags
+  from the app's tag list and records a `DrawBevelBox` op — explicit position,
+  size, recessed flag, and VisualInfo — on the host-side RastPort op log. It
+  draws at the explicit bounds and does not move the RastPort origin. The op
+  shares the launcher's run-wide `RastPortRegistry` (`ctx.rastports`) with
+  `graphics.library` `Text` and `intuition.library` `PrintIText`, so a window's
+  bevel frame, text, and titles are one chronological stream.
+- `GT_RefreshWindow(win, req)` records the refresh request (window address) on
+  the library as a host-side repaint signal for the future renderer, rather than
+  silently dropping it. There is no host window yet, so the record — not a
+  repaint — is the meaningful effect.
+
+The bevel-box tags the app passes are the two above plus `TAG_END`; the optional
+`VB_Pen`/`VB_Bevel` attributes are ignored (the app does not set them).

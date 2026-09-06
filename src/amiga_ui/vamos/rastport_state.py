@@ -176,6 +176,27 @@ class RastPortState:
             text=text,
         )
 
+    def draw_bevel_box(
+        self, left: int, top: int, width: int, height: int, recessed: bool = False, visual_info: int = 0
+    ) -> None:
+        """Record a GadTools ``DrawBevelBox(A)`` bevel-box draw.
+
+        The group-box / frame bevel the app draws around its gadgets. Draws at
+        the explicit ``(left, top)`` bounds (not the RastPort origin) and records
+        the size plus the ``GTBB_Recessed`` flag and the ``GT_VisualInfo``
+        pointer, so a future renderer can replay the bevel frame in the window's
+        op log alongside the ``PrintIText`` titles.
+        """
+        self._record(
+            "DrawBevelBox",
+            left=left,
+            top=top,
+            width=width,
+            height=height,
+            recessed=recessed,
+            visual_info=visual_info,
+        )
+
     def init(self) -> None:
         """Record InitRastPort (resets the drawing state for this RastPort)."""
         self.apen = 0

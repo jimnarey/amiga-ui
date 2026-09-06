@@ -31,7 +31,7 @@ Needed for:
 
 Trust `run-log.md` over any status claim in the sections below. The log is the append-only, dated record of what has actually been run and observed; the sections below are forward-looking triage guidance written before most of that evidence existed, and can go stale as the log advances. Read the log's most recent entry first, then use the rest of this file to interpret it.
 
-The latest direct CLI probe has moved past the earlier missing `icon.library` failure and now stops first on `graphics.library`. Treat that as the current narrow implementation frontier until a newer run proves otherwise.
+The latest direct CLI probe now draws the full window chrome — the group-box bevels (`DrawBevelBoxA`), the group-box titles (`PrintIText`), and the folder-path box (`Text`) — and the remaining `host-ui-required` frontier is `intuition.library` `SetWindowPointerA` and `diskfont.library` `OpenDiskFont`; the app then ends at the honest `WaitPort`-on-empty-queue `UnsupportedFeatureError` boundary. Treat that as the current narrow frontier until a newer run proves otherwise.
 
 ## Compatibility Frontier
 
