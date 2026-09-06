@@ -112,8 +112,10 @@ treated as settled:
   `RasInfo` field) places them at `+0x22`/`+0x2E`/`+0x30`. The app currently reads
   `RPort->TxHeight` and the screen font and gets usable values, but that is not proof the
   offsets are right (zeroed memory yields plausible values). `graphics.library`
-  `TextLength` now *reads* `TxWidth` from `RastPort+0x3C` to measure label widths, so this
-  offset now directly affects a returned value, not just gadget geometry; it has a
+  `TextLength` now *reads* `TxWidth` from `RastPort+0x3C` to measure label widths, and its
+  draw counterpart `Text` reads the same word to advance the pen by the drawn width, so
+  this offset now directly affects a returned value *and* the recorded text-draw position,
+  not just gadget geometry; both have a
   sanity-bounded fallback to the Topaz baseline (`6`) so a mis-offset read degrades to the
   correct width rather than returning a garbage pointer. Confirm the binary's actual
   offsets; if they differ, update `intuition_library.py`.

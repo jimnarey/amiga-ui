@@ -68,16 +68,18 @@ The current `iTidy` tree does exactly that. Its GUI helper code uses `SetAPen()`
   entry points the app has not driven yet record their invocation in
   `GraphicsLibrary.call_log` and return honest defaults (e.g. `AllocBitMap`
   returns `0`, `GetVPModeID` returns `0`) rather than a fabricated success.
-- **Text metrics: `TextLength` is implemented; the draw calls are still frontier.**
+- **Text: `TextLength` (measure) and `Text` (draw) are implemented; the Intuition/GadTools text pair is still frontier.**
   `TextLength` (bias 54) now measures the pixel width of the requested characters from the
   RastPort's font — it reads `RastPort.TxWidth` [S1 Include_H/graphics/rastport.h] at the
   pre-`RasInfo` offset the target was compiled against and returns `count * TxWidth` for the
   fixed-pitch Topaz screen font, then records the measurement on the host-side RastPort model
-  [S31 L644-L646, the app's label-width layout] [S43 item 8]. `Text` (bias 60) — the actual
-  text draw — plus `PrintIText` and `IntuiTextLength` (Intuition) and `DrawBevelBoxA`/
-  `GT_RefreshWindow`/`GT_BeginRefresh`/`GT_EndRefresh` (GadTools) remain frontier; the app's
-  calls to those still log as honest missing-function warnings (`d0=0`) rather than being
-  dropped.
+  [S31 L644-L646, the app's label-width layout] [S43 item 8]. `Text` (bias 60) is its draw
+  counterpart [S43 item 1]: it records a text-draw op at the current pen position (string
+  pointer, decoded content, pen, font) and advances the pen by `count * TxWidth`, per the
+  classic contract [S31 L1813-L1860, the folder-path label draw]. The Intuition pair
+  `IntuiTextLength`/`PrintIText` and the GadTools `DrawBevelBoxA`/`GT_RefreshWindow`/
+  `GT_BeginRefresh`/`GT_EndRefresh` remain frontier; the app's calls to those still log as
+  honest missing-function warnings (`d0=0`) rather than being dropped.
 
 Coverage: `tests/test_graphics_library.py` (model, dispatch, and a scanner
 regression guard asserting zero scanner errors and that the six drawing

@@ -14,7 +14,10 @@ record — not a silent no-op — is what makes the calls meaningful.
 
 ``TextLength`` is a real text-metrics entry point: it measures the pixel width
 of the requested characters using the RastPort's current font (read from 68k
-memory) and records the measurement, rather than returning a fake zero.
+memory) and records the measurement, rather than returning a fake zero. Its
+draw counterpart ``Text`` records a text-draw op at the current pen position
+(string pointer, decoded content, pen, font) and advances the pen by the drawn
+width, per the classic contract.
 
 Other frontier functions record their invocation in ``call_log`` rather than
 faking a success, and return honest defaults.
@@ -164,6 +167,44 @@ class GraphicsLibrary(BaseLibrary):
             if 0 < width <= _MAX_CHAR_WIDTH:
                 return width
         return _FALLBACK_CHAR_WIDTH
+
+    def Text(self, ctx, rp, string, count):
+        """graphics.library Text(rp, string, count)(a1, a0, d0): draw a string.
+
+        The draw counterpart of ``TextLength``. Draws ``count`` characters of
+        ``string`` using the RastPort's current font at the current pen
+        position and advances the pen by the drawn width (classic contract:
+        ``Text`` leaves the RastPort origin after the drawn text). The draw is
+        recorded on the host-side RastPort model — position, string pointer,
+        decoded content, pen, and font — so a future renderer can replay it.
+        There is no host window yet, so this record is what makes the call
+        meaningful rather than a silent no-op.
+        """
+        char_width = self._font_char_width(ctx, rp)
+        width = count * char_width
+        text = self._read_text_string(ctx, string, count)
+        self._rp(rp).record_text(string=string, count=count, width=width, text=text)
+        return None
+
+    @staticmethod
+    def _read_text_string(ctx, ptr, count) -> str:
+        """Best-effort decode of up to ``count`` characters of the emulated string.
+
+        Read only so the host-side op record can carry what the app drew (a
+        future renderer/replayer needs the content, not just the pointer).
+        Stops at a NUL byte or ``count``; empty when there is no 68k memory to
+        read from. Never dereferences the pointer for control flow.
+        """
+        mem = getattr(ctx, "mem", None)
+        if mem is None or not ptr or not count:
+            return ""
+        out = bytearray()
+        for i in range(count):
+            byte = mem.r8(ptr + i)
+            if byte == 0:
+                break
+            out.append(byte)
+        return out.decode("latin-1")
 
     # -- ViewPort / colour (frontier: recorded, honest default) --------------
     def SetRGB32(self, ctx, vp, n, r, g, b):

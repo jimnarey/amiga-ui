@@ -7,8 +7,10 @@ Covers, without depending on the iTidy binary:
 - the ``GraphicsLibrary`` entry points against a fake 68k context, asserting the
   six drawing calls the target app actually issues (``SetAPen``/``SetBPen``/
   ``SetDrMd``/``Move``/``Draw``/``RectFill``) record real state instead of
-  no-op'ing, and that the classic return contracts hold (``SetFont``/``SetMaxPen``/
-  ``SetOutlinePen`` return the *previous* value);
+  no-op'ing, that the classic return contracts hold (``SetFont``/``SetMaxPen``/
+  ``SetOutlinePen`` return the *previous* value), and that ``TextLength``
+  measures / ``Text`` draws from the RastPort font (recording position, content,
+  and the pen advance) rather than returning a fake result;
 - a scanner regression guard: every ``GraphicsLibrary`` method must be a *valid*
   ``.fd`` trap (``ctx`` first, exact arg count). Before the dispatch fix the six
   drawing methods lacked ``ctx`` and were scanner errors, so vamos dropped them
@@ -28,16 +30,32 @@ def _ctx() -> SimpleNamespace:
 
 
 class _FakeMem:
-    """A minimal 68k memory model: a dict of 16-bit words (unwritten = 0)."""
+    """A minimal big-endian 68k memory model (unwritten bytes are 0).
+
+    Byte-backed so both ``r8``/``w8`` (text content) and ``r16``/``w16``
+    (``RastPort.TxWidth``) work over the same storage. The constructor takes a
+    dict of 16-bit words (address -> word) to match the text-metrics fixtures.
+    """
 
     def __init__(self, words: dict[int, int] | None = None) -> None:
-        self._words = dict(words or {})
+        self._bytes: dict[int, int] = {}
+        if words:
+            for addr, value in words.items():
+                self.w16(addr, value)
+
+    def r8(self, addr: int) -> int:
+        return self._bytes.get(addr, 0) & 0xFF
+
+    def w8(self, addr: int, value: int) -> None:
+        self._bytes[addr] = value & 0xFF
 
     def r16(self, addr: int) -> int:
-        return self._words.get(addr, 0) & 0xFFFF
+        return (self.r8(addr) << 8) | self.r8(addr + 1)
 
     def w16(self, addr: int, value: int) -> None:
-        self._words[addr] = value & 0xFFFF
+        value &= 0xFFFF
+        self.w8(addr, (value >> 8) & 0xFF)
+        self.w8(addr + 1, value & 0xFF)
 
 
 def _ctx_with_mem(words: dict[int, int] | None = None) -> SimpleNamespace:
@@ -265,6 +283,81 @@ class GraphicsLibraryTextLengthTest(unittest.TestCase):
         self.assertEqual(op["length"], 36)
 
 
+class GraphicsLibraryTextTest(unittest.TestCase):
+    """``Text`` records a text-draw op at the pen position and advances the pen."""
+
+    def setUp(self) -> None:
+        self.lib = GraphicsLibrary()
+        self.ctx = _ctx()
+        self.rp = 0x06A868  # the window RPort the app draws into (from the probe log)
+
+    def _state(self, rp: int):
+        st = self.lib.rastports.state(rp)
+        if st is None:
+            self.fail(f"no RastPort state tracked for {rp:#x}")
+        return st
+
+    def test_records_draw_at_pen_position(self) -> None:
+        ctx = _ctx_with_mem({self.rp + 0x3C: 6})
+        self.lib.Move(self.ctx, self.rp, 19, 21)
+        self.lib.Text(ctx, self.rp, 0x00065140, 4)
+
+        st = self._state(self.rp)
+        op = st.ops[-1]
+        self.assertEqual(op["op"], "Text")
+        self.assertEqual(op["string"], 0x00065140)
+        self.assertEqual(op["count"], 4)
+        self.assertEqual(op["width"], 24)  # 4 * Topaz width 6
+        self.assertEqual((op["x"], op["y"]), (19, 21))
+
+    def test_advances_pen_by_drawn_width(self) -> None:
+        ctx = _ctx_with_mem({self.rp + 0x3C: 6})
+        self.lib.Move(self.ctx, self.rp, 19, 21)
+        self.lib.Text(ctx, self.rp, 0x00065140, 4)
+
+        self.assertEqual((self._state(self.rp).x, self._state(self.rp).y), (19 + 24, 21))
+
+    def test_uses_rastport_font_width_for_advance(self) -> None:
+        ctx = _ctx_with_mem({self.rp + 0x3C: 8})  # a wider fixed-pitch font
+        self.lib.Move(self.ctx, self.rp, 0, 0)
+        self.lib.Text(ctx, self.rp, 0x00020000, 5)
+
+        self.assertEqual(self._state(self.rp).x, 40)  # 5 * 8
+        self.assertEqual(self._state(self.rp).ops[-1]["width"], 40)
+
+    def test_records_decoded_string_content(self) -> None:
+        # "Max:" at the emulated string pointer (the app's actual label).
+        ctx = _ctx_with_mem({self.rp + 0x3C: 6})
+        ptr = 0x00065140
+        for i, ch in enumerate(b"Max:"):
+            ctx.mem.w8(ptr + i, ch)
+        ctx.mem.w8(ptr + 4, 0)  # NUL terminator
+
+        self.lib.Move(self.ctx, self.rp, 19, 21)
+        self.lib.Text(ctx, self.rp, ptr, 4)
+
+        self.assertEqual(self._state(self.rp).ops[-1]["text"], "Max:")
+
+    def test_zero_count_does_not_move_pen(self) -> None:
+        ctx = _ctx_with_mem({self.rp + 0x3C: 6})
+        self.lib.Move(self.ctx, self.rp, 7, 8)
+        self.lib.Text(ctx, self.rp, 0x00020000, 0)
+
+        st = self._state(self.rp)
+        self.assertEqual((st.x, st.y), (7, 8))
+        self.assertEqual(st.ops[-1]["width"], 0)
+
+    def test_no_mem_context_still_records(self) -> None:
+        # The drawing-only _ctx() has no .mem; Text must still record the draw.
+        self.lib.Move(self.ctx, self.rp, 3, 4)
+        self.lib.Text(_ctx(), self.rp, 0x00020000, 4)
+
+        st = self._state(self.rp)
+        self.assertEqual(st.ops[-1]["op"], "Text")
+        self.assertEqual(st.ops[-1]["text"], "")
+        self.assertEqual(st.x, 3 + 24)  # falls back to Topaz width 6
+
+
 class GraphicsLibraryScannerTest(unittest.TestCase):
     """Regression guard: every method must be a valid .fd trap (ctx + arg count)."""
 
@@ -291,6 +384,10 @@ class GraphicsLibraryScannerTest(unittest.TestCase):
     def test_text_length_is_a_wired_trap(self) -> None:
         scan = self._scan()
         self.assertIn("TextLength", set(scan.get_valid_func_names()))
+
+    def test_text_is_a_wired_trap(self) -> None:
+        scan = self._scan()
+        self.assertIn("Text", set(scan.get_valid_func_names()))
 
 
 if __name__ == "__main__":

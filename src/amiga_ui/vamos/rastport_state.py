@@ -139,6 +139,19 @@ class RastPortState:
         """
         self._record("TextLength", string=string, count=count, length=length)
 
+    def record_text(self, string: int, count: int, width: int, text: str = "") -> None:
+        """Record a ``Text`` draw at the current pen position.
+
+        ``string`` is the emulated string pointer, ``count`` the number of
+        characters drawn, ``width`` the pixel width the draw advances the pen
+        by, and ``text`` the decoded string content (best-effort, for a future
+        renderer/replayer). Classic ``Text`` draws at the RastPort's current
+        origin and then advances it, so this records the draw position and
+        moves the pen forward by ``width``.
+        """
+        self._record("Text", string=string, count=count, width=width, x=self.x, y=self.y, text=text)
+        self.x += width
+
     def init(self) -> None:
         """Record InitRastPort (resets the drawing state for this RastPort)."""
         self.apen = 0
