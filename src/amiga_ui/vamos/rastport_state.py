@@ -129,6 +129,16 @@ class RastPortState:
     def rect_fill(self, x_min: int, y_min: int, x_max: int, y_max: int) -> None:
         self._record("RectFill", x_min=x_min, y_min=y_min, x_max=x_max, y_max=y_max)
 
+    def record_text_length(self, string: int, count: int, length: int) -> None:
+        """Record a ``TextLength`` measurement.
+
+        ``string`` is the emulated string pointer the app passed, ``count`` the
+        character count measured, and ``length`` the pixel width the library
+        returned. A later renderer/replayer can see what the app measured and
+        how wide it was told the text was.
+        """
+        self._record("TextLength", string=string, count=count, length=length)
+
     def init(self) -> None:
         """Record InitRastPort (resets the drawing state for this RastPort)."""
         self.apen = 0

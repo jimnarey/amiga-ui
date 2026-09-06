@@ -111,7 +111,11 @@ treated as settled:
   at `RastPort+0x34`/`+0x3A`/`+0x3C`. The classic AmigaOS 3.x `RastPort` (with the 3.0
   `RasInfo` field) places them at `+0x22`/`+0x2E`/`+0x30`. The app currently reads
   `RPort->TxHeight` and the screen font and gets usable values, but that is not proof the
-  offsets are right (zeroed memory yields plausible values). Confirm the binary's actual
+  offsets are right (zeroed memory yields plausible values). `graphics.library`
+  `TextLength` now *reads* `TxWidth` from `RastPort+0x3C` to measure label widths, so this
+  offset now directly affects a returned value, not just gadget geometry; it has a
+  sanity-bounded fallback to the Topaz baseline (`6`) so a mis-offset read degrades to the
+  correct width rather than returning a garbage pointer. Confirm the binary's actual
   offsets; if they differ, update `intuition_library.py`.
 - **`struct Screen` field offsets.** `intuition_library.py` uses `Flags@0x14`,
   `Title@0x18`, `BarHeight@0x20`, `WBorTop@0x25`, `Font@0x2C`, embedded `ViewPort@0x30`,
