@@ -27,6 +27,24 @@ def _ctx() -> SimpleNamespace:
     return SimpleNamespace()
 
 
+class _FakeMem:
+    """A minimal 68k memory model: a dict of 16-bit words (unwritten = 0)."""
+
+    def __init__(self, words: dict[int, int] | None = None) -> None:
+        self._words = dict(words or {})
+
+    def r16(self, addr: int) -> int:
+        return self._words.get(addr, 0) & 0xFFFF
+
+    def w16(self, addr: int, value: int) -> None:
+        self._words[addr] = value & 0xFFFF
+
+
+def _ctx_with_mem(words: dict[int, int] | None = None) -> SimpleNamespace:
+    """A call context with a fake 68k memory (for text-metrics reads)."""
+    return SimpleNamespace(mem=_FakeMem(words))
+
+
 class RastPortStateTest(unittest.TestCase):
     def test_set_pen_and_draw_mode_record_state(self) -> None:
         st = RastPortState(rp=0x1000)
@@ -196,6 +214,57 @@ class GraphicsLibraryDispatchTest(unittest.TestCase):
         self.assertEqual(self.lib.rastports.total_ops(), 0)
 
 
+class GraphicsLibraryTextLengthTest(unittest.TestCase):
+    """``TextLength`` measures from the RastPort font — not a fake zero."""
+
+    def setUp(self) -> None:
+        self.lib = GraphicsLibrary()
+        self.rp = 0x06A868  # the window RPort the app measures against (probe log)
+
+    def _state(self, rp: int):
+        st = self.lib.rastports.state(rp)
+        if st is None:
+            self.fail(f"no RastPort state tracked for {rp:#x}")
+        return st
+
+    def test_uses_rastport_font_width(self) -> None:
+        ctx = _ctx_with_mem({self.rp + 0x3C: 6})  # Topaz fixed width
+        # "Order:" — 6 chars measured by the app in main_window.c
+        self.assertEqual(self.lib.TextLength(ctx, self.rp, 0x00025194, 6), 36)
+        self.assertEqual(self.lib.TextLength(ctx, self.rp, 0x0002519C, 3), 18)
+        self.assertEqual(self.lib.TextLength(ctx, self.rp, 0x000251A0, 9), 54)
+
+    def test_uses_a_different_font_width(self) -> None:
+        ctx = _ctx_with_mem({self.rp + 0x3C: 8})  # a wider fixed-pitch font
+        self.assertEqual(self.lib.TextLength(ctx, self.rp, 0x00020000, 5), 40)
+
+    def test_falls_back_when_rastport_unpopulated(self) -> None:
+        ctx = _ctx_with_mem({})  # TxWidth never written -> r16 returns 0
+        self.assertEqual(self.lib.TextLength(ctx, self.rp, 0x00020000, 4), 24)  # 4 * 6
+
+    def test_falls_back_on_implausible_width(self) -> None:
+        ctx = _ctx_with_mem({self.rp + 0x3C: 0x0006AA48})  # a pointer, not a width
+        self.assertEqual(self.lib.TextLength(ctx, self.rp, 0x00020000, 4), 24)  # 4 * 6
+
+    def test_zero_count_is_zero_width(self) -> None:
+        ctx = _ctx_with_mem({self.rp + 0x3C: 6})
+        self.assertEqual(self.lib.TextLength(ctx, self.rp, 0x00020000, 0), 0)
+
+    def test_no_mem_context_falls_back(self) -> None:
+        # The drawing-only _ctx() has no .mem; TextLength must still be sane.
+        self.assertEqual(self.lib.TextLength(_ctx(), self.rp, 0x00020000, 6), 36)
+
+    def test_records_measurement_on_rastport(self) -> None:
+        ctx = _ctx_with_mem({self.rp + 0x3C: 6})
+        self.lib.TextLength(ctx, self.rp, 0x00025194, 6)
+
+        op = self._state(self.rp).ops[-1]
+        self.assertEqual(op["op"], "TextLength")
+        self.assertEqual(op["string"], 0x00025194)
+        self.assertEqual(op["count"], 6)
+        self.assertEqual(op["length"], 36)
+
+
 class GraphicsLibraryScannerTest(unittest.TestCase):
     """Regression guard: every method must be a valid .fd trap (ctx + arg count)."""
 
@@ -218,6 +287,10 @@ class GraphicsLibraryScannerTest(unittest.TestCase):
         valid = set(scan.get_valid_func_names())
         for name in ("SetAPen", "SetBPen", "SetDrMd", "Move", "Draw", "RectFill"):
             self.assertIn(name, valid)
+
+    def test_text_length_is_a_wired_trap(self) -> None:
+        scan = self._scan()
+        self.assertIn("TextLength", set(scan.get_valid_func_names()))
 
 
 if __name__ == "__main__":

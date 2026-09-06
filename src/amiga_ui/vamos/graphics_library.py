@@ -10,9 +10,14 @@ Drawing calls (``SetFont``/``SetAPen``/``SetBPen``/``SetDrMd``/``SetABPenDrMd``/
 ``RectFill``/``InitRastPort``) update a host-side :class:`RastPortState` (see
 ``rastport_state.py``): the drawing state the app configured and the ordered
 sequence of drawing operations it issued. There is no host window yet, so this
-record — not a silent no-op — is what makes the calls meaningful. Other
-frontier functions record their invocation in ``call_log`` rather than faking a
-success, and return honest defaults.
+record — not a silent no-op — is what makes the calls meaningful.
+
+``TextLength`` is a real text-metrics entry point: it measures the pixel width
+of the requested characters using the RastPort's current font (read from 68k
+memory) and records the measurement, rather than returning a fake zero.
+
+Other frontier functions record their invocation in ``call_log`` rather than
+faking a success, and return honest defaults.
 """
 
 from __future__ import annotations
@@ -21,6 +26,18 @@ from typing import Any
 
 from .base_library import BaseLibrary
 from .rastport_state import RastPortRegistry
+
+# ``RastPort.TxWidth`` — the pixel width of the font's characters — at the
+# classic pre-``RasInfo`` offset the target binary was compiled against. This
+# matches ``intuition_library._RP_OFF_TXWIDTH`` (``Screen+0x54`` RastPort +
+# ``0x3C``), where the Workbench screen font's fixed width is written.
+_RP_TXWIDTH_OFFSET = 0x3C
+# Fixed-pitch character width of the Topaz 8x6 screen font the repo installs —
+# used only as a fallback when the RastPort does not carry a usable width.
+_FALLBACK_CHAR_WIDTH = 6
+# A plausible fixed-pitch disk-font character width; anything outside this band
+# means the read did not land on ``TxWidth`` and we fall back instead.
+_MAX_CHAR_WIDTH = 32
 
 
 class GraphicsLibrary(BaseLibrary):
@@ -113,6 +130,40 @@ class GraphicsLibrary(BaseLibrary):
         """graphics.library RectFill(rp, xMin, yMin, xMax, yMax)(a1, d0-d3)."""
         self._rp(rp).rect_fill(xMin, yMin, xMax, yMax)
         return None
+
+    # -- text metrics (measured from the RastPort font, not a stub) ----------
+    def TextLength(self, ctx, rp, string, count):
+        """graphics.library TextLength(rp, string, count)(a1, a0, d0).
+
+        Return the pixel width of the first ``count`` characters of ``string``
+        in the RastPort's current font. On classic AmigaOS the library sums the
+        per-character widths from the font; for the fixed-pitch disk font this
+        repo installs (Topaz) every glyph is ``RastPort.TxWidth`` wide, so the
+        width is ``count * TxWidth``. The width is read from the RastPort in
+        68k memory so the result reflects the font the app actually set, not a
+        baked-in constant. The measurement is recorded on the host-side RastPort
+        model so a future renderer/probe can see what was measured and how wide
+        it was told the text was.
+        """
+        char_width = self._font_char_width(ctx, rp)
+        length = count * char_width
+        self._rp(rp).record_text_length(string=string, count=count, length=length)
+        return length
+
+    def _font_char_width(self, ctx, rp) -> int:
+        """Character width (pixels) of the RastPort's font, from 68k memory.
+
+        Reads ``RastPort.TxWidth`` at the classic pre-``RasInfo`` offset. A read
+        that is not a plausible fixed-pitch width (an unpopulated or
+        mis-offset RastPort) falls back to the Topaz baseline so the result
+        stays sane rather than returning a garbage value.
+        """
+        mem = getattr(ctx, "mem", None)
+        if mem is not None and rp:
+            width = mem.r16(rp + _RP_TXWIDTH_OFFSET)
+            if 0 < width <= _MAX_CHAR_WIDTH:
+                return width
+        return _FALLBACK_CHAR_WIDTH
 
     # -- ViewPort / colour (frontier: recorded, honest default) --------------
     def SetRGB32(self, ctx, vp, n, r, g, b):
