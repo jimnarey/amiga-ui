@@ -68,6 +68,13 @@ host/test event  ->  IntuiMessage  ->  Window.UserPort  ->  WaitPort  ->  GT_Get
 
 **Honest-failure note.** The in-process run is not a clean interactive session: after the target's event loop consumes the delivered message it `WaitPort`s the now-empty queue, which fails honestly with `UnsupportedFeatureError` because the queue really is empty. That failure is the intended behavior — the emulator refusing to invent a message — not a bridge defect. The compiled target's event handling also differs from the checked-in repo source (it drains the message before its real event loop), so a delivered close event is not guaranteed to produce a clean process exit; delivery and consumption are what the bridge guarantees.
 
+## Text Drawing
+
+`IntuiTextLength()` and `PrintIText()` are implemented (`src/amiga_ui/vamos/intuition_library.py`). The target builds its `struct IntuiText` with the **old pre-2.0 field names**, and its `vc +aos68k` compiler **aligns** the members (not packs them), so the string pointer `IText` sits at `0x0C` — confirmed from the running target, where the three group-box titles decode correctly only at that offset. See `docs/apps/itidy/compatibility-notes.md` (IntuiText ABI) for the settled layout.
+
+- `IntuiTextLength(iText)` reads the string pointer from the IntuiText, measures the string to NUL, and returns `count * font width` (the fixed-pitch font width, `RastPort.TxWidth` with the Topaz baseline fallback — the same policy as `graphics.library` `TextLength`). It records the measurement (string, count, width, decoded text) for inspection.
+- `PrintIText(rp, iText, left, top)` records a draw op at the explicit `(left, top)` in the IntuiText's own front pen on the host-side RastPort op log, **without** moving the RastPort origin (unlike `graphics.library` `Text`). It routes through the run-wide shared RastPort registry the launcher installs on `ctx.rastports`, so Intuition text and graphics drawing land in one per-RastPort op log in chronological order — the state a future host renderer needs to replay the group-box / requester titles. There is no host window yet, so this record (not a silent no-op) is what makes the call meaningful.
+
 ## Gadgets
 
 The Intuition gadget docs describe gadgets as the Amiga equivalent of buttons, knobs, and similar controls, and distinguish between:

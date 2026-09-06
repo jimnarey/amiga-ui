@@ -98,6 +98,13 @@ This decision allows early GUI work to proceed in two layers:
 2. host projection code that turns that state into Qt Widgets when the project is
    ready to display it.
 
+Drawing state is unified per window: the launcher installs one run-wide
+`RastPortRegistry` on every library context (`ctx.rastports`), so `graphics.library`
+(`Text`) and `intuition.library` (`PrintIText`) record into the *same* ordered
+per-RastPort op log. A window's drawing — whether issued through graphics or
+Intuition — is one chronological stream the projection layer can replay, rather
+than per-library fragments.
+
 Qt Widgets remain the host GUI toolkit for this mode because they provide normal
 desktop windows, menu bars, dialogs, actions, widgets, and custom painting hooks
 without requiring a browser or scene-graph UI [S57 §Qt Widgets User Interfaces ¶1-2].

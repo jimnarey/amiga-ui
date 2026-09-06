@@ -152,6 +152,30 @@ class RastPortState:
         self._record("Text", string=string, count=count, width=width, x=self.x, y=self.y, text=text)
         self.x += width
 
+    def print_itext(
+        self, string: int, count: int, width: int, x: int, y: int, front_pen: int = 0, font: int = 0, text: str = ""
+    ) -> None:
+        """Record an ``Intuition`` ``PrintIText`` draw at an explicit position.
+
+        Unlike graphics ``Text`` (which draws at the RastPort origin and then
+        advances it), ``PrintIText(rp, iText, left, top)`` draws the IntuiText's
+        string at the explicit ``(left, top)`` in the IntuiText's own front pen
+        and font, so this records the explicit draw position and the IntuiText
+        front pen *without* moving the RastPort origin. A future renderer can
+        replay the group-box / requester titles from this op.
+        """
+        self._record(
+            "PrintIText",
+            string=string,
+            count=count,
+            width=width,
+            x=x,
+            y=y,
+            front_pen=front_pen,
+            font=font,
+            text=text,
+        )
+
     def init(self) -> None:
         """Record InitRastPort (resets the drawing state for this RastPort)."""
         self.apen = 0
@@ -169,8 +193,12 @@ class RastPortState:
 class RastPortRegistry:
     """Map emulated RastPort pointers to their host-side drawing state.
 
-    A fresh registry is created per ``GraphicsLibrary`` instance (per vamos
-    session), so drawing state never leaks across probe runs.
+    The launcher creates ONE registry per vamos session and exposes it on every
+    library context (``ctx.rastports``), so ``graphics.library`` (Text) and
+    ``intuition.library`` (PrintIText) draw into the same per-RastPort op log in
+    chronological order. Library instances keep a private fallback registry for
+    unit tests where no shared registry is on the context, so drawing state
+    never leaks across probe runs either way.
     """
 
     def __init__(self) -> None:

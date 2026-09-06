@@ -23,6 +23,7 @@ from .bootstrap import apply_runtime_patches
 from .event_bridge import IntuitionEventBridge
 from .extensions import get_library_impl_overrides
 from .fd_creator import install_repo_fd_creator
+from .rastport_state import RastPortRegistry
 
 
 class ProjectSetupLibManager(SetupLibManager):
@@ -34,6 +35,11 @@ class ProjectSetupLibManager(SetupLibManager):
         # scripted events"; setup() then installs a fresh empty bridge so
         # impls always find the ``event_bridge`` context attribute.
         self.event_bridge = event_bridge
+        # One shared host-side RastPort op log for the whole run. graphics
+        # (Text/TextLength) and intuition (PrintIText) both draw into the same
+        # window RastPort, so a future renderer needs their ops in ONE registry
+        # in chronological order, not split across library instances.
+        self.rastports = RastPortRegistry()
 
     def setup(self):
         lib_mgr = super().setup()
@@ -55,6 +61,10 @@ class ProjectSetupLibManager(SetupLibManager):
         if self.event_bridge is None:
             self.event_bridge = IntuitionEventBridge()
         lib_mgr.vlib_mgr.set_ctx_extra_attr("event_bridge", self.event_bridge)
+        # Expose the shared RastPort op log to every library context so
+        # graphics (Text) and intuition (PrintIText) record into one unified
+        # per-RastPort op log instead of per-library registries.
+        lib_mgr.vlib_mgr.set_ctx_extra_attr("rastports", self.rastports)
         # Resolve jump-table layouts for libraries missing from the bundled FD
         # data (gadtools, diskfont, workbench, asl) from the repository's NDK
         # FD tables, so their library-specific entries (e.g. GetVisualInfo)

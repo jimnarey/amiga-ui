@@ -98,9 +98,23 @@ the event `IAddress` are settled: the repo offsets (`GadgetID@0x26`, `UserData@0
 `SpecialInfo@0x22`, `IntuiMessage.IAddress@0x18`) match both the classic m68k NDK and
 the header cached in the repo, and the `IAddress` value is exercised end-to-end by the
 working event bridge (`WaitPort -> GT_GetIMsg -> GT_ReplyIMsg`). `struct NewGadget`
-matches the classic layout. `struct IntuiText` was corrected in this change to the
-classic 3.x `iT_*` layout (the previous layout matched no known NDK); nothing in the
-implemented path dereferences IntuiText fields yet, so this is low-risk.
+matches the classic layout. There are **two distinct `IntuiText` layouts** in the
+repo: `gadtools_library.py` builds repo-allocated GadgetText in the 3.x `iT_*` layout
+(separate, currently inert — nothing dereferences it), while `intuition.library`
+`IntuiTextLength`/`PrintIText` read the **app's** IntuiText in the old pre-2.0 field
+layout the target builds (settled below).
+
+- **`struct IntuiText` ABI — settled from the running target.** The target's
+  `vc +aos68k` compiler **aligns** members to their natural alignment (it does not
+  pack), so the app's IntuiText field offsets are: `FrontPen@0x00`, `BackPen@0x01`,
+  `DrawMode@0x02`, (pad)@0x03, `LeftEdge@0x04`, `TopEdge@0x06`, (pad)@0x08,
+  `ITextFont@0x08`, **`IText@0x0C`** (string pointer), `NextText@0x10`, size `0x14`.
+  This was confirmed empirically: the three group-box titles (`"Folder"`,
+  `"Tidy options"`, `"Tools"`) decode correctly **only** from the pointer at `0x0C`;
+  the packed offset `0x0B` yields a short pointer and garbage, and the other fields
+  (`LeftEdge`/`TopEdge` = 0 at `0x04`/`0x06`, `ITextFont` = NULL at `0x08`,
+  `NextText` = NULL at `0x10`) corroborate the aligned layout. `intuition_library.py`
+  reads the string pointer and front pen from these offsets.
 
 The following remain **unconfirmed against the binary** and should be settled by
 disassembling `iTidy`'s event handler and RastPort reads (the HUNK CODE segment is the

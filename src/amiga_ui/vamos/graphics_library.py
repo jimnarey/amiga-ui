@@ -63,14 +63,22 @@ class GraphicsLibrary(BaseLibrary):
     def _log_call(self, name: str, **args: Any) -> None:
         self.call_log.append({"func": name, "args": args})
 
-    def _rp(self, rp: int):
-        """The host-side drawing state for an emulated RastPort pointer."""
-        return self.rastports.get_or_create(rp)
+    def _rp(self, ctx, rp: int):
+        """The host-side drawing state for an emulated RastPort pointer.
+
+        Routes through the run-wide shared registry (``ctx.rastports``) when the
+        launcher installed one, so graphics (Text/TextLength) and intuition
+        (PrintIText) draw into one unified per-RastPort op log in chronological
+        order; falls back to this library's own registry in unit tests, where no
+        shared registry is attached to the context.
+        """
+        registry = getattr(ctx, "rastports", None) or self.rastports
+        return registry.get_or_create(rp)
 
     # -- RastPort drawing state (recorded, not no-op'ed) --------------------
     def InitRastPort(self, ctx, rp):
         """graphics.library InitRastPort(rp)(a1): reset a RastPort's state."""
-        self._rp(rp).init()
+        self._rp(ctx, rp).init()
         return None
 
     def SetFont(self, ctx, rp, textFont):
@@ -79,59 +87,59 @@ class GraphicsLibrary(BaseLibrary):
         Records the font on the host-side RastPort state and returns the
         previous font pointer, per the classic contract.
         """
-        return self._rp(rp).set_font(textFont)
+        return self._rp(ctx, rp).set_font(textFont)
 
     def SetAPen(self, ctx, rp, pen):
         """graphics.library SetAPen(rp, pen)(a1, d0): set the active pen."""
-        self._rp(rp).set_apen(pen)
+        self._rp(ctx, rp).set_apen(pen)
         return None
 
     def SetBPen(self, ctx, rp, pen):
         """graphics.library SetBPen(rp, pen)(a1, d0): set the background pen."""
-        self._rp(rp).set_bpen(pen)
+        self._rp(ctx, rp).set_bpen(pen)
         return None
 
     def SetDrMd(self, ctx, rp, drawMode):
         """graphics.library SetDrMd(rp, drawMode)(a1, d0): set the draw mode."""
-        self._rp(rp).set_dr_md(drawMode)
+        self._rp(ctx, rp).set_dr_md(drawMode)
         return None
 
     def SetABPenDrMd(self, ctx, rp, apen, bpen, drawmode):
         """graphics.library SetABPenDrMd(rp, apen, bpen, drawmode)(a1, d0-d2)."""
-        self._rp(rp).set_ab_pen_dr_md(apen, bpen, drawmode)
+        self._rp(ctx, rp).set_ab_pen_dr_md(apen, bpen, drawmode)
         return None
 
     def SetMaxPen(self, ctx, rp, maxpen):
         """graphics.library SetMaxPen(rp, maxpen)(a0, d0): returns prior max pen."""
-        return self._rp(rp).set_max_pen(maxpen)
+        return self._rp(ctx, rp).set_max_pen(maxpen)
 
     def SetOutlinePen(self, ctx, rp, pen):
         """graphics.library SetOutlinePen(rp, pen)(a0, d0): returns prior pen."""
-        return self._rp(rp).set_outline_pen(pen)
+        return self._rp(ctx, rp).set_outline_pen(pen)
 
     def Move(self, ctx, rp, x, y):
         """graphics.library Move(rp, x, y)(a1, d0, d1): move the pen position."""
-        self._rp(rp).move(x, y)
+        self._rp(ctx, rp).move(x, y)
         return None
 
     def AreaMove(self, ctx, rp, x, y):
         """graphics.library AreaMove(rp, x, y)(a1, d0, d1): area move."""
-        self._rp(rp).area_move(x, y)
+        self._rp(ctx, rp).area_move(x, y)
         return None
 
     def Draw(self, ctx, rp, x, y):
         """graphics.library Draw(rp, x, y)(a1, d0, d1): draw a line to (x, y)."""
-        self._rp(rp).draw(x, y)
+        self._rp(ctx, rp).draw(x, y)
         return None
 
     def AreaDraw(self, ctx, rp, x, y):
         """graphics.library AreaDraw(rp, x, y)(a1, d0, d1): area line to (x, y)."""
-        self._rp(rp).area_draw(x, y)
+        self._rp(ctx, rp).area_draw(x, y)
         return None
 
     def RectFill(self, ctx, rp, xMin, yMin, xMax, yMax):
         """graphics.library RectFill(rp, xMin, yMin, xMax, yMax)(a1, d0-d3)."""
-        self._rp(rp).rect_fill(xMin, yMin, xMax, yMax)
+        self._rp(ctx, rp).rect_fill(xMin, yMin, xMax, yMax)
         return None
 
     # -- text metrics (measured from the RastPort font, not a stub) ----------
@@ -150,7 +158,7 @@ class GraphicsLibrary(BaseLibrary):
         """
         char_width = self._font_char_width(ctx, rp)
         length = count * char_width
-        self._rp(rp).record_text_length(string=string, count=count, length=length)
+        self._rp(ctx, rp).record_text_length(string=string, count=count, length=length)
         return length
 
     def _font_char_width(self, ctx, rp) -> int:
@@ -183,7 +191,7 @@ class GraphicsLibrary(BaseLibrary):
         char_width = self._font_char_width(ctx, rp)
         width = count * char_width
         text = self._read_text_string(ctx, string, count)
-        self._rp(rp).record_text(string=string, count=count, width=width, text=text)
+        self._rp(ctx, rp).record_text(string=string, count=count, width=width, text=text)
         return None
 
     @staticmethod

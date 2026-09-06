@@ -14,7 +14,10 @@ places ``RastPort`` at ``Screen+0x54``. See
 
 from __future__ import annotations
 
+from typing import Any
+
 from .base_library import BaseLibrary
+from .rastport_state import RastPortRegistry
 
 # --- struct Screen (classic, pre-RasInfo ViewPort embedded) ------------------
 _SCREEN_SIZE = 0x200
@@ -92,6 +95,34 @@ _WA_GADGETS = 0x8000006C
 _WA_TITLE = 0x8000006E
 _WA_PUBSCREEN = 0x80000079
 
+# --- struct IntuiText (classic pre-2.0 field names, GCC-aligned on m68k) -----
+# The target builds IntuiText with the OLD field names (FrontPen/BackPen/
+# DrawMode/LeftEdge/TopEdge/ITextFont/IText/NextText) — the shape the classic
+# NDK intuition.h defines for the pre-2.0 layout. The target's ``vc +aos68k``
+# compiler aligns members to their natural alignment (it does NOT pack), so the
+# string pointer IText sits at 0x0C, not 0x0B. This was confirmed from the
+# running target: the three group-box titles decode correctly only at 0x0C
+# ("Folder", "Tidy options", "Tools"), with LeftEdge/TopEdge = 0 at 0x04/0x06,
+# ITextFont = NULL at 0x08 and NextText = NULL at 0x10. See
+# docs/apps/itidy/compatibility-notes.md (IntuiText ABI).
+_IT_OFF_FRONT = 0x00  # UBYTE FrontPen
+_IT_OFF_BACK = 0x01  # UBYTE BackPen
+_IT_OFF_DRMODE = 0x02  # UBYTE DrawMode
+# 0x03 is alignment padding (uninitialised stack in the target)
+_IT_OFF_LEFT = 0x04  # WORD LeftEdge
+_IT_OFF_TOP = 0x06  # WORD TopEdge
+# 0x08 is alignment padding before the pointer members
+_IT_OFF_FONT = 0x08  # APTR struct TextAttr *ITextFont
+_IT_OFF_TEXT = 0x0C  # STRPTR IText (the string pointer)
+_IT_OFF_NEXT = 0x10  # APTR struct IntuiText *NextText
+
+# Char-width sanity bounds for the fixed-pitch disk font (Topaz) the repo
+# installs. A RastPort TxWidth read outside this range is an unpopulated or
+# mis-offset RastPort and falls back to the Topaz baseline rather than a
+# garbage width (same policy as graphics.library).
+_FALLBACK_CHAR_WIDTH = 6
+_MAX_CHAR_WIDTH = 32
+
 
 class IntuitionLibrary(BaseLibrary):
     """Real public-screen state for the Workbench screen the app locks."""
@@ -103,6 +134,12 @@ class IntuitionLibrary(BaseLibrary):
         self._draw_infos: dict[int, object] = {}
         # addr -> (Window, UserPort, WindowPort) Memory blocks.
         self._windows: dict[int, tuple] = {}
+        # Fallback RastPort op log for unit tests; the launcher installs a
+        # run-wide shared registry on the context (see _registry).
+        self.rastports = RastPortRegistry()
+        # Ordered record of IntuiTextLength measurements: the app uses these
+        # widths to centre group-box titles, so a probe can see what it measured.
+        self.itext_measures: list[dict[str, Any]] = []
 
     def get_version(self) -> int:
         """Report a plausible baseline library version for Workbench 3.x startup."""
@@ -283,6 +320,163 @@ class IntuitionLibrary(BaseLibrary):
                 break
             out.append(byte)
         return out.decode("latin-1")
+
+    # -- IntuiText (classic pre-2.0 field layout) ----------------------------
+    def _registry(self, ctx):
+        """The host-side RastPort op log for this run.
+
+        Uses the launcher's run-wide shared registry (``ctx.rastports``) when
+        present so graphics (Text) and intuition (PrintIText) draw into one
+        unified per-RastPort op log; falls back to this library's own registry
+        in unit tests where no shared registry is attached to the context.
+        """
+        return getattr(ctx, "rastports", None) or self.rastports
+
+    @staticmethod
+    def _read_u32(ctx, addr: int) -> int:
+        """Read a 32-bit big-endian pointer from 68k memory (0 if unreadable)."""
+        mem = getattr(ctx, "mem", None)
+        if mem is None or not addr:
+            return 0
+        try:
+            return mem.r32(addr)
+        except Exception:
+            return 0
+
+    @staticmethod
+    def _read_u8(ctx, addr: int) -> int:
+        """Read a byte from 68k memory (0 if unreadable)."""
+        mem = getattr(ctx, "mem", None)
+        if mem is None or not addr:
+            return 0
+        try:
+            return mem.r8(addr)
+        except Exception:
+            return 0
+
+    def _read_itext_string_ptr(self, ctx, itext: int) -> int:
+        """The IntuiText's string pointer (``IText`` field, at 0x0C)."""
+        return self._read_u32(ctx, itext + _IT_OFF_TEXT)
+
+    def _read_itext_front_pen(self, ctx, itext: int) -> int:
+        """The IntuiText's ``FrontPen`` field (at 0x00)."""
+        return self._read_u8(ctx, itext + _IT_OFF_FRONT)
+
+    def _count_string_chars(self, ctx, ptr: int) -> int:
+        """Number of characters in the emulated C string at ``ptr`` (to NUL)."""
+        mem = getattr(ctx, "mem", None)
+        if mem is None or not ptr:
+            return 0
+        count = 0
+        for i in range(256):  # bounded; a title/label is short
+            byte = mem.r8(ptr + i)
+            if byte == 0:
+                break
+            count += 1
+        return count
+
+    def _read_string(self, ctx, ptr: int) -> str:
+        """Best-effort decode of the emulated C string at ``ptr`` (for op records)."""
+        mem = getattr(ctx, "mem", None)
+        if mem is None or not ptr:
+            return ""
+        out = bytearray()
+        for i in range(256):
+            byte = mem.r8(ptr + i)
+            if byte == 0:
+                break
+            out.append(byte)
+        return out.decode("latin-1")
+
+    def _rp_font_char_width(self, ctx, rp: int) -> int:
+        """Character width (pixels) of a RastPort's font, from 68k memory.
+
+        Reads ``RastPort.TxWidth`` at the classic pre-``RasInfo`` offset; a read
+        that is not a plausible fixed-pitch width falls back to the Topaz
+        baseline (same policy as graphics.library).
+        """
+        mem = getattr(ctx, "mem", None)
+        if mem is not None and rp:
+            try:
+                width = mem.r16(rp + 0x3C)
+            except Exception:
+                width = 0
+            if 0 < width <= _MAX_CHAR_WIDTH:
+                return width
+        return _FALLBACK_CHAR_WIDTH
+
+    def _screen_font_char_width(self, ctx) -> int:
+        """Character width of the screen's default font (Topaz baseline).
+
+        ``IntuiTextLength`` takes no RastPort; with the target's ``ITextFont``
+        NULL the width comes from the screen font. Reads the screen RastPort's
+        TxWidth (written by ``_ensure_screen``) and falls back to Topaz.
+        """
+        mem = getattr(ctx, "mem", None)
+        if mem is not None and self._screen_addr:
+            try:
+                width = mem.r16(self._screen_addr + _RP_OFF_TXWIDTH)
+            except Exception:
+                width = 0
+            if 0 < width <= _MAX_CHAR_WIDTH:
+                return width
+        return _FALLBACK_CHAR_WIDTH
+
+    def IntuiTextLength(self, ctx, iText):
+        """intuition.library IntuiTextLength(iText)(a0): measure an IntuiText.
+
+        Return the pixel width of the IntuiText's string in its font. The target
+        builds the IntuiText with the classic pre-2.0 field names (see the
+        ``_IT_*`` constants), so the string pointer (``IText``) is read from 68k
+        memory at 0x0C and the string is read to NUL. The width is
+        ``count * TxWidth`` using the fixed-pitch screen font (Topaz), matching
+        graphics.library TextLength. The app uses this width to centre group-box
+        titles; the measurement is recorded on ``self.itext_measures`` so a
+        probe can see what the app measured (and what the string was).
+        """
+        string_ptr = self._read_itext_string_ptr(ctx, iText)
+        count = self._count_string_chars(ctx, string_ptr)
+        char_width = self._screen_font_char_width(ctx)
+        width = count * char_width
+        self.itext_measures.append(
+            {
+                "itext": iText,
+                "string": string_ptr,
+                "count": count,
+                "width": width,
+                "text": self._read_string(ctx, string_ptr),
+            }
+        )
+        return width
+
+    def PrintIText(self, ctx, rp, iText, left, top):
+        """intuition.library PrintIText(rp, iText, left, top)(a0/a1, d0, d1).
+
+        Draw the IntuiText's string in its font at ``(left, top)`` on ``rp``.
+        The draw counterpart of ``IntuiTextLength``. Reads the string pointer
+        and front pen from the (classic pre-2.0) IntuiText and records the draw
+        on the host-side RastPort op log — explicit position, string pointer,
+        decoded content, width, front pen, and font — so a future renderer can
+        replay the group-box / requester title. There is no host window yet, so
+        this record is what makes the call meaningful rather than a silent
+        no-op.
+        """
+        string_ptr = self._read_itext_string_ptr(ctx, iText)
+        count = self._count_string_chars(ctx, string_ptr)
+        char_width = self._rp_font_char_width(ctx, rp)
+        width = count * char_width
+        front_pen = self._read_itext_front_pen(ctx, iText)
+        text = self._read_string(ctx, string_ptr)
+        self._registry(ctx).get_or_create(rp).print_itext(
+            string=string_ptr,
+            count=count,
+            width=width,
+            x=left,
+            y=top,
+            front_pen=front_pen,
+            text=text,
+        )
+        return None
 
     @staticmethod
     def _get_port_mgr(ctx):

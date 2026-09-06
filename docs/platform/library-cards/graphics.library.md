@@ -63,12 +63,16 @@ The current `iTidy` tree does exactly that. Its GUI helper code uses `SetAPen()`
   by the emulated RastPort pointer: the pen/draw-mode/font state the app
   configured plus the ordered sequence of drawing operations. There is no host
   window yet, so this record — not a fake success — is what makes the calls
-  meaningful; a later renderer can replay the ops.
+  meaningful; a later renderer can replay the ops. The launcher installs one
+  run-wide `RastPortRegistry` on every library context (`ctx.rastports`), so
+  `graphics.library` (`Text`) and `intuition.library` (`PrintIText`) draw into
+  the *same* per-RastPort op log in chronological order — the state a future
+  host renderer needs to replay a window.
 - **Frontier calls are recorded, not faked.** Color/BitMap/display-info/font
   entry points the app has not driven yet record their invocation in
   `GraphicsLibrary.call_log` and return honest defaults (e.g. `AllocBitMap`
   returns `0`, `GetVPModeID` returns `0`) rather than a fabricated success.
-- **Text: `TextLength` (measure) and `Text` (draw) are implemented; the Intuition/GadTools text pair is still frontier.**
+- **Text: `TextLength` (measure) and `Text` (draw) are implemented; the Intuition `IntuiTextLength`/`PrintIText` pair is now implemented in `intuition.library`; only the GadTools bevel pair remains frontier.**
   `TextLength` (bias 54) now measures the pixel width of the requested characters from the
   RastPort's font — it reads `RastPort.TxWidth` [S1 Include_H/graphics/rastport.h] at the
   pre-`RasInfo` offset the target was compiled against and returns `count * TxWidth` for the
@@ -77,9 +81,10 @@ The current `iTidy` tree does exactly that. Its GUI helper code uses `SetAPen()`
   counterpart [S43 item 1]: it records a text-draw op at the current pen position (string
   pointer, decoded content, pen, font) and advances the pen by `count * TxWidth`, per the
   classic contract [S31 L1813-L1860, the folder-path label draw]. The Intuition pair
-  `IntuiTextLength`/`PrintIText` and the GadTools `DrawBevelBoxA`/`GT_RefreshWindow`/
-  `GT_BeginRefresh`/`GT_EndRefresh` remain frontier; the app's calls to those still log as
-  honest missing-function warnings (`d0=0`) rather than being dropped.
+  `IntuiTextLength`/`PrintIText` is now implemented in `intuition.library` (see the
+  intuition card, Text Drawing). Only the GadTools `DrawBevelBoxA`/`GT_RefreshWindow`/
+  `GT_BeginRefresh`/`GT_EndRefresh` remain frontier; the app's calls to those still log
+  as honest missing-function warnings (`d0=0`) rather than being dropped.
 
 Coverage: `tests/test_graphics_library.py` (model, dispatch, and a scanner
 regression guard asserting zero scanner errors and that the six drawing
