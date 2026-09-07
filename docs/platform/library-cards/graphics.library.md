@@ -72,7 +72,7 @@ The current `iTidy` tree does exactly that. Its GUI helper code uses `SetAPen()`
   entry points the app has not driven yet record their invocation in
   `GraphicsLibrary.call_log` and return honest defaults (e.g. `AllocBitMap`
   returns `0`, `GetVPModeID` returns `0`) rather than a fabricated success.
-- **Text: `TextLength` (measure) and `Text` (draw) are implemented; the Intuition `IntuiTextLength`/`PrintIText` pair is now implemented in `intuition.library`; only the GadTools bevel pair remains frontier.**
+- **Text: `TextLength` (measure) and `Text` (draw) are implemented.**
   `TextLength` (bias 54) now measures the pixel width of the requested characters from the
   RastPort's font — it reads `RastPort.TxWidth` [S1 Include_H/graphics/rastport.h] at the
   pre-`RasInfo` offset the target was compiled against and returns `count * TxWidth` for the
@@ -82,9 +82,9 @@ The current `iTidy` tree does exactly that. Its GUI helper code uses `SetAPen()`
   pointer, decoded content, pen, font) and advances the pen by `count * TxWidth`, per the
   classic contract [S31 L1813-L1860, the folder-path label draw]. The Intuition pair
   `IntuiTextLength`/`PrintIText` is now implemented in `intuition.library` (see the
-  intuition card, Text Drawing). Only the GadTools `DrawBevelBoxA`/`GT_RefreshWindow`/
-  `GT_BeginRefresh`/`GT_EndRefresh` remain frontier; the app's calls to those still log
-  as honest missing-function warnings (`d0=0`) rather than being dropped.
+  intuition card, Text Drawing). The GadTools `DrawBevelBoxA`/`GT_RefreshWindow` pair is
+  implemented in `gadtools.library` (see the GadTools card, Bevel Box And Window Refresh),
+  so `iTidy`'s visible text and bevel drawing are recorded in the shared RastPort op log.
 
 Coverage: `tests/test_graphics_library.py` (model, dispatch, and a scanner
 regression guard asserting zero scanner errors and that the six drawing

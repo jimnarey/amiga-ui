@@ -19,11 +19,11 @@ class DiskFontLibrary(BaseLibrary):
     can see which font the app asked for.
     """
 
-    # struct TextAttr: ta_Name (STRPTR), ta_YSize (WORD), ta_Style (WORD),
-    # ta_Flags (WORD). The target's OpenDiskFont takes a TextAttr* in a0 and
+    # struct TextAttr: ta_Name (STRPTR), ta_YSize (UWORD), ta_Style (UBYTE),
+    # ta_Flags (UBYTE). The target's OpenDiskFont takes a TextAttr* in a0 and
     # returns a TextFont* in d0 (confirmed from the probe: a single a0 arg).
     _TA_OFF_NAME = 0x00  # STRPTR ta_Name (the font-name pointer)
-    _TA_OFF_YSIZE = 0x04  # WORD ta_YSize (the requested point size)
+    _TA_OFF_YSIZE = 0x04  # UWORD ta_YSize (the requested point size)
 
     def __init__(self) -> None:
         super().__init__()
