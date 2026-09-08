@@ -1,30 +1,83 @@
-"""Repo-owned minimal ``iffparse.library`` implementation for vamos."""
+"""Repo-owned ``iffparse.library`` implementation for vamos.
+
+Only the ``AllocIFF``/``FreeIFF`` handle lifecycle is implemented with real
+semantics. Classic ``AllocIFF`` returns a pointer to an ``IFFparse`` control
+block that the caller writes through (e.g. ``iff->iff_Stream``), so the handle
+is a real allocation in the emulated address space; ``FreeIFF`` releases only a
+handle this library actually handed out and ignores anything else.
+
+The observed iTidy path (``window_management.c`` / ``Settings/IControlPrefs.c``)
+allocates a parser, fails to open an absent ``ENV:sys/*.prefs`` file, and frees
+the parser, so no chunk parsing is exercised. The remaining traps in this file
+are pre-existing no-ops that the target never reaches in this path; they are
+deliberately not expanded into a general IFF parser and are documented here as
+the implementation boundary.
+"""
 
 from __future__ import annotations
 
+from amitools.vamos.machine.regs import REG_A0
+
 from .base_library import BaseLibrary
+
+# Room for the classic ``IFFparse`` control block plus the single pointer the
+# target writes through it (``iff_Stream``) before any parsing is attempted.
+_IFF_STRUCT_SIZE = 256
 
 
 class IffParseLibrary(BaseLibrary):
-    """Stub implementation to satisfy the first ``iffparse.library`` load."""
+    """Real ``AllocIFF``/``FreeIFF`` handle lifecycle over a stubbed parser.
+
+    ``AllocIFF`` allocates a tracked block in the emulated address space and
+    returns its address as the handle; ``FreeIFF`` releases exactly the handles
+    this instance allocated. Everything else in the iffparse table remains a
+    pre-existing no-op boundary (not a full IFF parser).
+    """
+
+    def __init__(self) -> None:
+        # Live IFF handles: handle value (emulated address) -> allocated memory.
+        self._iff_handles: dict[int, object] = {}
 
     def AllocIFF(self, ctx):
-        """Return a dummy IFF handle.
+        """Allocate a new IFF parser handle and return its address.
 
-        The iTidy binary merely checks for a non-NULL handle.
-
-        Args:
-            ctx: library context pointer (d0 register)
-        """
-        return 1
-
-    def FreeIFF(self, iff):
-        """No-op free.
+        ``AllocIFF()()`` takes no arguments and returns a pointer to a new
+        ``IFFparse`` structure. The handle is a real emulated-memory allocation
+        so the caller can write through it, and it is tracked so ``FreeIFF`` can
+        release exactly the handles this library created. Returns 0 (NULL) if
+        no allocator is available or the allocation fails.
 
         Args:
-            iff: IFF handle (d0 register)
+            ctx: library call context.
         """
-        return None
+        alloc = getattr(ctx, "alloc", None)
+        if alloc is None:
+            return 0
+        mem = alloc.alloc_memory(_IFF_STRUCT_SIZE, label="IFFParse.IFF")
+        handle = getattr(mem, "addr", 0)
+        if not handle:
+            return 0
+        self._iff_handles[handle] = mem
+        return handle
+
+    def FreeIFF(self, ctx):
+        """Release a previously allocated IFF parser handle.
+
+        ``FreeIFF(iff)(a0)`` takes the handle in ``A0``. Only a handle this
+        library allocated is released; unknown or already-freed handles are
+        ignored (honest no-op) rather than treated as success.
+
+        Args:
+            ctx: library call context.
+        """
+        handle = ctx.cpu.r_reg(REG_A0)
+        mem = self._iff_handles.pop(handle, None)
+        if mem is None:
+            return 0
+        alloc = getattr(ctx, "alloc", None)
+        if alloc is not None and hasattr(alloc, "free_memory"):
+            alloc.free_memory(mem)
+        return 0
 
     def OpenIFF(self, iff, rwMode):
         """Open an IFF IFF handle.
