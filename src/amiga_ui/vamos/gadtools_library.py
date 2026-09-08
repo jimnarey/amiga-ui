@@ -577,10 +577,14 @@ class GadToolsLibrary(BaseLibrary):
         """gadtools.library ``GT_RefreshWindow(win, req)``: refresh a window's gadgets.
 
         Triggers a redraw of the window's gadgets (the app calls it with a
-        ``NULL`` requester after drawing). There is no host window yet, so this
-        records the refresh request (window address) as a host-side repaint signal
-        for the future renderer, rather than silently dropping it. Returns None
-        (VOID).
+        ``NULL`` requester after drawing). This is the first repaint boundary the
+        host projection uses: it records the refresh request (window address) for
+        probes, and — when a host projection is installed — asks it to replay the
+        window's recorded RastPort op stream onto its drawing surface. Returns
+        None (VOID).
         """
         self.refresh_requests.append({"win": win, "req": req})
+        projection = getattr(ctx, "host_projection", None)
+        if projection is not None:
+            projection.refresh_window(win)
         return None
