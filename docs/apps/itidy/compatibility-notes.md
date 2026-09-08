@@ -121,23 +121,51 @@ disassembling `iTidy`'s event handler and RastPort reads (the HUNK CODE segment 
 ground truth; see `docs/architecture/platform-target.md` evidence order) before they are
 treated as settled:
 
-- **RastPort field offsets.** `intuition_library.py` writes `RpFont`/`TxHeight`/`TxWidth`
-  at `RastPort+0x34`/`+0x3A`/`+0x3C`. The classic AmigaOS 3.x `RastPort` (with the 3.0
-  `RasInfo` field) places them at `+0x22`/`+0x2E`/`+0x30`. The app currently reads
-  `RPort->TxHeight` and the screen font and gets usable values, but that is not proof the
-  offsets are right (zeroed memory yields plausible values). `graphics.library`
-  `TextLength` now *reads* `TxWidth` from `RastPort+0x3C` to measure label widths, and its
-  draw counterpart `Text` reads the same word to advance the pen by the drawn width, so
-  this offset now directly affects a returned value *and* the recorded text-draw position,
-  not just gadget geometry; both have a
-  sanity-bounded fallback to the Topaz baseline (`6`) so a mis-offset read degrades to the
-  correct width rather than returning a garbage pointer. Confirm the binary's actual
-  offsets; if they differ, update `intuition_library.py`.
+- **RastPort font-field offsets — the binary does not read them directly (disassembled,
+  2026-09-06).** `intuition_library.py` writes `RpFont`/`TxHeight`/`TxWidth` at
+  `RastPort+0x34`/`+0x3A`/`+0x3C`; the classic 3.x `RastPort` (with the `RasInfo` field)
+  places them at `+0x22`/`+0x2E`/`+0x30`. The HUNK CODE segment was disassembled cleanly
+  (VBCC 0.9; real code from file `0x3E` / disasm addr `0x0A`; 106,265 instructions, zero
+  skipdata artifacts, so field displacements are reliable) and searched exhaustively for a
+  direct RastPort font-field load:
+  - **No** `move.b $3c(aX)` (repo `TxWidth`) from any `a0`–`a6` base, and **no**
+    `move.b $2e(aX)`/`$2f(aX)` (classic `TxHeight`/`TxBaseline`) anywhere.
+  - The two `move.b $3a(aX)` (repo `TxHeight`-offset) hits (`0x31c26`, `0x31e2a`) read a
+    byte from a **function-argument struct** whose `+4` is a dereferenced pointer — a
+    `RastPort`'s `+4` (`Rp_OrigY`) is a word, so that base is not a RastPort.
+  - All five `move.b $30(aX)` (classic `TxWidth`-offset) hits load a byte from a
+    **library-returned pointer** and compare it to `1`/`2` — an enum/state field, not a
+    font metric (a width is multiplied, never compared to 1/2).
+  - The `RpFont`-offset `move.l` hits are not RastPort reads either: `move.l $22(a2)` at
+    `0x21c66` subtracts `HUNK_CODE` (`0x3e9`) — a HUNK-type check — and the `move.l
+    $34(aX)` hits push struct fields for an internal call whose base is not a RastPort.
+  - The `lea.l $54(aX)` (RastPort-in-`Screen`) sites either pass the RastPort pointer to a
+    graphics-library call or read a word from a non-Screen struct; none lead to a
+    `TxWidth` byte read. All 360 `mulu.w`/`muls.w` in the binary are unrelated to a
+    byte-read from a RastPort base (there is no `font_width * N` computation).
+
+  **Conclusion — this binary cannot settle the offset.** The shipped binary does **not**
+  directly access `RastPort.TxWidth` or `RastPort.TxHeight`: it passes the RastPort
+  pointer to graphics-library calls (`TextLength` and friends) and never loads the
+  font-metric fields itself, so no HUNK CODE displacement pins the field offset. The
+  `lea.l $54(aX)` sites do confirm RastPort-within-`Screen` at `+0x54`, matching the repo.
+  The `+0x34`/`+0x3A`/`+0x3C` offsets are therefore a **compat-layer model choice**, not a
+  binary constraint: `graphics.library` `TextLength`/`Text` read `TxWidth` from `+0x3C` and
+  the repo writes the Topaz width (`6`) there, so the layer is self-consistent, and the
+  binary's text metrics come from the library call, not a direct field load. No production
+  offset change is warranted from this evidence, and a runtime sentinel diagnostic is not
+  applicable because there is no binary-produced value that depends on a direct `TxWidth`
+  read to observe. (The source's `calculate_font_dimensions` does read these fields
+  directly, but the shipped binary predates it — the source's `"SCREEN CHROME"` debug
+  string is absent from the binary — so the source is guidance, not the ground truth here.)
 - **`struct Screen` field offsets.** `intuition_library.py` uses `Flags@0x14`,
   `Title@0x18`, `BarHeight@0x20`, `WBorTop@0x25`, `Font@0x2C`, embedded `ViewPort@0x30`,
   `RastPort@0x54`, `BitMap@0xB8`. These differ from the classic 3.x `Screen` layout the
   project otherwise targets; confirm `WBorTop`, `Font`, `BitMap`, and especially
-  `RastPort`-within-`Screen` against the binary.
+  `RastPort`-within-`Screen` against the binary. `RastPort`-within-`Screen` at `+0x54` is
+  now **binary-confirmed**: the CODE segment's `lea.l $54(aX)` sites compute
+  `&screen->RastPort` and hand the result to graphics-library calls, so the app itself
+  places the RastPort at `Screen+0x54`. The other offsets above remain to be confirmed.
 - **`GadgetID` offset.** High confidence in `0x26` (three sources agree), but a prior
   session log claimed `0x28`/size `0x30`. A definitive disassembly of the
   `switch (gad->GadgetID)` ladder in the binary would close this out.
