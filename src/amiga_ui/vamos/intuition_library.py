@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..host.projection import OpenWindowIntent
 from .base_library import BaseLibrary
 from .rastport_state import RastPortRegistry
 
@@ -313,15 +314,42 @@ class IntuitionLibrary(BaseLibrary):
         mem.w32(addr + _WIN_OFF_WINDOWPORT, window_port.addr)
         # (Window, UserPort, WindowPort) Memory blocks, all freed on CloseWindow.
         self._windows[addr] = (win, user_port, window_port)
+        title_text = self._read_cstr(ctx, title) if title else ""
         # Host event bridge hook: register the window (with its real ports
         # and IDCMP flags) so scheduled test/Qt events can be delivered to
         # the UserPort before the app's first WaitPort. No-op without a
         # bridge (plain probes).
         bridge = getattr(ctx, "event_bridge", None)
         if bridge is not None:
-            title = self._read_cstr(ctx, title) if title else ""
-            bridge.on_window_opened(ctx, addr, user_port.addr, window_port.addr, idcmp, title)
+            bridge.on_window_opened(ctx, addr, user_port.addr, window_port.addr, idcmp, title_text)
+        # Host window projection hook: express the window-open intent through
+        # the projection boundary (no Qt import here — OpenWindowIntent is a
+        # pure data type). The projection decides whether to create a real
+        # host top-level window (app-facing) or keep a helper/backdrop window
+        # internal. No-op for plain (non-GUI) probes.
+        projection = getattr(ctx, "host_projection", None)
+        if projection is not None:
+            projection.open_window(
+                OpenWindowIntent(
+                    window_addr=addr,
+                    title=title_text,
+                    left=self._s16(left),
+                    top=self._s16(top),
+                    width=width & 0xFFFF,
+                    height=height & 0xFFFF,
+                    rport_addr=mem.r32(addr + _WIN_OFF_RPORT),
+                    idcmp=idcmp,
+                    has_menu_strip=False,
+                )
+            )
         return addr
+
+    @staticmethod
+    def _s16(value: int) -> int:
+        """Interpret a 16-bit Amiga coordinate as signed (Left/Top may be < 0)."""
+
+        value &= 0xFFFF
+        return value - 0x10000 if value >= 0x8000 else value
 
     @staticmethod
     def _read_cstr(ctx, ptr, max_len=128) -> str:
@@ -555,6 +583,11 @@ class IntuitionLibrary(BaseLibrary):
             port_mgr.unregister_port(port_mem.addr)
             ctx.alloc.free_memory(port_mem)
         ctx.alloc.free_memory(win)
+        # Host window projection hook: remove the host projection for this
+        # window (idempotent; no Qt import here). No-op for plain probes.
+        projection = getattr(ctx, "host_projection", None)
+        if projection is not None:
+            projection.close_window(window)
         return None
 
     @staticmethod
