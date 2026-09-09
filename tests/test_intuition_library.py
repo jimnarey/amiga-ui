@@ -24,7 +24,7 @@ from types import SimpleNamespace
 
 from amiga_ui.vamos.exec_library import PeekPortManager
 from amiga_ui.vamos.intuition_library import IntuitionLibrary
-from amiga_ui.vamos.rastport_state import JAM2, RastPortRegistry
+from amiga_ui.vamos.rastport_state import RastPortRegistry
 
 
 def _ctx() -> SimpleNamespace:
@@ -349,12 +349,20 @@ class IntuitionWindowRPortTest(unittest.TestCase):
         self.alloc = _FakeAlloc(self.mem)
         self.registry = RastPortRegistry()
         exec_impl = SimpleNamespace(port_mgr=PeekPortManager(self.alloc))
-        self.ctx = SimpleNamespace(mem=self.mem, alloc=self.alloc, vlib_mgr=_FakeVLibMgr(exec_impl), rastports=self.registry)
+        self.ctx = SimpleNamespace(
+            mem=self.mem, alloc=self.alloc, vlib_mgr=_FakeVLibMgr(exec_impl), rastports=self.registry
+        )
 
     def _write_open_tags(self, taglist: int, *, left, top, width, height, title=0) -> None:
         mem = self.mem
         offset = 0
-        for tag, data in ((_OWA_LEFT, left), (_OWA_TOP, top), (_OWA_WIDTH, width), (_OWA_HEIGHT, height), (_OWA_TITLE, title)):
+        for tag, data in (
+            (_OWA_LEFT, left),
+            (_OWA_TOP, top),
+            (_OWA_WIDTH, width),
+            (_OWA_HEIGHT, height),
+            (_OWA_TITLE, title),
+        ):
             mem.w32(taglist + offset, tag)
             mem.w32(taglist + offset + 4, data)
             offset += 8
@@ -376,33 +384,58 @@ class IntuitionWindowRPortTest(unittest.TestCase):
         self.assertNotEqual(self.mem.r32(screen_rp + _RP_OFF_FONT), 0)
         self.assertNotEqual(self.mem.r16(screen_rp + _RP_OFF_TXWIDTH), 0)
 
-    def test_window_rport_has_standard_values_and_inherited_font_metrics(self) -> None:
+    def test_window_rport_has_screen_pens_jam1_and_inherited_font_metrics(self) -> None:
+        """A freshly opened window starts with the screen's pens and JAM1.
+
+        Intuition sets up a window's RastPort at open time with the screen's
+        default text/background pens and the JAM1 draw mode (NOT the bare
+        ``InitRastPort`` reset): the target's group-box drawing relies on
+        ``SetAPen`` + ``Draw``/``RectFill`` using the FgPen, and only a specific
+        box later switches to ``JAM2`` via ``SetDrMd`` (setting its own BgPen).
+        Initialising to JAM2 / BgPen 0 made the group-box frame and title clear
+        use the wrong pen — the "black bar" defect.
+        """
+        from amiga_ui.vamos.intuition_library import (
+            _BACKGROUNDPEN,
+            _SEMANTIC_PEN_MAP,
+            _TEXTPEN,
+        )
+        from amiga_ui.vamos.rastport_state import JAM1
+
         screen = self.lib.LockPubScreen(self.ctx, 0)
         win = self._open_window(0x00065000, left=10, top=20, width=100, height=50)
         win_rp = self.mem.r32(win + _W_OFF_RPORT)
 
-        # Documented standard RastPort values (NDK AutoDocs InitRastPort).
+        # Pens are the screen's semantic text/background pens (host palette idx).
         self.assertEqual(self.mem.r8(win_rp + _RP_OFF_MASK), 0xFF)
-        self.assertEqual(self.mem.r8(win_rp + _RP_OFF_FGPEN), 0xFF)
-        self.assertEqual(self.mem.r8(win_rp + _RP_OFF_BGPEN), 0)
+        self.assertEqual(self.mem.r8(win_rp + _RP_OFF_FGPEN), _SEMANTIC_PEN_MAP[_TEXTPEN])
+        self.assertEqual(self.mem.r8(win_rp + _RP_OFF_BGPEN), _SEMANTIC_PEN_MAP[_BACKGROUNDPEN])
         self.assertEqual(self.mem.r8(win_rp + _RP_OFF_AOLPEN), 0xFF)
-        self.assertEqual(self.mem.r8(win_rp + _RP_OFF_DRMODE), JAM2)
+        self.assertEqual(self.mem.r8(win_rp + _RP_OFF_DRMODE), JAM1)
         # Font pointer + text metrics inherited explicitly from the screen RPort.
         self.assertEqual(self.mem.r32(win_rp + _RP_OFF_FONT), self.mem.r32(screen + _S_OFF_RP_FONT))
         self.assertEqual(self.mem.r16(win_rp + _RP_OFF_TXHEIGHT), self.mem.r16(screen + _S_OFF_RP_TXHEIGHT))
         self.assertEqual(self.mem.r16(win_rp + _RP_OFF_TXWIDTH), self.mem.r16(screen + _S_OFF_RP_TXWIDTH))
 
     def test_window_rport_state_registered_in_shared_registry(self) -> None:
+        from amiga_ui.vamos.intuition_library import (
+            _BACKGROUNDPEN,
+            _SEMANTIC_PEN_MAP,
+            _TEXTPEN,
+        )
+        from amiga_ui.vamos.rastport_state import JAM1
+
         win = self._open_window(0x00065000, left=10, top=20, width=100, height=50)
         win_rp = self.mem.r32(win + _W_OFF_RPORT)
 
         st = self.registry.state(win_rp)
         if st is None:
             self.fail("the window RPort state must be registered up front")
-        # Registered up front with the standard values, before any app drawing.
-        self.assertEqual(st.apen, 0xFF)
-        self.assertEqual(st.bpen, 0)
-        self.assertEqual(st.draw_mode, JAM2)
+        # Registered up front with the window's initial pens/draw mode, before
+        # any app drawing, matching the emulated RastPort.
+        self.assertEqual(st.apen, _SEMANTIC_PEN_MAP[_TEXTPEN])
+        self.assertEqual(st.bpen, _SEMANTIC_PEN_MAP[_BACKGROUNDPEN])
+        self.assertEqual(st.draw_mode, JAM1)
 
     def test_two_windows_have_isolated_op_streams(self) -> None:
         win_a = self._open_window(0x00065000, left=10, top=20, width=100, height=50)
@@ -471,6 +504,114 @@ class IntuitionWindowRPortTest(unittest.TestCase):
         # The projection saw the window's *own* RPort (not the screen RPort).
         self.lib.CloseWindow(self.ctx, win)
         self.assertEqual(closed, [win])
+
+
+class IntuitionGetScreenDrawInfoTest(unittest.TestCase):
+    """``GetScreenDrawInfo`` returns a classic DrawInfo with a real pen array.
+
+    The target is NOT opaque about the block: ``iTidy`` reads ``dri_Pens``
+    (a real UWORD array of semantic pen indices), ``dri_Font`` and ``dri_Depth``.
+    These tests pin the classic ``DRI_VERSION_2`` layout and the pen-array
+    lifetime, so the "black bar" regression (garbage ``dri_Pens``) cannot return.
+    """
+
+    def setUp(self) -> None:
+        self.lib = IntuitionLibrary()
+        self.mem = _FakeMem()
+        self.alloc = _FakeAlloc(self.mem)
+        self.registry = RastPortRegistry()
+        exec_impl = SimpleNamespace(port_mgr=PeekPortManager(self.alloc))
+        self.ctx = SimpleNamespace(
+            mem=self.mem, alloc=self.alloc, vlib_mgr=_FakeVLibMgr(exec_impl), rastports=self.registry
+        )
+        self.screen = self.lib.LockPubScreen(self.ctx, 0)
+
+    def test_layout_matches_classic_dri_version2_offsets(self) -> None:
+        """The block matches the classic offsets the m68k code dereferences."""
+        di = self.lib.GetScreenDrawInfo(self.ctx, self.screen)
+        self.assertNotEqual(di, 0)
+        # dri_Version @0x00 = DRI_VERSION_2
+        self.assertEqual(self.mem.r16(di + 0x00), 2)
+        # dri_NumPens @0x02 = palette size (16 for the 4-bit public screen)
+        self.assertEqual(self.mem.r16(di + 0x02), 16)
+        # dri_Pens @0x04 = a real, non-RastPort pointer to the pen array.
+        pens = self.mem.r32(di + 0x04)
+        self.assertNotEqual(pens, 0)
+        self.assertNotEqual(pens, self.screen + _S_OFF_RASTPORT, "dri_Pens must not be the screen RastPort")
+        # dri_Font @0x08 = the screen's font.
+        self.assertEqual(self.mem.r32(di + 0x08), self.mem.r32(self.screen + 0x2C))
+        # dri_Depth @0x0C (UWORD) is meaningful (the screen BitMap depth).
+        self.assertNotEqual(self.mem.r16(di + 0x0C), 0)
+        # dri_Resolution.X @0x0E / .Y @0x10 = the screen width/height.
+        self.assertEqual(self.mem.r16(di + 0x0E), 320)
+        self.assertEqual(self.mem.r16(di + 0x10), 200)
+
+    def test_dri_pens_is_a_live_separate_allocation(self) -> None:
+        di = self.lib.GetScreenDrawInfo(self.ctx, self.screen)
+        pens = self.mem.r32(di + 0x04)
+        # The pen array is its own allocation, tracked by the allocator.
+        self.assertIn(pens, self.alloc.live)
+        self.assertNotEqual(pens, di)
+
+    def test_semantic_pen_indexes_are_dereferenceable(self) -> None:
+        """The app's ``dri_Pens[...]`` reads land in a valid 16-pen palette."""
+        di = self.lib.GetScreenDrawInfo(self.ctx, self.screen)
+        pens = self.mem.r32(di + 0x04)
+        for i in range(13):  # NUMDRIPENS
+            pen = self.mem.r16(pens + i * 2)
+            self.assertLess(pen, 16, f"dri_Pens[{i}]={pen} is not a valid palette index")
+        # The specific semantic pens the target uses must map to the intended
+        # host palette colors (the documented Workbench approximation).  Pen
+        # values are indices into ``CLASSIC_PEN_PALETTE``: 0=black, 1=white,
+        # 5=yellow, 15=light grey (the window background).
+        self.assertEqual(self.mem.r16(pens + 2 * 2), 0)  # TEXTPEN -> black
+        self.assertEqual(self.mem.r16(pens + 7 * 2), 15)  # BACKGROUNDPEN -> window bg light grey
+        self.assertEqual(self.mem.r16(pens + 3 * 2), 1)  # SHINEPEN -> white
+        self.assertEqual(self.mem.r16(pens + 4 * 2), 0)  # SHADOWPEN -> black
+        self.assertEqual(self.mem.r16(pens + 8 * 2), 5)  # HIGHLIGHTTEXTPEN -> yellow
+
+    def test_multiple_draw_infos_have_independent_lifetimes(self) -> None:
+        di_a = self.lib.GetScreenDrawInfo(self.ctx, self.screen)
+        di_b = self.lib.GetScreenDrawInfo(self.ctx, self.screen)
+        self.assertNotEqual(di_a, di_b)
+        pens_a = self.mem.r32(di_a + 0x04)
+        pens_b = self.mem.r32(di_b + 0x04)
+        self.assertNotEqual(pens_a, pens_b, "each DrawInfo must own a separate pen array")
+        for block in (di_a, di_b, pens_a, pens_b):
+            self.assertIn(block, self.alloc.live)
+        # Freeing one must not disturb the other.
+        self.lib.FreeScreenDrawInfo(self.ctx, self.screen, di_a)
+        self.assertIn(di_a, self.alloc.freed)
+        self.assertIn(pens_a, self.alloc.freed)
+        self.assertIn(di_b, self.alloc.live)
+        self.assertIn(pens_b, self.alloc.live)
+
+    def test_free_releases_block_and_owned_pen_array(self) -> None:
+        di = self.lib.GetScreenDrawInfo(self.ctx, self.screen)
+        pens = self.mem.r32(di + 0x04)
+        self.assertIn(di, self.alloc.live)
+        self.assertIn(pens, self.alloc.live)
+
+        self.lib.FreeScreenDrawInfo(self.ctx, self.screen, di)
+
+        self.assertIn(di, self.alloc.freed)
+        self.assertIn(pens, self.alloc.freed)
+        self.assertNotIn(di, self.alloc.live)
+        self.assertNotIn(pens, self.alloc.live)
+
+    def test_free_does_not_touch_screen_or_window_rport(self) -> None:
+        screen_font = self.mem.r32(self.screen + 0x2C)
+        screen_rp_font = self.mem.r32(self.screen + _S_OFF_RASTPORT + 0x34)
+        di = self.lib.GetScreenDrawInfo(self.ctx, self.screen)
+        self.lib.FreeScreenDrawInfo(self.ctx, self.screen, di)
+        # The screen's font and embedded RastPort are untouched by the free.
+        self.assertEqual(self.mem.r32(self.screen + 0x2C), screen_font)
+        self.assertEqual(self.mem.r32(self.screen + _S_OFF_RASTPORT + 0x34), screen_rp_font)
+
+    def test_free_null_is_a_safe_noop(self) -> None:
+        # The classic contract allows FreeScreenDrawInfo(NULL); it must not crash.
+        self.lib.FreeScreenDrawInfo(self.ctx, self.screen, 0)
+        self.lib.GetScreenDrawInfo(self.ctx, self.screen)  # still allocatable
 
 
 class IntuitionSetWindowPointerATest(unittest.TestCase):

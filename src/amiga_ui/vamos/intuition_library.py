@@ -18,7 +18,7 @@ from typing import Any
 
 from ..host.projection import OpenWindowIntent
 from .base_library import BaseLibrary
-from .rastport_state import JAM2, RastPortRegistry
+from .rastport_state import JAM1, RastPortRegistry
 
 # --- struct Screen (classic, pre-RasInfo ViewPort embedded) ------------------
 _SCREEN_SIZE = 0x200
@@ -72,16 +72,83 @@ _BM_OFF_BYTESPERROW = _OFF_BITMAP + 0x00
 _BM_OFF_ROWS = _OFF_BITMAP + 0x02
 _BM_OFF_DEPTH = _OFF_BITMAP + 0x05
 
-# --- struct DrawInfo (private intuition drawing context) ---------------------
-# GetScreenDrawInfo/FreeScreenDrawInfo (V37). The app treats the block as
-# opaque (NULL-check + free), but we populate it from the real screen so it is
-# a genuine, screen-derived value rather than a bare constant.
-_DI_SIZE = 0x20
-_DI_OFF_SCREEN = 0x00  # APTR struct Screen *
-_DI_OFF_RASTPORT = 0x04  # APTR struct RastPort *
-_DI_OFF_WIDTH = 0x08  # WORD screen width
-_DI_OFF_HEIGHT = 0x0A  # WORD screen height
-_DI_OFF_DEPTH = 0x0C  # UBYTE BitMap depth
+# --- struct DrawInfo (classic, DRI_VERSION 2 — AmigaOS 3.0/3.1) --------------
+# GetScreenDrawInfo/FreeScreenDrawInfo (V37).  The target is NOT opaque about
+# this block: it dereferences ``dri_Pens``, ``dri_Font`` and ``dri_Depth``.
+# Layout matches the classic m68k ``struct DrawInfo`` (``DRI_VERSION_2``); the
+# OS4 superset (``DRI_VERSION_3``) appends ``dri_Screen`` and reserved words
+# that the 3.x binary does not read and must not be relied on.
+#
+#     UWORD   dri_Version;      @0x00  structure version (2)
+#     UWORD   dri_NumPens;      @0x02  number of pens in the screen palette
+#     UWORD   *dri_Pens;        @0x04  pointer to a UWORD pen-index array
+#     TextFont *dri_Font;       @0x08  screen default font
+#     UWORD   dri_Depth;        @0x0C  screen BitMap depth
+#     UWORD   dri_Resolution.X; @0x0E
+#     UWORD   dri_Resolution.Y; @0x10
+#     ULONG   dri_Flags;        @0x12
+#     Image   *dri_CheckMark;   @0x16
+#     Image   *dri_AmigaKey;    @0x1A
+#     -> 30 bytes (0x1E)
+#
+# ``dri_Pens`` is a *separately allocated* UWORD array in emulated memory.  Its
+# entries are the classic screen semantic pens (``include_h/intuition/screens.h``)
+# mapped to host palette indices; the app reads ``dri_Pens[TEXTPEN]`` etc. and
+# uses the result as a RastPort pen.  It must outlive the DrawInfo and be freed
+# by ``FreeScreenDrawInfo`` without touching the screen or window RastPorts.
+_DI_VERSION = 2  # DRI_VERSION_2
+_DI_SIZE = 0x1E
+_DI_OFF_VERSION = 0x00  # UWORD dri_Version
+_DI_OFF_NUMPENS = 0x02  # UWORD dri_NumPens
+_DI_OFF_PENS = 0x04  # APTR UWORD *dri_Pens
+_DI_OFF_FONT = 0x08  # APTR TextFont *dri_Font
+_DI_OFF_DEPTH = 0x0C  # UWORD dri_Depth
+_DI_OFF_RESX = 0x0E  # UWORD dri_Resolution.X
+_DI_OFF_RESY = 0x10  # UWORD dri_Resolution.Y
+_DI_OFF_FLAGS = 0x12  # ULONG dri_Flags
+_DI_OFF_CHECKMARK = 0x16  # APTR Image *dri_CheckMark
+_DI_OFF_AMIGAKEY = 0x1A  # APTR Image *dri_AmigaKey
+
+# Classic screen semantic pen indices (include_h/intuition/screens.h, V37+).
+_DETAILPEN = 0
+_BLOCKPEN = 1
+_TEXTPEN = 2
+_SHINEPEN = 3
+_SHADOWPEN = 4
+_FILLPEN = 5
+_FILLTEXTPEN = 6
+_BACKGROUNDPEN = 7
+_HIGHLIGHTTEXTPEN = 8
+_BARDETAILPEN = 9
+_BARBLOCKPEN = 10
+_BARTRIMPEN = 11
+_NUMDRIPENS = 0x0D  # 13
+
+# The notional public Workbench screen is a documented approximation of the
+# classic Workbench palette (mirrors ``CLASSIC_PEN_PALETTE`` in the host
+# projection): 0=black, 1=white, 5=yellow, 15=light grey (the window
+# background). Maps each semantic pen to the host palette index that renders it
+# correctly: shine light (white), shadow dark (black), text dark (black),
+# background = the window light grey, highlight text yellow.  ``dri_Pens[i]``
+# holds the *palette index* for semantic pen i. The window light grey (pen 15)
+# is also the host surface background (see ``qt_projection``) so the group-box
+# title clear matches the window background and the white shine / black shadow
+# / black text stay distinguishable from it.
+_SEMANTIC_PEN_MAP = (
+    1,  # DETAILPEN       -> white
+    0,  # BLOCKPEN        -> black
+    0,  # TEXTPEN         -> black
+    1,  # SHINEPEN        -> white
+    0,  # SHADOWPEN       -> black
+    15,  # FILLPEN         -> window light grey
+    0,  # FILLTEXTPEN     -> black
+    15,  # BACKGROUNDPEN   -> window light grey
+    5,  # HIGHLIGHTTEXTPEN -> highlight yellow
+    1,  # BARDETAILPEN    -> white
+    0,  # BARBLOCKPEN     -> black
+    15,  # BARTRIMPEN      -> window light grey
+)
+_NUM_SCREEN_PENS = 16  # 4-bit public screen palette size
 
 # --- struct Window (classic intuition) ---------------------------------------
 # The app dereferences win->WScreen, win->RPort (TxHeight/Font) and the gadget
@@ -161,7 +228,7 @@ class IntuitionLibrary(BaseLibrary):
         super().__init__()
         self._screen_addr: int | None = None
         self._screen_locks = 0
-        self._draw_infos: dict[int, object] = {}
+        self._draw_infos: dict[int, tuple[Any, Any]] = {}
         # addr -> (Window, UserPort, WindowPort) Memory blocks.
         self._windows: dict[int, tuple] = {}
         # Fallback RastPort op log for unit tests; the launcher installs a
@@ -245,32 +312,65 @@ class IntuitionLibrary(BaseLibrary):
     def GetScreenDrawInfo(self, ctx, screen):
         """Return a screen-derived ``DrawInfo`` (the screen's drawing context).
 
-        ``DrawInfo`` is a private intuition block that carries the RastPort and
-        display metrics a drawing routine needs for the screen. The app uses it
-        only as an opaque handle (NULL-check, then free), but we build it from
-        the real locked screen so it is a genuine value, not a stub constant.
+        ``DrawInfo`` is *not* opaque to the target: ``iTidy`` reads
+        ``dri_Pens[TEXTPEN]``, ``dri_Pens[BACKGROUNDPEN]`` and friends to pick
+        RastPort pens, and reads ``dri_Font`` / ``dri_Depth`` for metrics.  We
+        therefore build a genuine classic (``DRI_VERSION_2``) block:
+
+        * ``dri_Pens`` points at a *separately allocated* UWORD array in
+          emulated memory holding the screen's semantic pen indices (mapped to
+          the host Workbench palette approximation).  It is owned by this
+          DrawInfo and released by ``FreeScreenDrawInfo``.
+        * ``dri_Font`` / ``dri_Depth`` / resolution are copied from the real
+          locked screen so the values are screen-derived, not stub constants.
+
+        Every allocation is tracked so ``FreeScreenDrawInfo`` releases exactly
+        the DrawInfo-owned memory (block + pen array) and nothing that belongs
+        to the screen or a window RastPort.
         """
         if not screen:
             return 0
         alloc = ctx.alloc
         mem = ctx.mem
+
+        # Separately allocated pen-index array (owned by this DrawInfo).
+        pens = alloc.alloc_memory(_NUM_SCREEN_PENS * 2, label="Intuition.DrawInfo.Pens")
+        for i in range(_NUM_SCREEN_PENS):
+            idx = _SEMANTIC_PEN_MAP[i] if i < len(_SEMANTIC_PEN_MAP) else i
+            mem.w16(pens.addr + i * 2, idx)
+
         di = alloc.alloc_memory(_DI_SIZE, label="Intuition.DrawInfo")
         addr = di.addr
-        mem.w32(addr + _DI_OFF_SCREEN, screen)
-        mem.w32(addr + _DI_OFF_RASTPORT, screen + _OFF_RASTPORT)
-        mem.w16(addr + _DI_OFF_WIDTH, mem.r16(screen + _OFF_WIDTH))
-        mem.w16(addr + _DI_OFF_HEIGHT, mem.r16(screen + _OFF_HEIGHT))
-        mem.w8(addr + _DI_OFF_DEPTH, mem.r8(screen + _BM_OFF_DEPTH))
-        self._draw_infos[addr] = di
+        mem.w16(addr + _DI_OFF_VERSION, _DI_VERSION)
+        mem.w16(addr + _DI_OFF_NUMPENS, _NUM_SCREEN_PENS)
+        mem.w32(addr + _DI_OFF_PENS, pens.addr)
+        mem.w32(addr + _DI_OFF_FONT, mem.r32(screen + _OFF_FONT))
+        mem.w16(addr + _DI_OFF_DEPTH, mem.r8(screen + _BM_OFF_DEPTH) & 0xFF)
+        mem.w16(addr + _DI_OFF_RESX, mem.r16(screen + _OFF_WIDTH))
+        mem.w16(addr + _DI_OFF_RESY, mem.r16(screen + _OFF_HEIGHT))
+        mem.w32(addr + _DI_OFF_FLAGS, 0)
+        mem.w32(addr + _DI_OFF_CHECKMARK, 0)
+        mem.w32(addr + _DI_OFF_AMIGAKEY, 0)
+        # Track the DrawInfo block *and* its owned pen array so freeing is
+        # exact.  The pen array is DrawInfo-owned; the screen font/BitMap it
+        # references are NOT freed here.
+        self._draw_infos[addr] = (di, pens)
         return addr
 
     def FreeScreenDrawInfo(self, ctx, screen, draw_info):
-        """Release a ``DrawInfo`` previously returned by ``GetScreenDrawInfo``."""
+        """Release a ``DrawInfo`` previously returned by ``GetScreenDrawInfo``.
+
+        Frees the DrawInfo block *and* its separately allocated ``dri_Pens``
+        array.  Does not touch the screen's RastPort, its font, its BitMap, or
+        any window RastPort.
+        """
         if not draw_info:
             return None
-        di = self._draw_infos.pop(draw_info, None)
-        if di is not None:
+        entry = self._draw_infos.pop(draw_info, None)
+        if entry is not None:
+            di, pens = entry
             ctx.alloc.free_memory(di)
+            ctx.alloc.free_memory(pens)
         return None
 
     def OpenWindowTagList(self, ctx, newWindow, tagList):
@@ -326,9 +426,13 @@ class IntuitionLibrary(BaseLibrary):
         win_rp = self._create_window_rport(ctx, screen)
         mem.w32(addr + _WIN_OFF_RPORT, win_rp.addr)
         # Register the window's own drawing state in the host RastPort model up
-        # front (standard InitRastPort values), so the op stream is isolated per
-        # window from open time even before the app's first graphics call.
-        self._registry(ctx).get_or_create(win_rp.addr)
+        # front with the window's initial pens and draw mode (the screen's text
+        # and background pens, JAM1) so the op stream is isolated per window from
+        # open time and starts in the same state the emulated RastPort is in.
+        win_state = self._registry(ctx).get_or_create(win_rp.addr)
+        win_state.apen = _SEMANTIC_PEN_MAP[_TEXTPEN]
+        win_state.bpen = _SEMANTIC_PEN_MAP[_BACKGROUNDPEN]
+        win_state.draw_mode = JAM1
         mem.w32(addr + _WIN_OFF_FIRSTGADGET, gadgets)
         mem.w32(addr + _WIN_OFF_IDCMP, idcmp)
         # A real window has Intuition message ports: the app's event loop does
@@ -379,18 +483,32 @@ class IntuitionLibrary(BaseLibrary):
         and text metrics — an *explicit copy at open time* (the classic window
         DrawInfo draws in the screen's default font unless the app changes it),
         not a shared mutable reference, so later screen-RPort changes cannot
-        leak into an already-open window. Pens and draw mode get the documented
-        standard RastPort values (NDK AutoDocs ``InitRastPort``: FgPen/AOLPen
-        -1, BgPen 0, DrawMode JAM2).
+        leak into an already-open window.
+
+        Pens and draw mode are initialised the way Intuition sets up a window's
+        RastPort at open time, *not* the bare ``InitRastPort`` reset:
+
+        * ``FgPen`` is the screen's text pen (``dri_Pens[TEXTPEN]``) and
+          ``BgPen`` the screen's background pen (``dri_Pens[BACKGROUNDPEN]``).
+          A freshly opened window therefore starts with dark text on the window
+          background, matching the classic Workbench look.
+        * ``DrawMode`` is ``JAM1`` (the "jam FgPen" mode).  The target's group
+          box drawing relies on this: it calls ``SetAPen`` and then ``Draw`` /
+          ``RectFill`` expecting the *FgPen* to be used (shine/shadow frame and
+          the title clear), and only later switches a specific box to ``JAM2``
+          via ``SetDrMd`` (where it also sets the BgPen it wants).  Initialising
+          to ``JAM2`` would make the group-box frame and title clear use the
+          BgPen instead of the pens the app explicitly selected — the exact
+          "black bar" symptom we are fixing.
         """
         alloc = ctx.alloc
         mem = ctx.mem
         rp = alloc.alloc_memory(_WIN_RP_SIZE, label="Intuition.WindowRPort")
         mem.w8(rp.addr + _WRP_OFF_MASK, 0xFF)
-        mem.w8(rp.addr + _WRP_OFF_FGPEN, 0xFF)
-        mem.w8(rp.addr + _WRP_OFF_BGPEN, 0)
+        mem.w8(rp.addr + _WRP_OFF_FGPEN, _SEMANTIC_PEN_MAP[_TEXTPEN])
+        mem.w8(rp.addr + _WRP_OFF_BGPEN, _SEMANTIC_PEN_MAP[_BACKGROUNDPEN])
         mem.w8(rp.addr + _WRP_OFF_AOLPEN, 0xFF)
-        mem.w8(rp.addr + _WRP_OFF_DRMODE, JAM2)
+        mem.w8(rp.addr + _WRP_OFF_DRMODE, JAM1)
         mem.w16(rp.addr + _WRP_OFF_LINEPTRN, 0xFFFF)
         mem.w32(rp.addr + _WRP_OFF_FONT, mem.r32(screen + _RP_OFF_FONT))
         mem.w16(rp.addr + _WRP_OFF_TXHEIGHT, mem.r16(screen + _RP_OFF_TXHEIGHT))

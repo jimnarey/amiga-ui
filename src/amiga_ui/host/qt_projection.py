@@ -56,10 +56,14 @@ CLASSIC_PEN_PALETTE: tuple[tuple[int, int, int], ...] = (
     (0xC0, 0xC0, 0xC0),  # 15 light grey
 )
 
-# Default neutral window background. Not derived from real DrawInfo/screen
-# state (the public screen is notional / invisible); a clean high-contrast
-# surface so the replayed chrome reads clearly.
-DEFAULT_SURFACE_BACKGROUND: tuple[int, int, int] = (0xFF, 0xFF, 0xFF)
+# Default window background: the classic Workbench window light grey (pen 15).
+# Not derived from real DrawInfo/screen state (the public screen is notional /
+# invisible), but chosen to match the notional public screen's ``BACKGROUNDPEN``
+# (see ``intuition_library._SEMANTIC_PEN_MAP``) so a ``RectFill`` with
+# ``dri_Pens[BACKGROUNDPEN]`` clears to the same colour as the window surface —
+# the group-box title clear must read as "the background", not a black bar, and
+# the white shine / black shadow / black text stay distinguishable from it.
+DEFAULT_SURFACE_BACKGROUND: tuple[int, int, int] = (0xC0, 0xC0, 0xC0)
 
 
 def pen_color(pen: int, palette: tuple[tuple[int, int, int], ...] = CLASSIC_PEN_PALETTE) -> QColor:
@@ -194,15 +198,17 @@ class RastPortReplaySurface(QWidget):
 
     @staticmethod
     def _select_pen(op: dict[str, Any]) -> tuple[int, bool]:
-        """Pick the pen (and whether to XOR) for a RastPort draw op.
+        """Pick the source pen (and whether to XOR) for a RastPort *vector/fill* op.
 
-        Classic RastPort ``DrMd`` semantics (NDK 3.2 ``graphics/rastport.h``):
+        Classic RastPort ``DrMd`` semantics (NDK 3.2 ``graphics/rastport.h``),
+        for the fill and line ops (``Draw`` / ``AreaDraw`` / ``RectFill``):
         ``JAM1`` (0) jams the FgPen (APen) into the raster, ``JAM2`` (1) jams
-        the BgPen (BPen), ``COMPLEMENT`` (2) XORs bits into the raster, and
-        ``INVERSVID`` (4) swaps the fg/bg pen roles. The base source for a
-        RastPort draw op is the FgPen (the NDK describes the draw/fill ops in
-        terms of the primary pen with the mode applied); undefined bits are
-        ignored.
+        the BgPen (BPen), ``COMPLEMENT`` (2) XORs the FgPen bits into the
+        raster, and ``INVERSVID`` (4) swaps the fg/bg pen roles first. This is
+        the *source* (the pen the vector/fill op paints with) — it is NOT the
+        rule for text, whose glyphs always use the FgPen foreground and whose
+        JAM1/JAM2 treatment applies to the background behind the glyphs (see
+        ``_draw_op``'s ``Text`` branch). Undefined bits are ignored.
         """
 
         mode = op.get("draw_mode", JAM2)
@@ -216,7 +222,7 @@ class RastPortReplaySurface(QWidget):
 
     def _draw_op(self, painter: QPainter, raster: QImage, op: dict[str, Any]) -> None:
         name = op.get("op")
-        if name in ("Draw", "AreaDraw", "RectFill", "Text"):
+        if name in ("Draw", "AreaDraw", "RectFill"):
             pen, xor = self._select_pen(op)
             color = pen_color(pen, self._palette)
             if xor:
@@ -231,9 +237,9 @@ class RastPortReplaySurface(QWidget):
             if name == "Draw" or name == "AreaDraw":
                 painter.setPen(QPen(color, 1))
                 painter.drawLine(op["from_x"], op["from_y"], op["x"], op["y"])
-            elif name == "RectFill":
-                # NDK AutoDocs: RectFill fills with the FgPen color (draw mode
-                # applied) when no areafill pattern is set.
+            else:  # RectFill: fills with the source pen (draw mode applied);
+                # the NDK AutoDocs describe it as "fill ... with the FgPen
+                # color, taking into account the drawing mode".
                 painter.fillRect(
                     op["x_min"],
                     op["y_min"],
@@ -241,11 +247,30 @@ class RastPortReplaySurface(QWidget):
                     (op["y_max"] - op["y_min"]) + 1,
                     color,
                 )
-            else:  # Text: draws in the RastPort's current pen and draw mode
-                text = op.get("text", "")
-                if text:
-                    painter.setPen(color)
-                    painter.drawText(op["x"], op["y"], text)
+        elif name == "Text":
+            # Text glyphs are painted in the RastPort *FgPen* (APen) foreground,
+            # regardless of JAM1/JAM2: the draw mode's foreground/background
+            # treatment applies to the *background* cleared behind the glyphs
+            # (0 under JAM1, the BgPen under JAM2 — see the ClearEOL AutoDocs),
+            # not to the glyphs themselves. That background is already present
+            # in the raster from the preceding RectFill, so this op paints the
+            # characters in the FgPen. This is what makes a JAM2 box that sets
+            # FgPen=TEXTPEN, BgPen=BACKGROUNDPEN render dark text on the window
+            # background instead of background-coloured (invisible) glyphs.
+            apen = op.get("apen", 0)
+            mode = op.get("draw_mode", JAM2)
+            if mode & INVERSVID:
+                apen = op.get("bpen", 0)  # INVERSVID swaps the pen roles
+            if mode & COMPLEMENT:
+                color = pen_color(apen, self._palette)
+                box = self._op_bounding_box(op)
+                if box is not None:
+                    self._xor_into_raster(raster, box, op, color)
+                return
+            text = op.get("text", "")
+            if text:
+                painter.setPen(pen_color(apen, self._palette))
+                painter.drawText(op["x"], op["y"], text)
         elif name == "PrintIText":
             # The IntuiText carries its own FrontPen; the IntuiText DrawMode
             # value set is not decoded in this increment (documented deferral).
@@ -280,7 +305,9 @@ class RastPortReplaySurface(QWidget):
             return op["x"], op["y"], op["x"] + op.get("width", 0), op["y"] + 16
         return None
 
-    def _xor_into_raster(self, raster: QImage, box: tuple[int, int, int, int], op: dict[str, Any], color: QColor) -> None:
+    def _xor_into_raster(
+        self, raster: QImage, box: tuple[int, int, int, int], op: dict[str, Any], color: QColor
+    ) -> None:
         """COMPLEMENT: XOR ``color`` into every raster pixel the op covers.
 
         The op is first drawn onto a small coverage mask (white ink on black)
