@@ -21,7 +21,7 @@ import unittest
 from types import SimpleNamespace
 
 from amiga_ui.vamos.graphics_library import GraphicsLibrary
-from amiga_ui.vamos.rastport_state import RastPortRegistry, RastPortState
+from amiga_ui.vamos.rastport_state import COMPLEMENT, INVERSVID, JAM1, JAM2, RastPortRegistry, RastPortState
 
 
 def _ctx() -> SimpleNamespace:
@@ -64,19 +64,44 @@ def _ctx_with_mem(words: dict[int, int] | None = None) -> SimpleNamespace:
 
 
 class RastPortStateTest(unittest.TestCase):
+    def test_draw_mode_constants_are_classic_rastport_modes(self) -> None:
+        # NDK 3.2 graphics/rastport.h: these are RastPort DrMd values, not
+        # blitter minterms.
+        self.assertEqual(JAM1, 0)
+        self.assertEqual(JAM2, 1)
+        self.assertEqual(COMPLEMENT, 2)
+        self.assertEqual(INVERSVID, 4)
+        # The documented InitRastPort default is JAM2.
+        self.assertEqual(RastPortState().draw_mode, JAM2)
+        self.assertEqual(RastPortState().apen, 0xFF)
+        self.assertEqual(RastPortState().bpen, 0)
+        self.assertEqual(RastPortState().outline_pen, 0xFF)
+
+    def test_registry_remove_returns_and_drops_the_state(self) -> None:
+        reg = RastPortRegistry()
+        st = reg.get_or_create(0x06A000)
+        st.set_apen(7)
+
+        self.assertIs(reg.remove(0x06A000), st)
+        self.assertIsNone(reg.state(0x06A000))
+        # A fresh get_or_create after removal starts from the standard defaults.
+        self.assertEqual(reg.get_or_create(0x06A000).apen, 0xFF)
+        # Removing an unknown RPort is a no-op.
+        self.assertIsNone(reg.remove(0x06B000))
+
     def test_set_pen_and_draw_mode_record_state(self) -> None:
         st = RastPortState(rp=0x1000)
         st.set_apen(7)
         st.set_bpen(12)
-        st.set_dr_md(0xC0)
+        st.set_dr_md(COMPLEMENT | INVERSVID)
 
         self.assertEqual(st.apen, 7)
         self.assertEqual(st.bpen, 12)
-        self.assertEqual(st.draw_mode, 0xC0)
+        self.assertEqual(st.draw_mode, COMPLEMENT | INVERSVID)
         self.assertEqual([op["op"] for op in st.ops], ["SetAPen", "SetBPen", "SetDrMd"])
         # Each op carries the pen/draw-mode state in effect when it ran.
         self.assertEqual(st.ops[0]["apen"], 7)
-        self.assertEqual(st.ops[2]["draw_mode"], 0xC0)
+        self.assertEqual(st.ops[2]["draw_mode"], COMPLEMENT | INVERSVID)
 
     def test_move_then_draw_records_line_from_and_to(self) -> None:
         st = RastPortState()
@@ -116,7 +141,12 @@ class RastPortStateTest(unittest.TestCase):
         st.move(5, 5)
         st.init()
 
-        self.assertEqual(st.apen, 0)
+        # Documented InitRastPort standard values (NDK AutoDocs): FgPen/AOLPen
+        # -1 (0xFF), BgPen 0, DrawMode JAM2.
+        self.assertEqual(st.apen, 0xFF)
+        self.assertEqual(st.bpen, 0)
+        self.assertEqual(st.draw_mode, JAM2)
+        self.assertEqual(st.outline_pen, 0xFF)
         self.assertEqual((st.x, st.y), (0, 0))
         self.assertEqual([op["op"] for op in st.ops], ["InitRastPort"])
 
@@ -193,15 +223,25 @@ class GraphicsLibraryDispatchTest(unittest.TestCase):
     def test_set_max_pen_and_outline_pen_return_previous(self) -> None:
         self.assertEqual(self.lib.SetMaxPen(self.ctx, self.rp, 15), 0)
         self.assertEqual(self.lib.SetMaxPen(self.ctx, self.rp, 31), 15)
-        self.assertEqual(self.lib.SetOutlinePen(self.ctx, self.rp, 9), 0)
+        # Standard AOLPen is -1 (0xFF) per the InitRastPort contract.
+        self.assertEqual(self.lib.SetOutlinePen(self.ctx, self.rp, 9), 0xFF)
         self.assertEqual(self.lib.SetOutlinePen(self.ctx, self.rp, 10), 9)
 
     def test_set_ab_pen_dr_md_updates_all_three(self) -> None:
-        self.lib.SetABPenDrMd(self.ctx, self.rp, 3, 4, 0x8C)
+        self.lib.SetABPenDrMd(self.ctx, self.rp, 3, 4, JAM1)
 
         st = self._state(self.rp)
-        self.assertEqual((st.apen, st.bpen, st.draw_mode), (3, 4, 0x8C))
+        self.assertEqual((st.apen, st.bpen, st.draw_mode), (3, 4, JAM1))
         self.assertEqual(st.ops[-1]["op"], "SetABPenDrMd")
+
+    def test_set_dr_md_accepts_classic_mode_bits(self) -> None:
+        # NDK AutoDocs SetDrMd: "mode - 0-255", so any 8-bit value is accepted;
+        # the classic RastPort modes are the low bits (JAM1/JAM2/COMPLEMENT/
+        # INVERSVID).
+        self.lib.SetDrMd(self.ctx, self.rp, COMPLEMENT | INVERSVID)
+
+        st = self._state(self.rp)
+        self.assertEqual(st.draw_mode, COMPLEMENT | INVERSVID)
 
     def test_area_move_draw_record(self) -> None:
         self.lib.AreaMove(self.ctx, self.rp, 10, 20)
@@ -217,7 +257,11 @@ class GraphicsLibraryDispatchTest(unittest.TestCase):
         self.lib.InitRastPort(self.ctx, self.rp)
 
         st = self._state(self.rp)
-        self.assertEqual(st.apen, 0)
+        # Documented InitRastPort standard values (NDK AutoDocs).
+        self.assertEqual(st.apen, 0xFF)
+        self.assertEqual(st.bpen, 0)
+        self.assertEqual(st.draw_mode, JAM2)
+        self.assertEqual(st.outline_pen, 0xFF)
         self.assertEqual([op["op"] for op in st.ops], ["InitRastPort"])
 
     def test_frontier_functions_record_in_call_log_not_rastport(self) -> None:

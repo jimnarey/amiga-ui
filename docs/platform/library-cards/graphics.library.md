@@ -32,6 +32,36 @@ For this repository, the highest-value subset is:
 - current font and text metrics,
 - draw-mode handling.
 
+## Draw-Mode And RectFill Semantics
+
+The `DrMd` field is a **RastPort draw mode**, not a blitter minterm. The
+classic `RastPort` header defines exactly four modes [S1
+Include_H/graphics/rastport.h L90-L95]:
+
+- `JAM1` = 0 — use the foreground pen (`APen`/`FgPen`).
+- `JAM2` = 1 — use the background pen (`BPen`/`BgPen`).
+- `COMPLEMENT` = 2 — bitwise XOR with the existing pixel.
+- `INVERSVID` = 4 — swap the foreground/background pen roles for the op.
+
+`RectFill` fills a rectangle with the **foreground pen**, taking the draw mode
+into account (so under `JAM2` it effectively uses the background pen, and under
+`COMPLEMENT` it XORs the foreground pen) [S1 Autodocs/graphics.doc RectFill].
+`InitRastPort` leaves `Mask`/`FgPen`/`AOLPen`/`LinePtrn` at `-1` and sets
+`DrawMode` to `JAM2`, with the standard screen font [S1
+Autodocs/graphics.doc InitRastPort]; the repo's `RastPortState` mirrors those
+standard values (`apen=0xFF`, `bpen=0`, `draw_mode=JAM2`, `outline_pen=0xFF`).
+
+The host renderer implements `COMPLEMENT` as a genuine per-pixel bitwise XOR
+(not a blitter minterm and not a Qt composition mode — Qt's
+`CompositionMode_Xor` is Porter-Duff non-overlap, which is a different
+operation). `INVERSVID` swaps which pen the op uses. Undefined draw-mode bits
+are ignored. This is recorded behavior, not an "approximation" of a minterm.
+
+Note: `IntuiText.DrawMode` (the Intuition text field) is a *different* value set
+from `RastPort.DrMd`; the local NDK does not define its bit values, so
+`PrintIText` does not decode it. A previously recorded `0x8C` "DrawMode" byte on
+an `IntuiText` was a mislabeled observation, not a real RastPort draw mode.
+
 ## Why It Still Matters For GUI Utilities
 
 Even a mostly standard GUI application may use raw raster drawing for:

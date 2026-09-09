@@ -29,7 +29,8 @@ Every harness working in this repository must follow the shared rules in [docs/w
 - Do not delete branches after merge.
 
 ## Runtime And GUI
-- Use `uv run amiga-ui probe <path-to-amiga-binary>` for target probing.
+- Use `uv run amiga-ui probe <path-to-amiga-binary>` for target probing (headless/null-projected).
+- Use `uv run amiga-ui run <path-to-amiga-binary>` on a graphical desktop to see the app's projected window(s); the host shell stays open until the window(s) are closed (or `--auto-close-after <s>` for automation). It reuses the probe's prepared runtime and installs the real Qt projection; with no usable display it fails clearly (exit 2).
 - Use `uv run python tests/run_gui_smoke_test.py` for the headless GUI smoke test.
 - Use `uv run amiga-ui smoke-gui --direct` for manual desktop smoke testing.
 - Use `uv run amiga-ui-xvfb -- <command>` for ad hoc headless GUI commands.

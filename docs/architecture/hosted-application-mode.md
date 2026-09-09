@@ -56,6 +56,12 @@ Amiga `Window` struct remains authoritative for Amiga-side behavior:
 
 - `WScreen` points at the notional public screen.
 - `RPort` identifies the drawing target for recorded or rendered operations.
+  Each opened app-facing window owns its **own** `RastPort` (a distinct
+  allocation, not the public screen's embedded RPort). `OpenWindow`/
+  `OpenWindowTagList` allocate it, initialize it to the documented standard
+  values, copy the font/text metrics from the screen RPort explicitly, and store
+  the pointer at `Window.RPort`. This guarantees two windows' drawing can never
+  be replayed into the wrong host window.
 - `UserPort` remains the IDCMP event-delivery path.
 - `IDCMPFlags` determine which host-originated events may be delivered.
 
@@ -105,9 +111,37 @@ per-RastPort op log. A window's drawing — whether issued through graphics or
 Intuition — is one chronological stream the projection layer can replay, rather
 than per-library fragments.
 
+Window-owned RastPorts close the loop: `OpenWindow`/`OpenWindowTagList` allocate
+a window RPort, register it up-front in the run-wide registry (keyed by its
+address), and point `Window.RPort` at it; `CloseWindow` unregisters and frees
+that window's RPort (and the window) without touching any other window's state.
+Because every RastPort is a distinct, registered address, per-window op-stream
+isolation is structural rather than a matter of shared mutable state. The public
+screen keeps its own embedded RastPort for screen-level drawing and for
+`GetScreenDrawInfo`, which is a different target from any window's RPort.
+
 Qt Widgets remain the host GUI toolkit for this mode because they provide normal
 desktop windows, menu bars, dialogs, actions, widgets, and custom painting hooks
 without requiring a browser or scene-graph UI [S57 §Qt Widgets User Interfaces ¶1-2].
+
+## Launching From The Command Line
+
+`amiga-ui run <path-to-amiga-binary>` is the supported, user-invokable launch
+path for this mode. It reuses the probe's target resolution and prepared runtime
+(the same `-V`/`-a`/`--cwd` vamos arguments — no divergent second preparation),
+installs the real Qt host-window projection (rather than the probe's null
+projection), and runs the target in-process on the GUI thread. When the target
+run ends, the host shell stays open so the projected window(s) can be inspected;
+the shell exits when the last projected window is closed, or after
+`--auto-close-after <seconds>` for automation. `--timeout` bounds the target run
+phase. With no usable display the command fails clearly (exit 2) rather than
+aborting.
+
+This keeps the two launch paths distinct and honest: `probe` stays
+headless/null-projected and Qt-free, while `run` is the graphical,
+user-facing path. The target reaching its `WaitPort`-on-empty-queue boundary
+and the host shell exiting are separate, reported events — the run phase ends at
+the boundary, and the shell stays open afterwards for inspection.
 
 ## Non-Goals
 

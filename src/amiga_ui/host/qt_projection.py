@@ -26,9 +26,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from PySide6.QtGui import QColor, QFont, QPainter, QPen
+from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
 
+from ..vamos.rastport_state import COMPLEMENT, INVERSVID, JAM2
 from .projection import OpenWindowIntent
 
 # --- Classic-style pen palette -----------------------------------------------
@@ -91,8 +92,18 @@ class RastPortReplaySurface(QWidget):
     - ``TextLength`` is a measurement record, never a paint operation;
     - ``Move`` / ``AreaMove`` and the pen/Font/DrMd state setters are history,
       not visible marks;
-    - draw modes other than ``DM_COPY`` are rendered as ``DM_COPY`` in this first
-      increment (a documented approximation, not pixel-exact raster-op semantics).
+    - draw modes use the classic RastPort semantics (NDK ``graphics/rastport.h``):
+      ``JAM1`` (0) draws with the foreground pen (APen), ``JAM2`` (1) with the
+      background pen (BPen), ``COMPLEMENT`` (2) XORs the raster, and
+      ``INVERSVID`` (4) swaps the fg/bg pen roles. ``RectFill`` fills with the
+      foreground pen per the NDK AutoDocs ("fill ... with the FgPen color,
+      taking into account the drawing mode");
+    - ``PrintIText`` uses the IntuiText's own ``FrontPen``: the IntuiText
+      ``DrawMode`` is a different value set from the RastPort ``DrMd`` and is
+      not decoded in this increment (documented deferral, not an approximation
+      of a decoded value);
+    - the palette, bevel appearance, and font remain explicit approximations
+      (see the module docstrings); undefined draw-mode bits are ignored.
     """
 
     def __init__(
@@ -105,15 +116,26 @@ class RastPortReplaySurface(QWidget):
         self._palette = palette
         self._background = background
         self._state: Any = None
+        self._raster: QImage | None = None
+        self._raster_op_count = -1
         self.setAutoFillBackground(False)
         self._font = QFont("Monospace", 8)
         self._font.setStyleHint(QFont.StyleHint.TypeWriter)
 
     # -- state ---------------------------------------------------------------
     def replay(self, state: Any) -> None:
-        """Store the RastPort state to replay and schedule a repaint."""
+        """Store the RastPort state to replay and schedule a repaint.
+
+        The op stream is replayed into an offscreen QImage *raster* (built once
+        per state change, not per paint), which ``paintEvent`` then blits.
+        Building the raster offscreen is what lets ``COMPLEMENT`` (bitwise
+        XOR) be a genuine per-pixel raster operation instead of a QPainter
+        composition mode (Qt's ``CompositionMode_Xor`` is Porter-Duff
+        non-overlap, not the classic bitwise XOR).
+        """
 
         self._state = state
+        self._rebuild_raster()
         self.update()
 
     def state(self) -> Any:
@@ -121,34 +143,112 @@ class RastPortReplaySurface(QWidget):
 
         return self._state
 
+    def resizeEvent(self, event: Any) -> None:  # noqa: N802 (Qt naming)
+        super().resizeEvent(event)
+        if self._state is not None:
+            self._rebuild_raster()
+
     # -- painting ------------------------------------------------------------
     def paintEvent(self, event: Any) -> None:  # noqa: N802 (Qt naming)
+        # The op stream can grow after the last ``replay()``/``GT_RefreshWindow``
+        # (the app keeps drawing). Rebuild the raster when it is stale so a paint
+        # always shows the full recorded stream (this is what the old
+        # paint-time replay guaranteed).
+        if self._state is not None:
+            op_count = len(self._state.ops)
+            if (
+                self._raster is None
+                or op_count != self._raster_op_count
+                or (self._raster.width() != self.width() or self._raster.height() != self.height())
+            ):
+                self._rebuild_raster()
         painter = QPainter(self)
         try:
             painter.fillRect(self.rect(), QColor(*self._background))
-            if self._state is None:
-                return
-            painter.setFont(self._font)
-            for op in self._state.ops:
-                self._draw_op(painter, op)
+            if self._raster is not None:
+                painter.drawImage(0, 0, self._raster)
         finally:
             painter.end()
 
-    def _draw_op(self, painter: QPainter, op: dict[str, Any]) -> None:
+    # -- raster replay ---------------------------------------------------------
+    def _rebuild_raster(self) -> None:
+        """Replay the loaded op stream into a QImage raster of the surface size."""
+
+        width, height = self.width(), self.height()
+        if self._state is None or width <= 0 or height <= 0:
+            self._raster = None
+            self._raster_op_count = -1
+            return
+        op_count = len(self._state.ops)
+        raster = QImage(width, height, QImage.Format.Format_RGB32)
+        raster.fill(QColor(*self._background))
+        painter = QPainter(raster)
+        try:
+            painter.setFont(self._font)
+            for op in self._state.ops:
+                self._draw_op(painter, raster, op)
+        finally:
+            painter.end()
+        self._raster = raster
+        self._raster_op_count = op_count
+
+    @staticmethod
+    def _select_pen(op: dict[str, Any]) -> tuple[int, bool]:
+        """Pick the pen (and whether to XOR) for a RastPort draw op.
+
+        Classic RastPort ``DrMd`` semantics (NDK 3.2 ``graphics/rastport.h``):
+        ``JAM1`` (0) jams the FgPen (APen) into the raster, ``JAM2`` (1) jams
+        the BgPen (BPen), ``COMPLEMENT`` (2) XORs bits into the raster, and
+        ``INVERSVID`` (4) swaps the fg/bg pen roles. The base source for a
+        RastPort draw op is the FgPen (the NDK describes the draw/fill ops in
+        terms of the primary pen with the mode applied); undefined bits are
+        ignored.
+        """
+
+        mode = op.get("draw_mode", JAM2)
+        apen = op.get("apen", 0)
+        bpen = op.get("bpen", 0)
+        if mode & INVERSVID:
+            apen, bpen = bpen, apen
+        if mode & COMPLEMENT:
+            return apen, True
+        return (bpen if mode & JAM2 else apen), False
+
+    def _draw_op(self, painter: QPainter, raster: QImage, op: dict[str, Any]) -> None:
         name = op.get("op")
-        if name == "Draw" or name == "AreaDraw":
-            painter.setPen(QPen(pen_color(op["apen"], self._palette), 1))
-            painter.drawLine(op["from_x"], op["from_y"], op["x"], op["y"])
-        elif name == "RectFill":
-            color = pen_color(op["bpen"], self._palette)
-            painter.fillRect(
-                op["x_min"],
-                op["y_min"],
-                (op["x_max"] - op["x_min"]) + 1,
-                (op["y_max"] - op["y_min"]) + 1,
-                color,
-            )
-        elif name in ("Text", "PrintIText"):
+        if name in ("Draw", "AreaDraw", "RectFill", "Text"):
+            pen, xor = self._select_pen(op)
+            color = pen_color(pen, self._palette)
+            if xor:
+                # COMPLEMENT: a genuine bitwise XOR of the raster. The op is
+                # first drawn onto a coverage mask (white ink on black), then
+                # the pen color is XORed into every covered raster pixel —
+                # the classic 1-bit raster semantics, not a composition mode.
+                box = self._op_bounding_box(op)
+                if box is not None:
+                    self._xor_into_raster(raster, box, op, color)
+                return
+            if name == "Draw" or name == "AreaDraw":
+                painter.setPen(QPen(color, 1))
+                painter.drawLine(op["from_x"], op["from_y"], op["x"], op["y"])
+            elif name == "RectFill":
+                # NDK AutoDocs: RectFill fills with the FgPen color (draw mode
+                # applied) when no areafill pattern is set.
+                painter.fillRect(
+                    op["x_min"],
+                    op["y_min"],
+                    (op["x_max"] - op["x_min"]) + 1,
+                    (op["y_max"] - op["y_min"]) + 1,
+                    color,
+                )
+            else:  # Text: draws in the RastPort's current pen and draw mode
+                text = op.get("text", "")
+                if text:
+                    painter.setPen(color)
+                    painter.drawText(op["x"], op["y"], text)
+        elif name == "PrintIText":
+            # The IntuiText carries its own FrontPen; the IntuiText DrawMode
+            # value set is not decoded in this increment (documented deferral).
             pen = op.get("front_pen", op.get("apen", 0))
             text = op.get("text", "")
             if text:
@@ -159,6 +259,79 @@ class RastPortReplaySurface(QWidget):
         # TextLength / Move / AreaMove / SetFont / SetAPen / SetBPen / SetDrMd /
         # SetABPenDrMd / SetMaxPen / SetOutlinePen / InitRastPort: state or
         # measurement history, no visible mark.
+
+    @staticmethod
+    def _op_bounding_box(op: dict[str, Any]) -> tuple[int, int, int, int] | None:
+        """Inclusive (x0, y0, x1, y1) bounding box of a draw op, or ``None``."""
+
+        name = op.get("op")
+        if name == "RectFill":
+            return op["x_min"], op["y_min"], op["x_max"], op["y_max"]
+        if name in ("Draw", "AreaDraw"):
+            return (
+                min(op["from_x"], op["x"]),
+                min(op["from_y"], op["y"]),
+                max(op["from_x"], op["x"]),
+                max(op["from_y"], op["y"]),
+            )
+        if name == "Text":
+            # The recorded width is the pen advance; the height is bounded by a
+            # conservative line box (the exact font metrics are not on the op).
+            return op["x"], op["y"], op["x"] + op.get("width", 0), op["y"] + 16
+        return None
+
+    def _xor_into_raster(self, raster: QImage, box: tuple[int, int, int, int], op: dict[str, Any], color: QColor) -> None:
+        """COMPLEMENT: XOR ``color`` into every raster pixel the op covers.
+
+        The op is first drawn onto a small coverage mask (white ink on black)
+        with the same painter settings the normal path uses, so the mask is
+        exactly the pixels the op would paint. Each covered pixel then has the
+        pen color XORed into its R/G/B channels — the classic 1-bit raster
+        semantics (a covered pixel is fully flipped per channel, no alpha
+        blending).
+        """
+
+        width, height = raster.width(), raster.height()
+        x0 = max(0, min(box[0], width - 1))
+        y0 = max(0, min(box[1], height - 1))
+        x1 = max(0, min(box[2], width - 1))
+        y1 = max(0, min(box[3], height - 1))
+        if x1 < x0 or y1 < y0:
+            return
+        box_w, box_h = x1 - x0 + 1, y1 - y0 + 1
+
+        mask = QImage(box_w, box_h, QImage.Format.Format_RGB32)
+        mask.fill(QColor(0, 0, 0))
+        mp = QPainter(mask)
+        try:
+            mp.setFont(self._font)
+            mp.setPen(QPen(QColor(255, 255, 255), 1))
+            name = op.get("op")
+            if name in ("Draw", "AreaDraw"):
+                mp.drawLine(op["from_x"] - x0, op["from_y"] - y0, op["x"] - x0, op["y"] - y0)
+            elif name == "RectFill":
+                mp.fillRect(
+                    op["x_min"] - x0,
+                    op["y_min"] - y0,
+                    (op["x_max"] - op["x_min"]) + 1,
+                    (op["y_max"] - op["y_min"]) + 1,
+                    QColor(255, 255, 255),
+                )
+            elif name == "Text":
+                mp.drawText(op["x"] - x0, op["y"] - y0, op.get("text", ""))
+        finally:
+            mp.end()
+
+        cr, cg, cb = color.red(), color.green(), color.blue()
+        for my in range(box_h):
+            ry = y0 + my
+            for mx in range(box_w):
+                if mask.pixel(mx, my) != 0xFF000000:  # covered pixel (ink on black)
+                    p = raster.pixel(x0 + mx, ry)
+                    r = ((p >> 16) & 0xFF) ^ cr
+                    g = ((p >> 8) & 0xFF) ^ cg
+                    b = (p & 0xFF) ^ cb
+                    raster.setPixel(x0 + mx, ry, 0xFF000000 | (r << 16) | (g << 8) | b)
 
     def _draw_bevel_box(self, painter: QPainter, op: dict[str, Any]) -> None:
         """Draw a classic-style bevel frame for a ``DrawBevelBox`` op.
