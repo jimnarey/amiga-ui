@@ -29,8 +29,25 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-# Default draw mode: DM_COPY (the classic RastPort default per the NDK).
-_DEFAULT_DRAW_MODE = 0x8C
+# --- Classic RastPort draw modes (NDK 3.2 ``graphics/rastport.h``) -----------
+# The RastPort ``DrMd`` field uses a small JAM/COMPLEMENT/INVERSVID set — NOT
+# the blitter minterms (``DM_COPY`` etc. are blitter names and do not apply to
+# RastPort drawing). Values per the NDK header:
+#
+#     JAM1       0   jam 1 color (FgPen) into the raster
+#     JAM2       1   jam 2 colors (BgPen) into the raster
+#     COMPLEMENT 2   XOR bits into the raster
+#     INVERSVID  4   inverse video: swap the fg/bg pen roles
+#
+# The *standard* (default) DrawMode of an initialized RastPort is JAM2 — the
+# NDK AutoDocs for ``InitRastPort`` say "The DrawMode is set to JAM2".
+JAM1 = 0
+JAM2 = 1
+COMPLEMENT = 2
+INVERSVID = 4
+
+# Standard DrawMode for a freshly initialized RastPort (InitRastPort contract).
+_DEFAULT_DRAW_MODE = JAM2
 
 
 @dataclass
@@ -43,11 +60,15 @@ class RastPortState:
     """
 
     rp: int = 0
-    apen: int = 0
+    # Standard (InitRastPort) initial values per the NDK AutoDocs: "all entries
+    # in RastPort get zeroed out, with the following exceptions: Mask, FgPen,
+    # AOLPen, and LinePtrn are set to -1. The DrawMode is set to JAM2."
+    # FgPen/AOLPen are UBYTE fields, so -1 is 0xFF.
+    apen: int = 0xFF
     bpen: int = 0
     draw_mode: int = _DEFAULT_DRAW_MODE
     maxpen: int = 0
-    outline_pen: int = 0
+    outline_pen: int = 0xFF
     font: int = 0  # emulated TextFont pointer from SetFont
     x: int = 0  # current pen position (Move/AreaMove/Draw)
     y: int = 0
@@ -198,12 +219,16 @@ class RastPortState:
         )
 
     def init(self) -> None:
-        """Record InitRastPort (resets the drawing state for this RastPort)."""
-        self.apen = 0
+        """Record InitRastPort (resets the drawing state for this RastPort).
+
+        Resets to the documented standard values: FgPen/AOLPen -1 (0xFF),
+        BgPen/MaxPen 0, DrawMode JAM2 (NDK AutoDocs, ``InitRastPort``).
+        """
+        self.apen = 0xFF
         self.bpen = 0
         self.draw_mode = _DEFAULT_DRAW_MODE
         self.maxpen = 0
-        self.outline_pen = 0
+        self.outline_pen = 0xFF
         self.font = 0
         self.x = 0
         self.y = 0
@@ -235,6 +260,15 @@ class RastPortRegistry:
     def state(self, rp: int) -> RastPortState | None:
         """Return the state for ``rp`` if one exists, else ``None``."""
         return self._states.get(rp)
+
+    def remove(self, rp: int) -> RastPortState | None:
+        """Remove and return the state for ``rp`` (or ``None`` if absent).
+
+        Used when a window-owned RastPort is released (``CloseWindow``) so the
+        host drawing state of a closed window cannot outlive the window or be
+        replayed into a later projection of a different window.
+        """
+        return self._states.pop(rp, None)
 
     def all_states(self) -> list[RastPortState]:
         """All tracked RastPorts, in first-seen (insertion) order."""

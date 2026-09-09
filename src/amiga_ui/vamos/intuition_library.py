@@ -18,7 +18,7 @@ from typing import Any
 
 from ..host.projection import OpenWindowIntent
 from .base_library import BaseLibrary
-from .rastport_state import RastPortRegistry
+from .rastport_state import JAM2, RastPortRegistry
 
 # --- struct Screen (classic, pre-RasInfo ViewPort embedded) ------------------
 _SCREEN_SIZE = 0x200
@@ -47,6 +47,25 @@ _VP_OFF_DHEIGHT = _OFF_VIEWPORT + 0x1A
 _RP_OFF_FONT = _OFF_RASTPORT + 0x34
 _RP_OFF_TXHEIGHT = _OFF_RASTPORT + 0x3A
 _RP_OFF_TXWIDTH = _OFF_RASTPORT + 0x3C
+
+# --- Window-owned RastPort (one per opened window) ---------------------------
+# Classic Intuition gives each window its own drawing context (the window
+# DrawInfo RPort); drawing for window A must not be replayed into window B's
+# host projection, so the public screen's embedded RastPort is NOT shared as a
+# window RPort. Each window gets its own RastPort block in 68k memory whose
+# ``Window.RPort`` points at it. Offsets per the NDK 3.2 ``graphics/rastport.h``
+# (the same offsets the screen-embedded RastPort uses: Font@0x34, TxHeight@0x3A,
+# TxWidth@0x3C).
+_WIN_RP_SIZE = 0x50  # covers every field the app dereferences (Font .. TxWidth)
+_WRP_OFF_MASK = 0x18  # UBYTE Mask
+_WRP_OFF_FGPEN = 0x19  # UBYTE FgPen
+_WRP_OFF_BGPEN = 0x1A  # UBYTE BgPen
+_WRP_OFF_AOLPEN = 0x1B  # UBYTE AOlPen
+_WRP_OFF_DRMODE = 0x1C  # UBYTE DrawMode
+_WRP_OFF_LINEPTRN = 0x22  # UWORD LinePtrn
+_WRP_OFF_FONT = 0x34  # APTR TextFont *Font
+_WRP_OFF_TXHEIGHT = 0x3A  # UWORD TxHeight
+_WRP_OFF_TXWIDTH = 0x3C  # UWORD TxWidth
 
 # --- struct BitMap (40 bytes) ------------------------------------------------
 _BM_OFF_BYTESPERROW = _OFF_BITMAP + 0x00
@@ -301,7 +320,15 @@ class IntuitionLibrary(BaseLibrary):
         mem.w16(addr + _WIN_OFF_HEIGHT, height & 0xFFFF)
         mem.w32(addr + _WIN_OFF_TITLE, title)
         mem.w32(addr + _WIN_OFF_WSCREEN, screen)
-        mem.w32(addr + _WIN_OFF_RPORT, screen + _OFF_RASTPORT)
+        # Window-owned drawing target: its own RastPort block (NOT the public
+        # screen's embedded RastPort) so two windows' drawing streams cannot be
+        # mixed or replayed into each other's host projections.
+        win_rp = self._create_window_rport(ctx, screen)
+        mem.w32(addr + _WIN_OFF_RPORT, win_rp.addr)
+        # Register the window's own drawing state in the host RastPort model up
+        # front (standard InitRastPort values), so the op stream is isolated per
+        # window from open time even before the app's first graphics call.
+        self._registry(ctx).get_or_create(win_rp.addr)
         mem.w32(addr + _WIN_OFF_FIRSTGADGET, gadgets)
         mem.w32(addr + _WIN_OFF_IDCMP, idcmp)
         # A real window has Intuition message ports: the app's event loop does
@@ -312,8 +339,9 @@ class IntuitionLibrary(BaseLibrary):
         window_port = self._register_window_port(ctx, "Intuition.WindowPort")
         mem.w32(addr + _WIN_OFF_USERPORT, user_port.addr)
         mem.w32(addr + _WIN_OFF_WINDOWPORT, window_port.addr)
-        # (Window, UserPort, WindowPort) Memory blocks, all freed on CloseWindow.
-        self._windows[addr] = (win, user_port, window_port)
+        # (Window, UserPort, WindowPort, WindowRPort) blocks, all freed on
+        # CloseWindow (the RPort block carries the window-owned drawing state).
+        self._windows[addr] = (win, user_port, window_port, win_rp)
         title_text = self._read_cstr(ctx, title) if title else ""
         # Host event bridge hook: register the window (with its real ports
         # and IDCMP flags) so scheduled test/Qt events can be delivered to
@@ -343,6 +371,31 @@ class IntuitionLibrary(BaseLibrary):
                 )
             )
         return addr
+
+    def _create_window_rport(self, ctx, screen: int):
+        """Allocate and initialise the window-owned RastPort block.
+
+        The window's drawing target inherits the public screen's default font
+        and text metrics — an *explicit copy at open time* (the classic window
+        DrawInfo draws in the screen's default font unless the app changes it),
+        not a shared mutable reference, so later screen-RPort changes cannot
+        leak into an already-open window. Pens and draw mode get the documented
+        standard RastPort values (NDK AutoDocs ``InitRastPort``: FgPen/AOLPen
+        -1, BgPen 0, DrawMode JAM2).
+        """
+        alloc = ctx.alloc
+        mem = ctx.mem
+        rp = alloc.alloc_memory(_WIN_RP_SIZE, label="Intuition.WindowRPort")
+        mem.w8(rp.addr + _WRP_OFF_MASK, 0xFF)
+        mem.w8(rp.addr + _WRP_OFF_FGPEN, 0xFF)
+        mem.w8(rp.addr + _WRP_OFF_BGPEN, 0)
+        mem.w8(rp.addr + _WRP_OFF_AOLPEN, 0xFF)
+        mem.w8(rp.addr + _WRP_OFF_DRMODE, JAM2)
+        mem.w16(rp.addr + _WRP_OFF_LINEPTRN, 0xFFFF)
+        mem.w32(rp.addr + _WRP_OFF_FONT, mem.r32(screen + _RP_OFF_FONT))
+        mem.w16(rp.addr + _WRP_OFF_TXHEIGHT, mem.r16(screen + _RP_OFF_TXHEIGHT))
+        mem.w16(rp.addr + _WRP_OFF_TXWIDTH, mem.r16(screen + _RP_OFF_TXWIDTH))
+        return rp
 
     @staticmethod
     def _s16(value: int) -> int:
@@ -573,15 +626,23 @@ class IntuitionLibrary(BaseLibrary):
         return None
 
     def CloseWindow(self, ctx, window):
-        """Release a window opened via OpenWindowTagList and its message ports."""
+        """Release a window opened via OpenWindowTagList and its owned state.
+
+        Frees the window block, its message ports, and its window-owned RastPort
+        block, and removes *only this window's* host drawing state from the
+        run-wide registry so a closed window's stream cannot outlive the window
+        or be replayed into a later projection.
+        """
         rec = self._windows.pop(window, None)
         if rec is None:
             return None
-        win, user_port, window_port = rec
+        win, user_port, window_port, win_rp = rec
         port_mgr = self._get_port_mgr(ctx)
         for port_mem in (user_port, window_port):
             port_mgr.unregister_port(port_mem.addr)
             ctx.alloc.free_memory(port_mem)
+        self._registry(ctx).remove(win_rp.addr)
+        ctx.alloc.free_memory(win_rp)
         ctx.alloc.free_memory(win)
         # Host window projection hook: remove the host projection for this
         # window (idempotent; no Qt import here). No-op for plain probes.

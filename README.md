@@ -54,7 +54,8 @@ Current subcommands:
 
 - `uv run amiga-ui check`
 - `uv run amiga-ui smoke-gui`
-- `uv run amiga-ui probe <path-to-amiga-binary>`, for example `uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy`
+- `uv run amiga-ui probe <path-to-amiga-binary>`, for example `uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy` (headless, null-projected)
+- `uv run amiga-ui run <path-to-amiga-binary>`, for example `uv run amiga-ui run amiga_apps/itidy1classic/binary/extracted/iTidy` (GUI launch: shows the app's projected window)
 
 For ad hoc commands under a temporary headless X11 server, use:
 
@@ -68,6 +69,8 @@ Examples:
 uv run amiga-ui check
 uv run amiga-ui smoke-gui
 uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy
+uv run amiga-ui run amiga_apps/itidy1classic/binary/extracted/iTidy
+uv run amiga-ui-xvfb -- uv run amiga-ui run amiga_apps/itidy1classic/binary/extracted/iTidy --auto-close-after 2
 uv run amiga-ui-xvfb -- python -c 'print("hello from xvfb")'
 uv run vamos --help
 uv run xdftool --help
@@ -101,6 +104,18 @@ Routine development should flow through `development`, not `main`.
 - Keep branches after merge
 
 The authoritative branch policy lives in [docs/workflows/branching-and-merging.md](docs/workflows/branching-and-merging.md).
+
+## Run (GUI Launch)
+
+The `run` subcommand is the user-facing, Qt-backed counterpart of `probe`: it runs an Amiga app on a graphical desktop and shows each app-facing Amiga window as its own host top-level window (hosted application mode — no visible Workbench desktop canvas).
+
+```bash
+uv run amiga-ui run amiga_apps/itidy1classic/binary/extracted/iTidy
+```
+
+It reuses the probe's target resolution and prepared runtime (the same `-V`/`-a`/`--cwd` vamos arguments) and installs the real Qt projection instead of the null projection. After the target run ends (for the current target, the documented `WaitPort`-on-empty-queue boundary) the host shell stays open so the window can be inspected; it exits when the window is closed, or after `--auto-close-after <seconds>` for automation. The target run phase is bounded by `--timeout` (seconds). With no usable display the command fails clearly (exit 2) instead of aborting.
+
+`probe` remains the headless path: it installs a no-op null projection and never imports Qt.
 
 ## Headless GUI Smoke Test
 

@@ -24,7 +24,7 @@ from amiga_ui.host.qt_projection import (
     QtHostWindowProjection,
     RastPortReplaySurface,
 )
-from amiga_ui.vamos.rastport_state import RastPortRegistry, RastPortState
+from amiga_ui.vamos.rastport_state import COMPLEMENT, INVERSVID, JAM1, JAM2, RastPortRegistry, RastPortState
 
 _BG = 0xFFFFFFFF  # default surface background is white
 
@@ -176,6 +176,87 @@ class RastPortReplaySurfaceTest(unittest.TestCase):
         st.rect_fill(60, 10, 100, 30)
         img = _render(_surface_with(st))
         self.assertEqual(img.pixel(80, 20), 0xFFFFFFFF)  # overdrawn by the white rect
+
+
+class DrawModeSemanticsTest(unittest.TestCase):
+    """Classic RastPort draw-mode semantics (NDK 3.2 ``graphics/rastport.h``).
+
+    JAM1 (0) draws with the FgPen (APen), JAM2 (1) with the BgPen (BPen),
+    COMPLEMENT (2) XORs the raster, and INVERSVID (4) swaps the fg/bg pen
+    roles. These are NOT blitter minterms. The default DrawMode is JAM2.
+    """
+
+    RED = 0xFFFF0000  # pen 2
+    BLUE = 0xFF0000FF  # pen 4
+    MAGENTA = 0xFFFF00FF  # red XOR blue
+    GREEN = 0xFF00FF00  # pen 3
+
+    def _fill_img(self, st: RastPortState) -> "QImage":
+        return _render(_surface_with(st))
+
+    def test_rect_fill_default_mode_uses_bg_pen(self) -> None:
+        # Default DrawMode is JAM2 -> BgPen. (NDK AutoDocs RectFill: the fill
+        # takes the drawing mode into account; JAM2 jams the BgPen.)
+        st = RastPortState(rp=0x1)
+        st.set_apen(2)  # red (must NOT be used)
+        st.set_bpen(4)  # blue
+        st.rect_fill(20, 20, 80, 60)
+        img = self._fill_img(st)
+        self.assertEqual(img.pixel(50, 40), self.BLUE)
+
+    def test_rect_fill_jam1_uses_fg_pen(self) -> None:
+        st = RastPortState(rp=0x1)
+        st.set_apen(2)  # red
+        st.set_bpen(4)  # blue (must NOT be used)
+        st.set_dr_md(JAM1)
+        st.rect_fill(20, 20, 80, 60)
+        img = self._fill_img(st)
+        self.assertEqual(img.pixel(50, 40), self.RED)
+
+    def test_inversvid_swaps_pen_roles(self) -> None:
+        # JAM1 | INVERSVID: the FgPen role is swapped, so the BgPen is drawn.
+        st = RastPortState(rp=0x1)
+        st.set_apen(2)  # red
+        st.set_bpen(4)  # blue
+        st.set_dr_md(JAM1 | INVERSVID)
+        st.rect_fill(20, 20, 80, 60)
+        img = self._fill_img(st)
+        self.assertEqual(img.pixel(50, 40), self.BLUE)
+
+    def test_complement_is_genuine_xor(self) -> None:
+        # Fill red (JAM2, BgPen), then XOR-fill blue (COMPLEMENT, FgPen). The
+        # overlap must be red XOR blue = magenta — a real raster XOR, not a
+        # plain copy that would leave it blue.
+        st = RastPortState(rp=0x1)
+        st.set_apen(4)  # blue
+        st.set_bpen(2)  # red
+        st.set_dr_md(JAM2)
+        st.rect_fill(20, 20, 80, 60)
+        st.set_dr_md(COMPLEMENT)
+        st.rect_fill(40, 30, 60, 50)
+        img = self._fill_img(st)
+        self.assertEqual(img.pixel(50, 40), self.MAGENTA)  # red ^ blue
+        self.assertEqual(img.pixel(25, 25), self.RED)  # first fill, untouched by XOR
+
+    def test_draw_line_respects_draw_mode_pen(self) -> None:
+        # A line in JAM1 uses the FgPen; the same line in JAM2 uses the BgPen.
+        st = RastPortState(rp=0x1)
+        st.set_apen(2)  # red
+        st.set_bpen(4)  # blue
+        st.set_dr_md(JAM1)
+        st.move(10, 20)
+        st.draw(150, 20)
+        img = self._fill_img(st)
+        self.assertEqual(img.pixel(80, 20), self.RED)
+
+        st2 = RastPortState(rp=0x1)
+        st2.set_apen(2)
+        st2.set_bpen(4)
+        st2.set_dr_md(JAM2)
+        st2.move(10, 20)
+        st2.draw(150, 20)
+        img2 = self._fill_img(st2)
+        self.assertEqual(img2.pixel(80, 20), self.BLUE)
 
 
 class QtHostWindowProjectionTest(unittest.TestCase):

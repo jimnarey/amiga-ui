@@ -22,7 +22,9 @@ decode correctly only at 0x0C, not the packed 0x0B). See
 import unittest
 from types import SimpleNamespace
 
+from amiga_ui.vamos.exec_library import PeekPortManager
 from amiga_ui.vamos.intuition_library import IntuitionLibrary
+from amiga_ui.vamos.rastport_state import JAM2, RastPortRegistry
 
 
 def _ctx() -> SimpleNamespace:
@@ -75,7 +77,11 @@ def _write_itext(mem: _FakeMem, itext: int, text_addr: int, front_pen: int = 0) 
     """
     mem.w8(itext + 0x00, front_pen)  # UBYTE FrontPen
     mem.w8(itext + 0x01, 0)  # UBYTE BackPen
-    mem.w8(itext + 0x02, 0x8C)  # UBYTE DrawMode (JAM2)
+    # UBYTE DrawMode: the classic IntuiText DrawMode is a *different* value set
+    # from the RastPort DrMd (the local NDK 3.2 subset does not define its bit
+    # values), and the repo's PrintIText does not decode it (documented
+    # deferral). Written 0 — an honest uninitialised value, not a RastPort mode.
+    mem.w8(itext + 0x02, 0)
     # 0x03 is alignment padding
     mem.w16(itext + 0x04, 0)  # WORD LeftEdge
     mem.w16(itext + 0x06, 0)  # WORD TopEdge
@@ -256,6 +262,215 @@ class IntuitionSharedRegistryTest(unittest.TestCase):
         self.assertEqual(shared_op["front_pen"], 2)
         # And it must NOT have leaked into the library's private fallback.
         self.assertIsNone(lib.rastports.state(rp))
+
+
+# --- window-owned RastPort fakes ----------------------------------------------
+class _FakeBlock:
+    def __init__(self, addr: int, size: int) -> None:
+        self.addr = addr
+        self.size = size
+
+
+class _FakeAlloc:
+    """Minimal MemoryAlloc stand-in: a bump allocator that tracks live/freed blocks."""
+
+    def __init__(self, mem: _FakeMem, base: int = 0x080000) -> None:
+        self.mem = mem
+        self.next_addr = base
+        self.freed: list[int] = []
+        self.live: dict[int, _FakeBlock] = {}
+
+    def alloc_memory(self, size: int, label: str | None = None) -> _FakeBlock:
+        addr = self.next_addr
+        self.next_addr += (size + 3) & ~3
+        block = _FakeBlock(addr, size)
+        self.live[addr] = block
+        return block
+
+    def alloc_cstr(self, text: str, label: str | None = None) -> _FakeBlock:
+        encoded = text.encode("latin-1") + b"\x00"
+        block = self.alloc_memory(len(encoded), label=label)
+        for i, ch in enumerate(encoded):
+            self.mem.w8(block.addr + i, ch)
+        return block
+
+    def free_memory(self, block: _FakeBlock) -> None:
+        self.freed.append(block.addr)
+        self.live.pop(block.addr, None)
+
+
+class _FakeVLib:
+    def __init__(self, impl) -> None:
+        self.impl = impl
+
+
+class _FakeVLibMgr:
+    def __init__(self, exec_impl) -> None:
+        self._exec = _FakeVLib(exec_impl)
+
+    def get_vlib_by_name(self, name: str):
+        return self._exec if name == "exec.library" else None
+
+
+# struct Window offsets (mirrors intuition_library.py) for reading the result.
+_W_OFF_WIDTH = 0x08
+_W_OFF_HEIGHT = 0x0A
+_W_OFF_TITLE = 0x20
+_W_OFF_WSCREEN = 0x2E
+_W_OFF_RPORT = 0x32
+# struct RastPort offsets (NDK 3.2 graphics/rastport.h).
+_RP_OFF_MASK = 0x18
+_RP_OFF_FGPEN = 0x19
+_RP_OFF_BGPEN = 0x1A
+_RP_OFF_AOLPEN = 0x1B
+_RP_OFF_DRMODE = 0x1C
+_RP_OFF_FONT = 0x34
+_RP_OFF_TXHEIGHT = 0x3A
+_RP_OFF_TXWIDTH = 0x3C
+# struct Screen offsets (mirrors intuition_library.py).
+_S_OFF_RASTPORT = 0x54
+_S_OFF_RP_FONT = 0x54 + 0x34
+_S_OFF_RP_TXHEIGHT = 0x54 + 0x3A
+_S_OFF_RP_TXWIDTH = 0x54 + 0x3C
+# Classic WA_ tags for OpenWindowTagList (WA_Dummy = 0x80000063).
+_OWA_LEFT = 0x80000064
+_OWA_TOP = 0x80000065
+_OWA_WIDTH = 0x80000066
+_OWA_HEIGHT = 0x80000067
+_OWA_TITLE = 0x8000006E
+
+
+class IntuitionWindowRPortTest(unittest.TestCase):
+    """Each opened window gets its own RastPort drawing target (not the screen's)."""
+
+    def setUp(self) -> None:
+        self.lib = IntuitionLibrary()
+        self.mem = _FakeMem()
+        self.alloc = _FakeAlloc(self.mem)
+        self.registry = RastPortRegistry()
+        exec_impl = SimpleNamespace(port_mgr=PeekPortManager(self.alloc))
+        self.ctx = SimpleNamespace(mem=self.mem, alloc=self.alloc, vlib_mgr=_FakeVLibMgr(exec_impl), rastports=self.registry)
+
+    def _write_open_tags(self, taglist: int, *, left, top, width, height, title=0) -> None:
+        mem = self.mem
+        offset = 0
+        for tag, data in ((_OWA_LEFT, left), (_OWA_TOP, top), (_OWA_WIDTH, width), (_OWA_HEIGHT, height), (_OWA_TITLE, title)):
+            mem.w32(taglist + offset, tag)
+            mem.w32(taglist + offset + 4, data)
+            offset += 8
+        mem.w32(taglist + offset, 0)  # TAG_END
+
+    def _open_window(self, taglist: int, **kwargs) -> int:
+        self._write_open_tags(taglist, **kwargs)
+        return self.lib.OpenWindowTagList(self.ctx, 0, taglist)
+
+    def test_window_rport_is_not_the_screen_rport(self) -> None:
+        screen = self.lib.LockPubScreen(self.ctx, 0)
+        win = self._open_window(0x00065000, left=10, top=20, width=100, height=50)
+
+        win_rp = self.mem.r32(win + _W_OFF_RPORT)
+        screen_rp = screen + _S_OFF_RASTPORT
+        self.assertNotEqual(win_rp, screen_rp)
+        # The public screen's embedded RPort stays a valid drawing target for
+        # screen-level APIs — it is just no longer handed out as a window RPort.
+        self.assertNotEqual(self.mem.r32(screen_rp + _RP_OFF_FONT), 0)
+        self.assertNotEqual(self.mem.r16(screen_rp + _RP_OFF_TXWIDTH), 0)
+
+    def test_window_rport_has_standard_values_and_inherited_font_metrics(self) -> None:
+        screen = self.lib.LockPubScreen(self.ctx, 0)
+        win = self._open_window(0x00065000, left=10, top=20, width=100, height=50)
+        win_rp = self.mem.r32(win + _W_OFF_RPORT)
+
+        # Documented standard RastPort values (NDK AutoDocs InitRastPort).
+        self.assertEqual(self.mem.r8(win_rp + _RP_OFF_MASK), 0xFF)
+        self.assertEqual(self.mem.r8(win_rp + _RP_OFF_FGPEN), 0xFF)
+        self.assertEqual(self.mem.r8(win_rp + _RP_OFF_BGPEN), 0)
+        self.assertEqual(self.mem.r8(win_rp + _RP_OFF_AOLPEN), 0xFF)
+        self.assertEqual(self.mem.r8(win_rp + _RP_OFF_DRMODE), JAM2)
+        # Font pointer + text metrics inherited explicitly from the screen RPort.
+        self.assertEqual(self.mem.r32(win_rp + _RP_OFF_FONT), self.mem.r32(screen + _S_OFF_RP_FONT))
+        self.assertEqual(self.mem.r16(win_rp + _RP_OFF_TXHEIGHT), self.mem.r16(screen + _S_OFF_RP_TXHEIGHT))
+        self.assertEqual(self.mem.r16(win_rp + _RP_OFF_TXWIDTH), self.mem.r16(screen + _S_OFF_RP_TXWIDTH))
+
+    def test_window_rport_state_registered_in_shared_registry(self) -> None:
+        win = self._open_window(0x00065000, left=10, top=20, width=100, height=50)
+        win_rp = self.mem.r32(win + _W_OFF_RPORT)
+
+        st = self.registry.state(win_rp)
+        if st is None:
+            self.fail("the window RPort state must be registered up front")
+        # Registered up front with the standard values, before any app drawing.
+        self.assertEqual(st.apen, 0xFF)
+        self.assertEqual(st.bpen, 0)
+        self.assertEqual(st.draw_mode, JAM2)
+
+    def test_two_windows_have_isolated_op_streams(self) -> None:
+        win_a = self._open_window(0x00065000, left=10, top=20, width=100, height=50)
+        win_b = self._open_window(0x00066000, left=10, top=20, width=100, height=50)
+        rp_a = self.mem.r32(win_a + _W_OFF_RPORT)
+        rp_b = self.mem.r32(win_b + _W_OFF_RPORT)
+        self.assertNotEqual(rp_a, rp_b)
+
+        # Draw into each window's own RPort; the streams must not mix.
+        self.registry.get_or_create(rp_a).set_apen(0)
+        self.registry.get_or_create(rp_a).rect_fill(1, 2, 3, 4)
+        self.registry.get_or_create(rp_b).set_bpen(5)
+
+        st_a = self.registry.state(rp_a)
+        st_b = self.registry.state(rp_b)
+        if st_a is None or st_b is None:
+            self.fail("both window RPort states must be registered")
+        ops_a = [op["op"] for op in st_a.ops]
+        ops_b = [op["op"] for op in st_b.ops]
+        self.assertEqual(ops_a, ["SetAPen", "RectFill"])
+        self.assertEqual(ops_b, ["SetBPen"])
+        # Window B's fill must not appear in A's stream (and vice versa).
+        self.assertNotIn("RectFill", ops_b)
+        self.assertNotIn("SetBPen", ops_a)
+
+    def test_close_window_releases_only_its_own_rport(self) -> None:
+        win_a = self._open_window(0x00065000, left=10, top=20, width=100, height=50)
+        win_b = self._open_window(0x00066000, left=10, top=20, width=100, height=50)
+        rp_a = self.mem.r32(win_a + _W_OFF_RPORT)
+        rp_b = self.mem.r32(win_b + _W_OFF_RPORT)
+        self.registry.get_or_create(rp_a).set_apen(1)
+        self.registry.get_or_create(rp_b).set_apen(2)
+
+        self.lib.CloseWindow(self.ctx, win_a)
+
+        # Window A's drawing state is gone; window B's is untouched.
+        self.assertIsNone(self.registry.state(rp_a))
+        st_b = self.registry.state(rp_b)
+        if st_b is None:
+            self.fail("window B's RPort state must survive closing window A")
+        self.assertEqual(st_b.apen, 2)
+        # Window A's RPort block (and the window) were freed; B's blocks are live.
+        self.assertIn(rp_a, self.alloc.freed)
+        self.assertIn(win_a, self.alloc.freed)
+        self.assertNotIn(rp_b, self.alloc.freed)
+        self.assertIn(rp_b, self.alloc.live)
+
+    def test_close_window_notifies_projection(self) -> None:
+        closed: list[int] = []
+        opened: list[int] = []
+
+        class _Probe:
+            def open_window(self, intent):
+                opened.append(intent.window_addr)
+
+            def refresh_window(self, intent, ops):
+                pass
+
+            def close_window(self, window_addr):
+                closed.append(window_addr)
+
+        self.ctx.host_projection = _Probe()
+        win = self._open_window(0x00065000, left=10, top=20, width=100, height=50)
+
+        self.assertEqual(opened, [win])
+        # The projection saw the window's *own* RPort (not the screen RPort).
+        self.lib.CloseWindow(self.ctx, win)
+        self.assertEqual(closed, [win])
 
 
 class IntuitionSetWindowPointerATest(unittest.TestCase):

@@ -17,7 +17,6 @@ from typing import Any
 
 from .assets import AssetCheck, asset_inventory, project_relative, required_asset_checks
 from .config import DEFAULT_PROBE_TIMEOUT_SECONDS, PROJECT_ROOT
-from .host.gui_smoke import run_smoke_gui
 from .host.xvfb import run_with_xvfb
 from .run_artifacts import RunArtifacts, create_run_artifacts, write_json
 from .targets import ProbeTarget, resolve_probe_target
@@ -113,6 +112,30 @@ def _build_parser() -> argparse.ArgumentParser:
         help="run the probe directly instead of through the Xvfb wrapper",
     )
     probe_parser.set_defaults(func=_run_probe)
+
+    run_parser = subparsers.add_parser(
+        "run",
+        help="run an Amiga application on a graphical desktop with its windows projected as host windows",
+    )
+    run_parser.add_argument(
+        "binary",
+        type=Path,
+        help="path to the Amiga executable to run; its containing directory becomes the app: volume",
+    )
+    run_parser.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_PROBE_TIMEOUT_SECONDS,
+        help="timeout for the target run phase in seconds",
+    )
+    run_parser.add_argument(
+        "--auto-close-after",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help="exit the host shell SECONDS after the target run ends (for automation; by default the shell stays open until the last projected window is closed)",
+    )
+    run_parser.set_defaults(func=_run_cmd)
     return parser
 
 
@@ -213,6 +236,10 @@ def _print_check_report(checks: list[CheckResult], inventories: list[Any]) -> No
 
 
 def _run_smoke_gui(args: argparse.Namespace) -> int:
+    # Lazy import: gui_smoke pulls in PySide6, and only the GUI commands need it
+    # (probe must stay Qt-free).
+    from .host.gui_smoke import run_smoke_gui
+
     if args.direct:
         return run_smoke_gui(duration_ms=args.duration_ms)
     return _run_smoke_gui_with_xvfb(args.duration_ms)
@@ -252,6 +279,39 @@ def _run_probe_with_xvfb(binary_path: Path, timeout: int) -> int:
     ]
     completed = run_with_xvfb(command, capture_output=False, text=True)
     return completed.returncode
+
+
+def _run_cmd(args: argparse.Namespace) -> int:
+    """Launch an Amiga app with its windows projected as host GUI windows.
+
+    Reuses the probe's target resolution and prepared runtime setup
+    (``resolve_probe_target`` + ``_prepare_probe_runtime`` + ``_build_probe_args``)
+    and hands the same vamos arguments to the GUI launch path, which installs a
+    real Qt projection and keeps the shell open for manual inspection.
+    """
+
+    target = resolve_probe_target(args.binary.resolve())
+    preflight_errors = _probe_preflight_errors(target)
+    if preflight_errors:
+        for error in preflight_errors:
+            print(f"amiga-ui run: {error}", file=sys.stderr)
+        return 1
+
+    # Lazy import: run_command pulls in PySide6, and only the GUI commands need
+    # it (probe must stay Qt-free).
+    from .host.run_command import run_gui_launch
+
+    with (
+        tempfile.TemporaryDirectory(prefix="amiga-ui-run-") as runtime_root,
+        tempfile.NamedTemporaryFile("w+", encoding="utf-8", suffix=".log") as vamos_log,
+    ):
+        runtime_paths = _prepare_probe_runtime(Path(runtime_root))
+        vamos_args = _build_probe_args(target, runtime_paths, Path(vamos_log.name))
+        return run_gui_launch(
+            vamos_args=vamos_args,
+            timeout=args.timeout,
+            auto_close_after=args.auto_close_after,
+        )
 
 
 def _run_probe_direct(binary_path: Path, timeout: int) -> int:
