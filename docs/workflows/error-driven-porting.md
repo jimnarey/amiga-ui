@@ -75,6 +75,13 @@ Before changing code, classify the failure into one of a small number of buckets
 
 This classification step matters because `vamos` can operate with original Amiga libraries, Python `vamos` libraries, or fake libraries depending on configuration [S8 L18-L55]. Choosing the right remedy depends on knowing which layer failed first.
 
+Do not equate "the FD scanner installed a trap" with "the API is implemented."
+A correctly named, correctly shaped method can disappear from the defaulted-call
+report while still only logging its arguments, returning a convenient value, or
+omitting required memory/state effects. Track such methods explicitly as
+`recorded-but-unimplemented` (or an equivalent honest status), and keep them in
+the semantic frontier whenever the target begins to rely on their effects.
+
 ### 5. Implement One Fix
 
 Implement the narrowest change that plausibly resolves the classified failure:
@@ -117,6 +124,10 @@ Do this in one specific, mechanical place so the step cannot be skipped or scatt
 Treat `artifacts/runs/` as transient local evidence from recent runs, not as the project's durable history. The run log is the durable history. Pull forward the important facts from the run artifacts into the log entry itself: the blocker, the meaningful evidence, what changed, and what to do next. It is fine to omit low-value noise, but do not rely on an artifact folder still being present later when someone resumes the work.
 
 Newest entry last. Do not rewrite or delete earlier entries; the log is a history, not a single mutable status field. If the log's most recent entry already shows the app past a previously-recorded blocker, treat that as confirmation the earlier fix held, not as something to silently overwrite.
+
+When later evidence corrects an earlier conclusion, append a dated correction
+and add an erratum to any session summary likely to be used as a handoff. Preserve
+the historical account, but do not leave a disproved claim looking authoritative.
 
 ### 8. Finalize The Branch If The Iteration Is Complete
 

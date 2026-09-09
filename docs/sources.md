@@ -62,7 +62,7 @@ Use these locator styles:
 
 | No. | Title | URL | Typical locator style | Notes |
 | --- | --- | --- | --- | --- |
-| `S1` | AmigaOS 3.2 NDK archive | https://aminet.net/dev/misc/NDK3.2.lha | `p.n`, archive-internal path, or none | Direct archive fetched into the docs cache. |
+| `S1` | AmigaOS 3.2 NDK archive | https://aminet.net/dev/misc/NDK3.2.lha | `p.n`, archive-internal path, or none | Registry entry for the published archive. Warning: files currently under `assets/docs/ndk/NDK3.2/` identify themselves as a later AmigaOS 4.1-era/V47 NDK; do not cite that cache path as classic 3.0-3.1 evidence without independently verifying the specific declaration. |
 | `S2` | Workbench Library | https://wiki.amigaos.net/wiki/Workbench_Library | `§Heading ¶n-m` | Workbench API behavior and startup conventions. |
 | `S3` | AmigaOS Manual: Workbench | https://wiki.amigaos.net/wiki/AmigaOS_Manual%3A_Workbench | `§Heading ¶n-m` | General Workbench behavior and concepts. |
 | `S4` | AmigaOS Apps Development | https://wiki.amigaos.net/wiki/AmigaOS_Apps_Development | `§Heading ¶n-m` | Development overview and tool links. |

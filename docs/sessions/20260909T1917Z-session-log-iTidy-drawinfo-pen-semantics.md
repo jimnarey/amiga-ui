@@ -82,6 +82,17 @@ When finished, leave a concise summary of:
 
 ## Purpose
 
+> **Later review / erratum (2026-09-09):** The `DrawInfo` correction and the
+> screenshot-visible black-bar fix remain valid. The draw-mode explanation below
+> does not establish general classic semantics: the whole-operation
+> `JAM1 -> APen`, `JAM2 -> BPen` reduction is provisional; RGB XOR is a host
+> approximation; JAM2 text backgrounds are not actually painted; and initial
+> window JAM1 is inferred from iTidy rather than proven as the universal
+> `OpenWindow` contract. The aggregate verification result was 200/201 passing
+> in that environment, with the Xvfb-sensitive test passing separately—not
+> literally a fully green aggregate run. Current risks are tracked in
+> `../research/open-questions.md`.
+
 Durable record of the session that fixed the screenshot-visible iTidy
 GUI defect where **group-box title backgrounds and the folder-path area rendered
 as black bars**. The root cause was a fabricated `DrawInfo` whose `dri_Pens`

@@ -35,32 +35,45 @@ For this repository, the highest-value subset is:
 ## Draw-Mode And RectFill Semantics
 
 The `DrMd` field is a **RastPort draw mode**, not a blitter minterm. The
-classic `RastPort` header defines exactly four modes [S1
+classic `RastPort` header defines four mode bits [S1
 Include_H/graphics/rastport.h L90-L95]:
 
-- `JAM1` = 0 — use the foreground pen (`APen`/`FgPen`).
-- `JAM2` = 1 — use the background pen (`BPen`/`BgPen`).
-- `COMPLEMENT` = 2 — bitwise XOR with the existing pixel.
-- `INVERSVID` = 4 — swap the foreground/background pen roles for the op.
+- `JAM1` = 0 — "jam 1 color into raster".
+- `JAM2` = 1 — "jam 2 colors into raster".
+- `COMPLEMENT` = 2 — complement destination bits selected by the operation.
+- `INVERSVID` = 4 — inverse the source-video interpretation.
 
 `RectFill` fills a rectangle with the **foreground pen**, taking the draw mode
-into account (so under `JAM2` it effectively uses the background pen, and under
-`COMPLEMENT` it XORs the foreground pen) [S1 Autodocs/graphics.doc RectFill].
+into account [S1 Autodocs/graphics.doc RectFill]. Neither that statement nor the
+short header comments proves the repo's current whole-operation reduction
+`JAM1 -> APen`, `JAM2 -> BPen`. In the usual one-colour/two-colour model, source
+bits select APen while JAM2 additionally maps clear source bits to BPen; solid
+fills, line patterns, area patterns, write masks, and inverse video therefore
+need operation-specific treatment. The exact classic behavior required here is
+an active question in `docs/research/open-questions.md`.
+
 `InitRastPort` leaves `Mask`/`FgPen`/`AOLPen`/`LinePtrn` at `-1` and sets
 `DrawMode` to `JAM2`, with the standard screen font [S1
 Autodocs/graphics.doc InitRastPort]; the repo's `RastPortState` mirrors those
 standard values (`apen=0xFF`, `bpen=0`, `draw_mode=JAM2`, `outline_pen=0xFF`).
 
-The host renderer implements `COMPLEMENT` as a genuine per-pixel bitwise XOR
-(not a blitter minterm and not a Qt composition mode — Qt's
-`CompositionMode_Xor` is Porter-Duff non-overlap, which is a different
-operation). `INVERSVID` swaps which pen the op uses. Undefined draw-mode bits
-are ignored. This is recorded behavior, not an "approximation" of a minterm.
+The host renderer currently approximates `COMPLEMENT` by XORing host RGB
+channels through an operation-shaped coverage mask. That is deliberately not
+Qt's Porter-Duff `CompositionMode_Xor`, but it is also not a faithful model of
+indexed Amiga bitplanes, RastPort `Mask`, bitmap depth, or palette lookup.
+`INVERSVID` is likewise represented by swapping host pen roles. These are
+deterministic host approximations, not established pixel-exact Amiga semantics.
 
-Note: `IntuiText.DrawMode` (the Intuition text field) is a *different* value set
-from `RastPort.DrMd`; the local NDK does not define its bit values, so
-`PrintIText` does not decode it. A previously recorded `0x8C` "DrawMode" byte on
-an `IntuiText` was a mislabeled observation, not a real RastPort draw mode.
+`Text` currently paints foreground glyphs only. It does **not** implement the
+JAM2 background-cell write; it happens to look correct in the current iTidy
+window because the application first clears the containing area. `PrintIText`
+likewise paints its recorded FrontPen and does not interpret `IntuiText.DrawMode`.
+The repo previously described that field as a separate, undefined value set,
+but the local header and `PrintIText` AutoDoc do not establish that claim: they
+say only that it is the text rendering mode and that `PrintIText` configures the
+RastPort from the IntuiText values. Its relationship to the graphics JAM modes
+therefore remains unresolved. A previously observed `0x8C` byte was not a valid
+decoded mode; that observation alone does not define a separate value set.
 
 ## Why It Still Matters For GUI Utilities
 
@@ -98,10 +111,15 @@ The current `iTidy` tree does exactly that. Its GUI helper code uses `SetAPen()`
   `graphics.library` (`Text`) and `intuition.library` (`PrintIText`) draw into
   the *same* per-RastPort op log in chronological order — the state a future
   host renderer needs to replay a window.
-- **Frontier calls are recorded, not faked.** Color/BitMap/display-info/font
-  entry points the app has not driven yet record their invocation in
-  `GraphicsLibrary.call_log` and return honest defaults (e.g. `AllocBitMap`
-  returns `0`, `GetVPModeID` returns `0`) rather than a fabricated success.
+- **Some scanner-valid frontier calls remain semantically incomplete.**
+  Color/ViewPort/display-info/BitMap/RastPort-attribute/pen/font entry points
+  that the app has not driven record their invocation in
+  `GraphicsLibrary.call_log`. A documented failure such as `AllocBitMap`
+  returning NULL is an honest failure, but logging and returning `None` from an
+  operation that should mutate state is not a semantic implementation. Treat
+  these methods as `recorded-but-unimplemented`; because their traps are wired,
+  they may not reappear in the defaulted-call analyser when future target code
+  begins to depend on them.
 - **Text: `TextLength` (measure) and `Text` (draw) are implemented.**
   `TextLength` (bias 54) now measures the pixel width of the requested characters from the
   RastPort's font — it reads `RastPort.TxWidth` [S1 Include_H/graphics/rastport.h] at the

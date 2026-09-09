@@ -45,6 +45,21 @@ When diagnosing an app failure, prefer evidence in this order:
 
 If these sources disagree, stop and document the conflict rather than silently choosing a later platform model.
 
+### Cached NDK provenance warning
+
+The directory name `assets/docs/ndk/NDK3.2/` is not sufficient provenance for
+classic 3.0-3.1 behavior. Files inspected there identify themselves as a later
+AmigaOS 4.1-era/V47 NDK. Some structures and constants are unchanged and remain
+useful corroboration, but coincidence must be demonstrated field by field; the
+cache must not be described as the authoritative "local classic NDK." Use the
+registered source identity, version markers inside the file, independent
+classic documentation, and target-binary evidence before adopting a layout.
+
+The available iTidy source is also guidance rather than guaranteed build input
+for the shipped executable. Where source and HUNK evidence differ, record the
+source/binary divergence and give the shipped binary priority for compatibility
+decisions.
+
 ## API Index Policy
 
 The generated API index must record the FD source, function version markers where available, and whether a function is part of the classic baseline, later classic compatibility, later classic reference material, or out of target. Missing FD data should be treated as a bootstrap problem before concluding that a library function is unavailable.

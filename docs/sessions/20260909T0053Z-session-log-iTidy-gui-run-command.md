@@ -170,6 +170,15 @@ Please add a summary of this session under docs/sessions, conforming to the styl
 
 ## Purpose
 
+> **Later evidence / erratum (2026-09-09):** This historical account overstates
+> the renderer's draw-mode fidelity. The reduction `JAM1 -> APen`,
+> `JAM2 -> BPen` for a whole vector/fill operation is not established by the
+> cited header or `RectFill` AutoDoc. RGB-channel XOR is a host approximation,
+> not faithful planar `COMPLEMENT`; JAM2 text background cells are not rendered;
+> and the claim that `IntuiText.DrawMode` has a separate undefined value set is
+> unsupported. See `../platform/library-cards/graphics.library.md` and
+> `../research/open-questions.md` for current status.
+
 Durable record of the session that turned the previously-tested host
 window projection into a **supported, user-invokable GUI launch path** and
 corrected two drawing/window-ownership assumptions. Building on the prior
