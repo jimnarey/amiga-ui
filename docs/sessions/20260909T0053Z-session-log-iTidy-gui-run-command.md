@@ -90,6 +90,21 @@ launch checks exit 0. The plain `probe` remains headless (no `DISPLAY`, no
 and `tools/analyze_target_failure.py --latest` reports the **same** baseline
 missing-path list as before this session.
 
+Verification (the full gate run before the merge):
+`uv run python -m unittest discover -s tests -p "test_*.py"` → **189 OK**;
+`uv run ruff check src/ tests/` → all checks passed; `uv run pyright src/ tests/`
+→ **0 errors**; `uv run python tests/run_gui_smoke_test.py` → **exit 0** (Xvfb
+minimal window); `uv run python -m tests.run_host_projection_smoke_test.py` →
+**PASS** (one projected titled window "iTidy v1.0 - Icon Cleanup Tool" 625×215,
+**55 ops**, **13,433** non-background pixels, and the target did **not** exit
+cleanly); the plain `uv run amiga-ui probe …/iTidy` is headless at the honest
+`WaitPort` boundary (port `06b4e8`) with **zero** Qt imports and the failure
+analyser reports the **same** baseline missing-path list; the bounded direct
+`run` launch (offscreen and under Xvfb, `--auto-close-after 2`) reports the
+`WaitPort` boundary, the projected window, "host shell active" then "host shell
+exited", and **exit 0**; and the no-display path fails cleanly with **exit 2**
+rather than aborting.
+
 ## What changed in the repo (in order)
 
 | File | Change |
@@ -245,28 +260,6 @@ draw mode. It is neither a RastPort mode (the set is JAM1/JAM2/COMPLEMENT/INVERS
 nor a defined `IntuiText.DrawMode` value (the local NDK does not define that field's
 bits). The test now writes an honest 0 with a comment, and the graphics card records
 the correction.
-
-## Verification (what was actually run)
-
-- `uv run python -m unittest discover -s tests -p "test_*.py"` → **189 OK**.
-- `uv run python tests/run_gui_smoke_test.py` → **exit 0** (Xvfb minimal window).
-- `uv run python -m tests.run_host_projection_smoke_test.py` → **PASS**: one
-  projected titled window "iTidy v1.0 - Icon Cleanup Tool" 625×215, **55 ops**,
-  **13,433** non-background pixels, target did **not** exit cleanly.
-- `uv run ruff check src/ tests/` → **All checks passed**; `uv run pyright src/
-  tests/` → **0 errors**.
-- `uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy` →
-  **app_failed / rc 1** at the honest `WaitPort` boundary (port `06b4e8`), headless
-  (no `DISPLAY`/`QT_QPA_PLATFORM`); `tools/analyze_target_failure.py --latest` →
-  **same** baseline missing-path list as before (ENV:/ENVARC:/RAM:/S: prepared-runtime
-  gaps only).
-- Bounded direct launch, offscreen: `QT_QPA_PLATFORM=offscreen uv run amiga-ui run
-  …/iTidy --auto-close-after 2` → reports the `WaitPort` boundary, the projected
-  window 625×215, "host shell active", "host shell exited", **exit 0**.
-- Bounded direct launch, Xvfb: `uv run amiga-ui-xvfb -- uv run amiga-ui run
-  …/iTidy --auto-close-after 2` → same clean cycle, **exit 0**.
-- No-display path: `env -u DISPLAY QT_QPA_PLATFORM=xcb … run …` → clear message +
-  **exit 2** (no abort).
 
 ## Latent defects and follow-ups (not fixed this session)
 
