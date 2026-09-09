@@ -12,7 +12,36 @@ citations_used:
 
 # Session log — iTidy GUI frontier (2026-09-03 → 2026-09-04)
 
-Purpose: Durable record of one long DeepSeek Harness session that moved the `iTidy` probe from "Could not get visual info" to a fully initialized GUI (two windows, thirteen gadgets, menus, sane group boxes) stopping honestly at the event loop.
+## Session prompts
+
+Raw DSH session: `session-36a21762-518d-4fad-bbfb-c17f6e1859ab`
+Log: `/mnt/work/deepseek/.dsh/sessions/--workspace-amiga-ui--/session-36a21762-518d-4fad-bbfb-c17f6e1859ab/session.jsonl.zstd`
+
+### Starting prompt (2026-09-03 17:10:11 UTC)
+
+````text
+Continue from the current branch state. The goal is to make the current iTidy run progress by implementing the next repo-owned vamos/AmigaOS compatibility fix, not by patching or bypassing the application binary.
+
+Reload AGENTS.md, docs/architecture/platform-target.md, docs/workflows/dsh.md, and assets/generated/api-index.md before making changes.
+
+The target is classic m68k Workbench/AmigaOS 3.0-3.1. GetVisualInfoA is a GadTools V36 function and is in target. Prefer fixing the vamos library/context/dispatch behaviour that prevents the GadTools/Intuition path from working.
+
+Use existing repo scripts and tests. If a missing Amiga API is encountered, consult the generated API index and local docs/assets first, then implement the smallest meaningful host-side behaviour needed by the target application. Implementations must preserve real observable behaviour where it matters; do not add empty stubs merely to advance the trace.
+````
+
+### Additional prompt 1 (2026-09-04 19:01:03 UTC)
+
+````text
+Using your context and, where necessary, the log, please add a markdown file under a new directory under docs/ in the repo. Give the file a name beginning with a timestamp of the session start time and a sensible suffix. Include a short section at the top of the file with a summary - as above - of the session (wall clock, tokens, reasoning settings, etc).
+
+Then, in whatever structure you deem sensible, summarise the important findings from the session including the practical work undertaken. E.g. you have discovered important things about how the intuition lib interacts with gadtools, memory addressing, jump tables, how vamos handles all of these etc.
+
+If you do need to resort to the logs please take care with how to digest, they're enormous. I suggest you use the answers you provided back to deepseek as a guide to the shape of the session and work backwards/forwards from these for extra detail as required.
+````
+
+## Purpose
+
+Durable record of one long DeepSeek Harness session that moved the `iTidy` probe from "Could not get visual info" to a fully initialized GUI (two windows, thirteen gadgets, menus, sane group boxes) stopping honestly at the event loop.
 
 Needed for:
 - Recalling how the in-process `vamos` launcher actually dispatches library calls, so the same ground is not re-derived.

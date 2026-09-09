@@ -20,7 +20,157 @@ citations_used:
 
 # Session log — iTidy GUI run command (2026-09-09)
 
-Purpose: Durable record of the session that turned the previously-tested host
+## Session prompts
+
+Raw DSH session: `session-37d1af7d-37fa-4e73-a0c9-25b4f31af53e`
+Log: `/mnt/work/deepseek/.dsh/sessions/--workspace-amiga-ui--/session-37d1af7d-37fa-4e73-a0c9-25b4f31af53e/session.jsonl.zstd`
+
+### Starting prompt (2026-09-08 21:08:50 UTC)
+
+````text
+You are working in the amiga-ui repository.
+
+Start from `development`. Inspect AGENTS.md, README.md, docs/workflows/dsh.md, docs/architecture/hosted-application-mode.md, docs/architecture/translation-pipeline.md, the relevant host-GUI guidance, and the current CLI, Intuition, RastPort, projection, and launcher implementations. Relevant historical summaries are available under `docs/sessions`; use the latest host-window projection summary for the immediate handoff without reading every previous session.
+
+Run the existing plain iTidy probe, GUI smoke test, and host-projection smoke test to confirm the baseline before making production changes.
+
+Objective: turn the tested host-window projection into a supported, user-invokable GUI launch path, while correcting the small set of drawing/window-ownership assumptions that could undermine multi-window hosted application mode.
+
+The desired outcome is that a developer can run a documented command on a graphical desktop and see iTidy’s projected application window. A static but genuinely visible window is an acceptable milestone for this increment. Full gadget interaction is not required yet.
+
+Preserve the central hosted-application-mode decision:
+
+- The Workbench public screen remains a real Amiga-side `struct Screen`.
+- It remains invisible/notional on the host.
+- Do not create a Workbench desktop window, desktop canvas, wallpaper, screen title bar, or host container around application windows.
+- Each app-facing Amiga window projects as an independent host top-level window.
+- The 1×1 untitled helper/backdrop window used by iTidy remains internal and must not be projected.
+- A host window receives a menu bar only when its Amiga window actually has a menu strip.
+- Do not add right-click menu activation.
+
+Implement one coherent host-shell increment with these parts.
+
+1. Add a supported GUI launch command
+
+Add a clear CLI command, for example:
+
+```bash
+uv run amiga-ui run amiga_apps/itidy1classic/binary/extracted/iTidy
+```
+
+Choose the final command name consistently with the existing CLI.
+
+The command should:
+
+- reuse the existing target resolution and prepared runtime setup used by the probe;
+- create `QApplication` and `QtHostWindowProjection`;
+- pass the projection into the repo-owned in-process vamos launcher;
+- use the current desktop display when run directly;
+- show the app-facing iTidy host window;
+- keep the window available for manual inspection instead of immediately closing it like the smoke test;
+- distinguish the target reaching its current `WaitPort` boundary from the host GUI shell exiting;
+- close projected windows and release resources cleanly when the host shell exits;
+- fail clearly when no usable display is available;
+- leave the existing `probe` command headless/null-projected.
+
+Do not copy the probe runtime preparation into a divergent second implementation. Extract or reuse the smallest shared helper necessary.
+
+The existing `tests/run_host_projection_smoke_test.py` is evidence and reusable test support, not the user-facing launcher: it creates a private Xvfb display, asserts results, and closes the window.
+
+2. Correct window drawing-target ownership
+
+Audit how `OpenWindowTagList` currently assigns `Window.RPort`.
+
+At present, multiple windows are given the public screen’s embedded RastPort. This worked for the initial iTidy smoke because the 1×1 helper performs little relevant drawing, but it risks mixing operations from multiple application windows into one stream.
+
+Implement a general window-owned drawing-target model:
+
+- retain the public screen’s embedded RastPort for APIs that genuinely need screen-level drawing state;
+- give each opened Amiga window its own valid RastPort/drawing state where classic Intuition semantics require it;
+- set `Window.RPort` to that window-owned drawing target;
+- associate the projected host window with its own RPort;
+- ensure drawing for two windows cannot be replayed into the wrong host window;
+- release window-owned allocations/state when `CloseWindow` runs;
+- do not solve shared drawing state by rendering the public screen or by introducing a visible common desktop container.
+
+Use classic documentation and the target’s observed behavior to determine which initial font, pens, draw mode, and metrics should be copied or inherited from the public screen. Do not blindly duplicate an unverified byte layout.
+
+If the existing iTidy path genuinely requires its main window to share a particular font or screen attribute, preserve that behavior through explicit initialization rather than shared mutable RastPort state.
+
+3. Audit the first renderer’s primitive semantics
+
+Before extending the renderer, verify these points against the local classic documentation and existing operation records:
+
+- whether `RectFill` uses APen or BPen;
+- the correct meanings of the classic RastPort draw-mode values;
+- whether the observed `0x8C` value is genuinely a graphics draw mode, an `IntuiText.DrawMode` value with other bits, or a mislabeled observation;
+- which unsupported modes should remain documented approximations.
+
+Correct the implementation, tests, and documentation where evidence shows the current renderer is wrong.
+
+Do not expand this into pixel-perfect Workbench rendering. The palette, bevel appearance, and font may remain explicit approximations, but incorrect Amiga semantics should not be mislabeled as deliberate approximations.
+
+Testing requirements:
+
+- add focused tests for the GUI CLI argument parsing and launch-path selection;
+- prove that the GUI command installs `QtHostWindowProjection`;
+- prove that ordinary probes continue to install/use the null projection and do not import Qt unexpectedly;
+- test that two app-facing windows receive isolated drawing targets and operation streams;
+- test that closing one window releases only its own drawing target and projection;
+- preserve the rule that the helper/backdrop window is not projected;
+- add or correct tests for `RectFill` pen selection and draw-mode handling;
+- keep the existing offscreen widget tests;
+- keep the existing Xvfb-backed real-iTidy projection smoke;
+- add a bounded GUI-launch test that proves the visible shell enters and exits cleanly without requiring manual interaction.
+
+Do not rely only on a non-background-pixel count. Retain that as a paint-path smoke assertion, but use focused state or pixel assertions to distinguish foreground/background pen behavior and per-window isolation.
+
+Threading and event-loop constraints:
+
+- Create and mutate Qt widgets only on the GUI thread.
+- Do not introduce `QThread`, multiprocessing, or a broad scheduler rewrite in this increment.
+- Do not make `WaitPort` return success on an empty queue.
+- Do not fabricate an `IntuiMessage` merely to keep the target running.
+- A static post-run inspection window is acceptable for this milestone if the synchronous target reaches its honest `WaitPort` boundary before the Qt event loop remains active.
+- If the GUI command exposes a genuine lifecycle conflict between synchronous vamos execution and Qt’s event loop, characterize it precisely and implement only the smallest explicit host-shell solution.
+- Leave sustained interactive `WaitPort` integration for the next increment unless it is both small and directly required for the launch command to function.
+
+Important constraints:
+
+- Keep the default target classic m68k Workbench/AmigaOS 3.0-3.1.
+- Do not infer OS4/PPC/ReAction/MorphOS behavior.
+- Keep Qt imports out of low-level Amiga library implementations.
+- Keep the projection boundary semantic and Qt-free.
+- Do not implement gadget hit-testing, menu translation, requesters, preference parsing, or a general IFF parser in this increment.
+- Do not reopen the `RastPort.TxWidth` binary investigation; the shipped iTidy binary cannot settle that offset.
+- Do not add empty success stubs.
+- Keep compatibility changes in the repository, not in `.venv`.
+- Use one feature branch from `development`; commit and merge only after the increment is gated.
+
+Run the relevant focused tests, full test suite, existing GUI smoke test, host-projection smoke test, ruff, pyright, plain iTidy probe, and failure analyser before finishing. Where the environment permits, perform a bounded direct launch check using the new command and report exactly what appeared.
+
+Subagent guidance:
+
+Avoid open-ended subagent work. Do not delegate the overall host shell or window model. If a subagent is useful, give it exactly one narrow question—such as confirming the classic `RectFill` pen contract or reviewing window RastPort ownership—with a concrete stop condition. Treat timeout or non-return as inconclusive.
+
+When finished, leave a concise summary of:
+
+1. the exact command a developer can run to see iTidy,
+2. what the command displays and how the host-window lifecycle behaves,
+3. what window/RastPort and renderer semantics were corrected,
+4. what was verified,
+5. what remains non-interactive and should be attempted next.
+````
+
+### Additional prompt 1 (2026-09-09 08:53:48 UTC)
+
+````text
+Please add a summary of this session under docs/sessions, conforming to the style and format of the existing summaries in that dir.
+````
+
+## Purpose
+
+Durable record of the session that turned the previously-tested host
 window projection into a **supported, user-invokable GUI launch path** and
 corrected two drawing/window-ownership assumptions. Building on the prior
 `20260908T1746Z-…-host-window-projection.md` increment (which added the Qt-free

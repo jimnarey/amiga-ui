@@ -17,7 +17,59 @@ citations_used:
 
 # Session log — iTidy graphics drawing ABI (2026-09-05)
 
-Purpose: Durable record of the session that stabilised the classic Intuition/GadTools **drawing ABI** and drawing-state foundations that `iTidy` and other classic Workbench-era apps need: fixed the repo-owned `graphics.library` dispatch so the six drawing calls are actually invoked, added a minimal host-side RastPort state model, corrected `struct IntuiText`, and reconciled the gadget/RastPort/Screen struct offsets against the classic target — while keeping the honest `WaitPort`-on-empty-queue boundary intact and not faking any success.
+## Session prompts
+
+Raw DSH session: `session-82b72f7e-665b-4e76-8151-178f962a7508`
+Log: `/mnt/work/deepseek/.dsh/sessions/--workspace-amiga-ui--/session-82b72f7e-665b-4e76-8151-178f962a7508/session.jsonl.zstd`
+
+### Starting prompt (2026-09-05 14:18:47 UTC)
+
+````text
+You are working in the amiga-ui repository.
+
+Start by inspecting AGENTS.md, README.md, the DSH workflow docs, the platform-target docs, the latest iTidy run/session logs, and the relevant Intuition/GadTools/graphics library implementations. Run the repo bootstrap/dependency checks if the environment has not already been bootstrapped.
+
+Current objective: stabilise the classic Intuition/GadTools drawing ABI and drawing-state foundations needed by iTidy and other classic Workbench-era apps.
+
+Do not create an actual host GUI window in this session. The project has not yet made the design decision for how to represent the absence of a full Workbench desktop. For now, keep the work at the Amiga-side ABI/state layer: correct memory layouts, correct library dispatch signatures, and meaningful recorded drawing state/operations that a future renderer can consume.
+
+Focus on general classic AmigaOS semantics, not iTidy-only fixes.
+
+Tasks:
+1. Verify `struct Gadget`, `NewGadget`, `IntuiText`, `RastPort`, and related offsets against the classic headers/docs already available in the repo. Fix incorrect offsets, especially gadget tail fields such as `GadgetID`, `UserData`, `SpecialInfo`, and event `IAddress` handling.
+2. Fix repo-owned `graphics.library` dispatch signatures so calls such as `Move`, `Draw`, `RectFill`, `SetAPen`, `SetBPen`, and `SetDrMd` are actually invoked correctly by vamos.
+3. Add a minimal repo-owned RastPort state model that records drawing state and drawing operations. It should track enough state for later rendering, but should not attempt to render a host window yet.
+4. Add focused tests for the above that do not depend on the iTidy binary.
+5. Run the relevant narrow tests and the repo’s normal checks before stopping.
+
+Important constraints:
+- Do not paper over failures by returning success from empty no-op implementations.
+- If an API is implemented, it must update emulated memory/state meaningfully or record a useful host-side operation.
+- Keep the default target classic m68k Workbench/AmigaOS 3.0-3.1 unless the repo docs say otherwise.
+- Do not infer OS4/PPC/ReAction/MorphOS behaviour for default runtime structures.
+- Preserve the existing honest event-loop boundary: do not make `WaitPort` succeed on an empty queue.
+- Leave a concise final summary describing what changed, what was verified, and what remains uncertain.
+````
+
+### Additional prompt 1 (2026-09-05 20:30:36 UTC)
+
+````text
+The struct-offset subagent has run long enough. Do not wait for it further. Treat its current output as inconclusive unless it has already returned a final report.
+
+Finish the current branch from the work already completed: inspect the git diff, summarize the implemented code changes, run the normal quality gates if they have not already been run, and document unresolved ABI/binary-offset questions as follow-up.
+
+Do not perform further open-ended disassembly searches in this session. If checks fail, fix only regressions caused by the current changes.
+````
+
+### Additional prompt 2 (2026-09-05 21:14:58 UTC)
+
+````text
+Please document the work completed in this session, adopting the format of the documents found in docs/sessions.
+````
+
+## Purpose
+
+Durable record of the session that stabilised the classic Intuition/GadTools **drawing ABI** and drawing-state foundations that `iTidy` and other classic Workbench-era apps need: fixed the repo-owned `graphics.library` dispatch so the six drawing calls are actually invoked, added a minimal host-side RastPort state model, corrected `struct IntuiText`, and reconciled the gadget/RastPort/Screen struct offsets against the classic target — while keeping the honest `WaitPort`-on-empty-queue boundary intact and not faking any success.
 
 Needed for:
 - Recalling *why* the six drawing calls were silently dropped (missing `ctx`) and how the scanner classifies methods, so the same trap is not re-derived.

@@ -24,7 +24,69 @@ citations_used:
 
 # Session log — iTidy host-ui-required frontier cleared (2026-09-06)
 
-Purpose: Durable record of the session that **cleared the entire `host-ui-required`
+## Session prompts
+
+Raw DSH session: `session-2efee0be-db4c-4c0a-83a9-1b7d9550e868`
+Log: `/mnt/work/deepseek/.dsh/sessions/--workspace-amiga-ui--/session-2efee0be-db4c-4c0a-83a9-1b7d9550e868/session.jsonl.zstd`
+
+### Starting prompt (2026-09-06 17:52:29 UTC)
+
+````text
+You are working in the amiga-ui repository.
+
+Start from `development`. Inspect AGENTS.md, README.md, docs/workflows/dsh.md, docs/architecture/platform-target.md, docs/architecture/hosted-application-mode.md, docs/host-gui/translation-obligations.md, assets/generated/api-index.md, and the latest session logs under docs/sessions. Then run the current iTidy probe/analyser path to identify the present frontier.
+
+Objective: continue advancing the classic AmigaOS 3.0-3.1 compatibility layer for iTidy and other Workbench-era apps. Work through the visible UI/API frontier in coherent increments, making as much real progress as the session can sustain.
+
+You do not need to stop after exactly one blocker. However, keep each change coherent:
+- prefer one branch per coherent compatibility increment;
+- after an increment is working and gated, commit it and merge it into `development`;
+- if you continue to the next increment, start it from a fresh branch off updated `development`;
+- do not bundle unrelated guesses into one commit.
+
+Current design direction:
+- Default presentation is hosted application mode.
+- Keep the public Workbench screen invisible/notional internally.
+- Do not create a visible Workbench desktop canvas.
+- Project app-facing Amiga windows as ordinary host top-level windows when host projection work begins.
+- A host window gets a menu bar only when its Amiga window has an Amiga menu strip.
+- Do not implement right-click menu activation.
+
+Near-term implementation guidance:
+- Continue the Amiga-side ABI/state layer unless the docs and current probe make host projection the right next step.
+- Missing visible-UI APIs must either update meaningful emulated memory/state, record useful host-side operations for the future renderer, or fail honestly.
+- Do not add empty success stubs merely to advance the trace.
+- Likely frontier APIs include `graphics.library Text`, `IntuiTextLength`, `PrintIText`, `DrawBevelBoxA`, `GT_RefreshWindow`, and `SetWindowPointerA`, but treat the fresh probe/analyser output as authoritative.
+- Prefer building reusable text/drawing/menu state that will support hosted application mode rather than iTidy-only special cases.
+
+Important constraints:
+- Keep the default target classic m68k Workbench/AmigaOS 3.0-3.1.
+- Do not infer OS4/PPC/ReAction/MorphOS behaviour for default runtime structures.
+- Preserve the honest event-loop boundary: do not make `WaitPort` succeed on an empty queue.
+- Keep compatibility changes in the repo, not in `.venv/`.
+- Use local docs, FD files, AutoDocs, generated API index, app source, and existing tests before inferring behaviour from function names.
+- If a missing API is implemented, add focused tests that do not depend on the iTidy binary where practical.
+- Run relevant narrow tests, the probe/analyser path, and normal repo checks before each commit/merge.
+
+Subagent guidance:
+Avoid open-ended subagent work. Do not spawn a subagent for broad binary archaeology. If a subagent is useful, delegate one narrow question with a concrete stop condition and treat non-return or timeout as inconclusive rather than blocking the session.
+
+When finished, leave a concise summary of:
+1. what changed,
+2. what was verified,
+3. what remains uncertain,
+4. what should be attempted next.
+````
+
+### Additional prompt 1 (2026-09-07 08:23:34 UTC)
+
+````text
+Please add a summary of the work completed in this session under docs/sessions, conforming to the format of the existing summaries in that directory.
+````
+
+## Purpose
+
+Durable record of the session that **cleared the entire `host-ui-required`
 (visible-UI/API) frontier** for `iTidy`. Starting from a baseline where the RastPort
 drawing-state model and `TextLength` were already in place (the prior
 `20260906T0014Z` session), it implemented the five remaining visible-UI calls —

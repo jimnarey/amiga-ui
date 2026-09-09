@@ -26,7 +26,176 @@ citations_used:
 
 # Session log — iTidy host window projection (2026-09-08)
 
-Purpose: Durable record of the session that implemented the **first narrow
+## Session prompts
+
+Raw DSH session: `session-7a358351-c7dd-4f91-aed1-8a75a50f3602`
+Log: `/mnt/work/deepseek/.dsh/sessions/--workspace-amiga-ui--/session-7a358351-c7dd-4f91-aed1-8a75a50f3602/session.jsonl.zstd`
+
+### Starting prompt (2026-09-08 13:19:33 UTC)
+
+````text
+You are working in the amiga-ui repository.
+
+Start from `development`. Inspect AGENTS.md, README.md, docs/workflows/dsh.md,
+docs/architecture/hosted-application-mode.md,
+docs/architecture/translation-pipeline.md, docs/host-gui/README.md,
+docs/host-gui/component-implementation-standard.md,
+docs/host-gui/painting-styling-and-layout.md,
+docs/host-gui/threading-and-desktop-boundaries.md, and
+docs/host-gui/testing-host-ui.md. Inspect the current Intuition window model,
+RastPortRegistry, GadTools refresh handling, event bridge, launcher, and Qt/Xvfb
+smoke-test path.
+
+Relevant historical session summaries are available under docs/sessions. The
+latest session records that iTidy’s visible-UI and stateful-runtime defaulted-call
+frontiers are now cleared.
+
+Run a fresh iTidy probe and failure analyser to confirm the baseline before
+making production changes.
+
+Objective: implement the first narrow end-to-end host-rendering slice for
+hosted application mode.
+
+The required milestone is:
+
+- an app-facing Amiga Window opened through OpenWindowTagList is associated with
+  a real host top-level Qt window;
+- the public Workbench screen remains invisible/notional;
+- the host window uses the Amiga window title and initial geometry;
+- a focused custom drawing surface can replay the existing ordered RastPort
+  operation stream;
+- the initial iTidy window drawing can be exercised under Xvfb;
+- ordinary non-GUI probes remain supported and do not unexpectedly require a
+  display.
+
+Keep this as one coherent host-projection increment. Do not attempt to implement
+the complete iTidy interface in one change.
+
+Current reusable foundations:
+
+- OpenWindowTagList allocates and populates the Amiga Window, including its
+  geometry, title, RPort, UserPort and IDCMP flags.
+- The launcher installs one run-wide RastPortRegistry.
+- Graphics, Intuition and GadTools record into the same ordered per-RastPort
+  stream.
+- Recorded operations include state changes, Move, Draw, RectFill, Text,
+  PrintIText and DrawBevelBox.
+- GT_RefreshWindow records an explicit refresh request and is a suitable first
+  repaint boundary.
+- The event bridge already provides the future Qt-to-IntuiMessage return path.
+- PySide6 and the Python-managed Xvfb smoke path already work.
+
+Implementation guidance:
+
+- Add a small project-owned host projection interface or adapter. Intuition and
+  GadTools should express window-open, refresh and close intent through that
+  boundary rather than importing or constructing Qt widgets directly.
+- Keep Amiga-memory interpretation in the compatibility/adapter layer.
+- Keep QWidget classes independent of vamos and emulated memory.
+- Associate each projected Amiga window address with its RPort and one host
+  window.
+- Use QMainWindow or another appropriate top-level QWidget for each app-facing
+  Amiga window.
+- Do not render the public Workbench screen or create a containing desktop
+  canvas.
+- Give the host window no menu bar unless an Amiga menu strip has actually been
+  attached.
+- Use a focused custom QWidget drawing surface for replaying the current
+  raster-operation stream.
+- Replay operations in order and preserve the state captured on each operation.
+- Support, at minimum, the primitives already exercised by the current iTidy
+  startup path. If the fresh operation stream proves that some listed
+  primitives are not needed for the first visible result, keep the implementation
+  small and document what remains.
+- Treat TextLength as a measurement record, not a paint operation.
+- Treat Move and pen-setting entries as state/history, not visible marks by
+  themselves.
+- Use a small deterministic classic-style pen palette initially. Keep the
+  mapping explicit and replaceable; do not claim exact Workbench palette
+  fidelity unless it is derived from real DrawInfo/screen state.
+- Use the recorded text content. Do not dereference stale emulated pointers from
+  inside the QWidget.
+- Trigger the initial replay through an explicit projection refresh, preferably
+  the existing GT_RefreshWindow boundary or another clearly justified semantic
+  flush point. Do not add an arbitrary polling timer.
+- Make close/release idempotent and ensure CloseWindow removes or closes the
+  corresponding host projection.
+
+Threading and lifecycle constraints:
+
+- Create and mutate Qt widgets only on the GUI thread.
+- Do not introduce QThread, multiprocessing, or a general worker architecture in
+  this increment.
+- Do not make WaitPort succeed on an empty queue.
+- Do not redesign the scheduler merely to keep the first test window alive.
+- It is acceptable for the first deterministic integration test to inspect and
+  repaint the projected window before or after the target reaches its existing
+  honest WaitPort boundary.
+- If a genuinely interactive long-lived run cannot be achieved without
+  scheduler/event-loop integration, record that as the next architectural
+  wrinkle rather than solving it speculatively here.
+
+Testing guidance:
+
+- Add focused unit tests for host-window creation, title, geometry, no-menu-bar
+  default, window/RastPort association, operation replay, refresh and close.
+- Test the drawing widget with synthetic RastPortState data so most tests do not
+  depend on iTidy.
+- Cover at least line drawing, rectangle fill, Text/PrintIText placement, bevel
+  drawing, and the rule that TextLength does not paint.
+- Add one narrow Xvfb-backed integration or smoke path showing that an
+  iTidy-style Amiga window and operation stream produce a visible Qt top-level
+  window without crashing.
+- Prefer direct widget/property assertions over pixel-perfect screenshot tests.
+- A small image/pixel assertion is acceptable only where it proves that replay
+  produced actual painting rather than an empty widget.
+- Preserve the existing headless GUI smoke test and ordinary probe behavior.
+
+Important constraints:
+
+- Keep the default target classic m68k Workbench/AmigaOS 3.0-3.1.
+- Preserve hosted application mode.
+- Do not create a visible Workbench desktop canvas.
+- Do not add right-click menu activation.
+- Do not implement menus, requesters, preference parsing, or a general IFF
+  parser in this increment.
+- Do not turn recorded UI calls into fake success paths; the milestone requires
+  a real Qt top-level window and real paint execution.
+- Keep Qt imports out of the low-level Amiga library implementations where
+  practical.
+- Keep compatibility changes in the repo, not in .venv.
+- Use one feature branch from development, and commit/merge only after the
+  increment is gated.
+
+Run the relevant focused tests, the existing GUI smoke test, the normal repo
+checks, and the iTidy probe/analyser path before finishing. Clearly distinguish
+a successful deterministic host projection from a fully interactive
+application session.
+
+Subagent guidance:
+
+Avoid open-ended subagent work. Do not delegate the overall renderer. If a
+subagent is useful, give it exactly one narrow question, such as reviewing the
+operation-replay semantics or the Qt/vamos boundary, with a concrete stop
+condition. Treat non-return or timeout as inconclusive.
+
+When finished, leave a concise summary of:
+
+1. what host rendering now works,
+2. what was verified, including the relevant Xvfb and probe results,
+3. what remains non-interactive or visually incomplete,
+4. the next recommended host-GUI increment.
+````
+
+### Additional prompt 1 (2026-09-08 17:42:39 UTC)
+
+````text
+Please add a summary of this session under docs/sessions, conforming to the format of the summaries already in that dir.
+````
+
+## Purpose
+
+Durable record of the session that implemented the **first narrow
 end-to-end host-rendering slice** for hosted application mode. Starting from a
 baseline where the entire `host-ui-required` (visible-UI) frontier and the
 stateful-runtime frontier were already cleared (the prior

@@ -16,7 +16,53 @@ citations_used:
 
 # Session log — iTidy graphics `TextLength` (2026-09-06)
 
-Purpose: Durable record of the session that implemented `graphics.library`
+## Session prompts
+
+Raw DSH session: `session-db251d74-24e3-47b0-959f-d0c66ddda298`
+Log: `/mnt/work/deepseek/.dsh/sessions/--workspace-amiga-ui--/session-db251d74-24e3-47b0-959f-d0c66ddda298/session.jsonl.zstd`
+
+### Starting prompt (2026-09-05 23:21:48 UTC)
+
+````text
+You are working in the amiga-ui repository.
+
+Start from `development`. Inspect AGENTS.md, README.md, docs/workflows/dsh.md, docs/architecture/platform-target.md, assets/generated/api-index.md, and the latest session logs under docs/sessions. Then run the current iTidy probe/analyser path to identify the next real blocker.
+
+Objective: advance the classic AmigaOS 3.0-3.1 compatibility layer by implementing the next smallest meaningful repo-owned fix needed by iTidy and other Workbench-era apps.
+
+Focus on real Amiga-side semantics. Do not create a host GUI window in this session. If an API affects visible UI, implement enough meaningful state/memory/operation recording for a future renderer, or clearly document why it remains deferred. Do not add empty success stubs merely to advance the trace.
+
+Likely frontier APIs include `TextLength`, `Text`, `IntuiTextLength`, `PrintIText`, `DrawBevelBoxA`, `GT_RefreshWindow`, and `SetWindowPointerA`, but use the fresh probe/analyser output as the authority.
+
+Important constraints:
+- Keep the default target classic m68k Workbench/AmigaOS 3.0-3.1.
+- Do not infer OS4/PPC/ReAction/MorphOS behaviour for default runtime structures.
+- Preserve the honest event-loop boundary: do not make `WaitPort` succeed on an empty queue.
+- Prefer one blocker per branch, created from `development`.
+- Keep compatibility changes in the repo, not in `.venv/`.
+- Use local docs, FD files, AutoDocs, generated API index, app source, and existing tests before inferring behaviour from function names.
+- If a missing API is implemented, add focused tests that do not depend on the iTidy binary where practical.
+- Run the relevant narrow tests, the probe/analyser path, and normal repo checks before stopping or merging.
+
+Subagent guidance:
+Avoid open-ended subagent work. Do not spawn a subagent for broad binary archaeology. If you use a subagent, delegate exactly one narrow question with a concrete stop condition, and treat non-return or timeout as inconclusive rather than blocking the session.
+
+When finished, leave a concise summary of:
+1. what changed,
+2. what was verified,
+3. what remains uncertain,
+4. the next recommended blocker.
+````
+
+### Additional prompt 1 (2026-09-06 14:50:49 UTC)
+
+````text
+Please add a summary of this session, conforming to the format of the summaries of previous sessions in docs/sessions.
+````
+
+## Purpose
+
+Durable record of the session that implemented `graphics.library`
 `TextLength` (bias 54) — the first unimplemented call in the post-RastPort-drawing
 frontier — as a real text-metrics function that measures the pixel width of the
 requested characters from the RastPort's current font, rather than returning the

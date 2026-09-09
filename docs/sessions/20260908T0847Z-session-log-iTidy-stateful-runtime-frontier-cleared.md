@@ -18,7 +18,150 @@ citations_used:
 
 # Session log — iTidy stateful-runtime frontier cleared (2026-09-08)
 
-Purpose: Durable record of the session that **cleared the entire stateful-runtime
+## Session prompts
+
+Raw DSH session: `session-15786f34-0390-4af7-aaf1-0f87f5590df8`
+Log: `/mnt/work/deepseek/.dsh/sessions/--workspace-amiga-ui--/session-15786f34-0390-4af7-aaf1-0f87f5590df8/session.jsonl.zstd`
+
+### Starting prompt (2026-09-08 08:43:54 UTC)
+
+````text
+You are working in the amiga-ui repository.
+
+Start from `development`. Inspect AGENTS.md, README.md, docs/workflows/dsh.md,
+docs/architecture/platform-target.md, docs/runtime/vamos-overview.md,
+docs/runtime/writing-a-library-impl.md, docs/apps/itidy/run-log.md, and the
+relevant timer, DOS/path, and iffparse implementations. Relevant historical
+session summaries are available under docs/sessions; use the latest one to
+understand the immediate handoff without re-reading every prior session.
+
+Run a fresh iTidy probe and the failure analyser before making production
+changes. Treat the fresh artifacts as authoritative.
+
+Objective: continue advancing the classic AmigaOS 3.0-3.1 compatibility layer
+by clearing the remaining stateful-runtime frontier in coherent, verified
+increments, making as much real progress as the session can sustain.
+
+The currently expected frontier is:
+
+- timer.device GetSysTime
+- dos.library GetCurrentDirName
+- iffparse.library FreeIFF
+
+Confirm this with the fresh probe/analyser rather than assuming the prior list
+is still exact.
+
+You do not need to stop after exactly one blocker. However, keep each change
+coherent:
+
+- prefer one branch per coherent compatibility increment;
+- after an increment is working and gated, commit it and merge it into
+  development;
+- if you continue to the next increment, start from a fresh branch off updated
+  development;
+- do not bundle unrelated guesses into one commit.
+
+Near-term implementation guidance:
+
+- Start with GetSysTime if the fresh probe confirms it remains the first
+  relevant defaulted call.
+- Implement a coherent system clock, not a constant or an empty success.
+- Follow the classic timer.device contract and timeval layout. Write seconds
+  and microseconds to the caller’s 68k memory in the correct byte order and
+  valid ranges.
+- Determine and document the Amiga epoch expected by GetSysTime from the local
+  classic documentation or existing runtime conventions. Do not assume the
+  Unix epoch.
+- Make the clock source testable. Prefer an injected or narrow replaceable
+  clock source so focused tests can assert exact values without depending on
+  wall-clock timing.
+- Confirm the timer.device FD vector, register contract, implementation wiring,
+  and device/library override path before editing. A correctly named Python
+  method is not sufficient if vamos does not dispatch it.
+
+For GetCurrentDirName:
+
+- derive the result from the active process, CLI, lock, or vamos path state
+  rather than returning a hard-coded directory;
+- return an Amiga-visible directory name, not an accidental host filesystem
+  path;
+- respect the supplied buffer length, including NUL termination and documented
+  failure behaviour;
+- inspect the prepared runtime cwd and invocation artifacts so the result
+  agrees with the launched process;
+- add focused tests for success, insufficient buffer space, invalid/no memory,
+  and relevant process/path-state cases.
+
+For FreeIFF:
+
+- inspect the existing iffparse implementation critically before making the
+  scanner accept the method;
+- the current AllocIFF dummy handle and no-op lifecycle must not be treated as
+  complete merely because FreeIFF stops appearing as defaulted;
+- implement at least honest AllocIFF/FreeIFF handle allocation, tracking, and
+  release if that is the smallest semantic unit required;
+- verify the exact FD signatures with LibImplScanner;
+- do not expand into a general IFF parser unless the target’s observed path
+  requires it;
+- if repairing the lifecycle exposes a larger pre-existing fake implementation,
+  document the boundary clearly rather than claiming the library is complete.
+
+Important constraints:
+
+- Keep the default target classic m68k Workbench/AmigaOS 3.0-3.1.
+- Do not infer OS4/PPC/ReAction/MorphOS behaviour for default APIs or structures.
+- Do not reopen the RastPort.TxWidth offset investigation. The latest session
+  established that the shipped iTidy binary does not directly access that
+  field and therefore cannot settle its offset.
+- Preserve hosted application mode and the existing recorded UI state.
+- Preserve the honest event-loop boundary: do not make WaitPort succeed on an
+  empty queue and do not fabricate messages merely to obtain a clean exit.
+- Do not add empty success stubs merely to remove warning lines.
+- Keep compatibility changes in the repo, not in .venv.
+- Use local FD files, AutoDocs, generated API resources, app source, existing
+  vamos behaviour, and fresh probe artifacts before inferring semantics.
+- Add focused tests that do not depend on the iTidy binary where practical.
+- Run the relevant narrow tests, scanner checks, fresh probe/analyser path, and
+  normal repo checks before each commit and merge.
+
+Expected verification after each increment:
+
+- the relevant focused unit tests;
+- LibImplScanner or the generated API index where dispatch wiring is involved;
+- git diff --check;
+- a fresh iTidy probe;
+- tools/analyze_target_failure.py --latest;
+- the normal repository quality gates before commit/merge.
+
+A successful increment removes the call from the defaulted-call report because
+real semantics are now implemented. The terminal WaitPort-on-empty-queue failure
+may remain unchanged and must not be counted as a regression by itself.
+
+Subagent guidance:
+
+Avoid open-ended subagent work. Do not delegate a broad runtime-library audit.
+If a subagent is useful, give it exactly one narrow question—such as locating
+the classic GetSysTime epoch contract or tracing the current-directory data
+source—with a concrete stop condition. Treat non-return or timeout as
+inconclusive rather than blocking the main work.
+
+When finished, leave a concise summary of:
+
+1. what changed,
+2. what was verified, including the latest probe artifact,
+3. what remains uncertain or deliberately incomplete,
+4. the next recommended compatibility increment.
+````
+
+### Additional prompt 1 (2026-09-08 11:58:47 UTC)
+
+````text
+Please add a summary of this session under docs/sessions, conforming to the format/style of the summaries already there.
+````
+
+## Purpose
+
+Durable record of the session that **cleared the entire stateful-runtime
 frontier** for `iTidy`. Starting from a baseline where the `host-ui-required`
 (visible-UI) frontier was already cleared (the prior
 `20260906T1845Z-session-log-iTidy-host-ui-frontier-cleared.md`) and the

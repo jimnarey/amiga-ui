@@ -17,7 +17,47 @@ citations_used:
 
 # Session log — iTidy IntuiMessage event bridge (2026-09-05)
 
-Purpose: Durable record of the session that implemented the host→`IntuiMessage` event bridge, moving the `iTidy` probe from "stops honestly at `WaitPort` on an empty queue" to "a **real** `IntuiMessage` is delivered to the app's **real** `UserPort` and consumed through `WaitPort → GT_GetIMsg → GT_ReplyIMsg`", while keeping the empty-queue `WaitPort` failure honest (never faked).
+## Session prompts
+
+Raw DSH session: `session-09c7491d-e1b1-4cd4-96ec-d175e3720cbb`
+Log: `/mnt/work/deepseek/.dsh/sessions/--workspace-amiga-ui--/session-09c7491d-e1b1-4cd4-96ec-d175e3720cbb/session.jsonl.zstd`
+
+### Starting prompt (2026-09-05 00:07:54 UTC)
+
+````text
+You are working in the amiga-ui repository.
+
+Start by inspecting the repository state, AGENTS.md, README.md, and the DSH-oriented docs/resources. Then run the bootstrap/dependency checks provided by the repo before making code changes.
+
+The objective is to continue implementing real Amiga-era Intuition/GadTools behaviour for classic AmigaOS targets, especially APIs needed by the current iTidy/vamos workflow. Prefer small, repo-owned, testable increments, but do not confuse “small” with “no-op”: implementations must preserve meaningful Amiga semantics and should not merely allow execution to proceed.
+
+Use the repo’s generated API resources, AutoDocs/materials tooling, and failure-analysis tools to understand missing APIs before implementing them. If needed, use the provided 68k disassembly helper based on Capstone to inspect relevant call sites or relocated bytes. Be explicit in your notes about whether an implementation is based on AutoDocs, existing repo patterns, vamos/amitools behaviour, or disassembly.
+
+Pay particular attention to the GUI/event-loop bridge. The intended path is:
+
+Qt/test event -> IntuiMessage -> Window.UserPort -> WaitPort -> GT_GetIMsg -> GT_ReplyIMsg
+
+Do not bypass WaitPort or make it succeed on an empty queue. If a program is waiting forever, investigate whether the correct IntuiMessage is being produced and queued on the correct UserPort.
+
+Known near-frontier APIs include, but are not limited to:
+
+GT_RefreshWindow
+IntuiTextLength
+PrintIText
+DrawBevelBoxA
+SetWindowPointerA
+
+For each change:
+- inspect the existing implementation style first
+- add or update focused tests where practical
+- run the narrow relevant tests
+- run the repo’s normal checks before stopping
+- leave a concise summary of what changed, what was verified, and what remains uncertain
+````
+
+## Purpose
+
+Durable record of the session that implemented the host→`IntuiMessage` event bridge, moving the `iTidy` probe from "stops honestly at `WaitPort` on an empty queue" to "a **real** `IntuiMessage` is delivered to the app's **real** `UserPort` and consumed through `WaitPort → GT_GetIMsg → GT_ReplyIMsg`", while keeping the empty-queue `WaitPort` failure honest (never faked).
 
 Needed for:
 - Recalling how the in-process `vamos` event loop is actually driven from the host, so the same ground is not re-derived.

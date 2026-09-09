@@ -15,7 +15,99 @@ citations_used:
 
 # Session log — iTidy RastPort TxWidth ABI (2026-09-08)
 
-Purpose: Durable record of the session that **settled the single open RastPort
+## Session prompts
+
+Raw DSH session: `session-2d2d5b9e-75f8-4f5b-a926-a7dc0ee01ba1`
+Log: `/mnt/work/deepseek/.dsh/sessions/--workspace-amiga-ui--/session-2d2d5b9e-75f8-4f5b-a926-a7dc0ee01ba1/session.jsonl.zstd`
+
+### Starting prompt (2026-09-07 22:03:51 UTC)
+
+````text
+You are working in the amiga-ui repository.
+
+Start from `development`. Inspect AGENTS.md, README.md, docs/workflows/dsh.md, docs/architecture/platform-target.md, docs/apps/itidy/compatibility-notes.md, and the current RastPort-related implementations and tests. Relevant historical session summaries are available under `docs/sessions/`; the most recent iTidy host-UI session describes the immediate handoff.
+
+Current objective: settle whether the shipped iTidy binary was compiled with `RastPort.TxWidth` at offset `+0x3C`, or whether the compatibility layer is using the wrong RastPort layout.
+
+Keep this session focused on that ABI question. Do not move on to `GetSysTime`, `GetCurrentDirName`, `FreeIFF`, or another compatibility frontier until the offset question has been resolved or reduced to a clearly documented uncertainty.
+
+Important existing context:
+
+- The repo currently uses `RpFont@+0x34`, `TxHeight@+0x3A`, and `TxWidth@+0x3C`.
+- The classic AmigaOS 3.x layout described in the compatibility notes instead places these fields at `+0x22`, `+0x2E`, and `+0x30`.
+- A previous runtime investigation established that iTidy expects the screen’s embedded RastPort at `Screen+0x54`, due to its pre-`RasInfo` ViewPort layout.
+- The offset of the RastPort within `Screen` and the offset of `TxWidth` within the RastPort are separate questions. Do not conflate them.
+- `TextLength`, `Text`, and `PrintIText` currently consume the `+0x3C` value.
+- Their bounded Topaz-width fallback can conceal a wrong offset.
+- The compatibility layer itself writes `6` at `+0x3C`, so observing `6` there does not independently validate the ABI.
+
+Treat the shipped binary as runtime ground truth:
+
+`amiga_apps/itidy1classic/binary/extracted/iTidy`
+
+Use the corresponding source tree to identify likely source-level operations, while remembering that it may not exactly match the shipped binary:
+
+`amiga_apps/itidy1classic/source/`
+
+Investigation guidance:
+
+- Prefer direct evidence from the binary’s HUNK CODE.
+- Use the repo’s existing disassembly support or Python Capstone tooling to inspect relevant instruction sequences and relocated addresses.
+- Look for compiled accesses corresponding to expressions such as:
+  - `screen->RastPort.TxWidth`
+  - `screen->RastPort.TxHeight`
+  - `rp->TxHeight`
+  - `screen->RastPort.Font`
+- Distinguish direct application struct-field loads from calls to `graphics.library TextLength`. The implementation of `TextLength` is not contained in the application binary, so a library call alone cannot prove the internal `TxWidth` offset.
+- Establish the base pointer before interpreting a displacement. For an access based on `Screen`, separate the `Screen.RastPort` displacement from the field displacement within `RastPort`.
+- Record the binary or HUNK-relative address, surrounding instructions, inferred base object, effective field offset, likely source-level operation, and confidence for each useful sequence.
+- Do not infer an ABI merely because an offset agrees with the current Python implementation or a later NDK header.
+
+If static disassembly cannot settle the question, use a bounded runtime diagnostic. Write distinct sentinel values at competing candidate offsets and observe a dependent value produced by the application. Do not use identical or naturally plausible values at several offsets, and do not treat zero-filled memory as confirmation.
+
+The investigation should reach one of these honest conclusions:
+
+1. direct binary evidence confirms `TxWidth@+0x3C`;
+2. direct binary evidence proves a different offset;
+3. the application binary does not directly access `TxWidth`, so this particular binary cannot settle that field offset without another form of evidence;
+4. the available evidence remains ambiguous, with the exact missing evidence documented.
+
+If the evidence proves that production offsets are wrong, make the smallest coherent repo-owned correction on a fresh branch from `development`. Check all related RastPort offsets rather than changing `TxWidth` in isolation without considering `RpFont` and `TxHeight`. Add focused regression tests based on the established layout, update the relevant compatibility documentation, run the narrow tests and normal repo checks, and rerun the iTidy probe to detect regressions. Commit and merge the increment into `development` only after it is properly gated.
+
+If the evidence confirms the existing offset, avoid unnecessary production-code changes. Record the evidence in the appropriate compatibility documentation so the question does not need to be re-investigated.
+
+Important constraints:
+
+- Keep the default target classic m68k Workbench/AmigaOS 3.0-3.1.
+- Do not treat the cached AmigaOS 4.1/NDK 3.2 headers as authoritative for the classic target.
+- Do not infer OS4/PPC/ReAction/MorphOS layouts.
+- Do not change code merely to make it agree with an unverified assumption.
+- Do not add no-op implementations or unrelated compatibility changes.
+- Preserve the honest `WaitPort`-on-empty-queue boundary.
+- Keep permanent compatibility changes in the repo, not in `.venv/`.
+- Use `/tmp` or ignored artifacts for disposable analysis scripts and output.
+
+Subagent guidance:
+
+Avoid open-ended subagent work. Do not delegate broad binary archaeology. If a subagent is useful, give it exactly one narrow evidentiary question with a concrete stop condition, and treat non-return, timeout, or an unsupported conclusion as inconclusive rather than blocking the main investigation.
+
+When finished, leave a concise summary of:
+
+1. the conclusion about `RastPort.TxWidth@+0x3C`,
+2. the direct evidence supporting it,
+3. any files changed and checks performed,
+4. what remains uncertain and what should be attempted next.
+````
+
+### Additional prompt 1 (2026-09-08 07:53:48 UTC)
+
+````text
+Please produce a summary of this session in docs/sessions, conforming to the format and style of the summaries already in that dir.
+````
+
+## Purpose
+
+Durable record of the session that **settled the single open RastPort
 font-field ABI question** for `iTidy`: whether the shipped binary was compiled with
 `RastPort.TxWidth` at offset `+0x3C` (the repo's layout) or whether the compat layer is
 using the wrong RastPort layout. The conclusion, reached from a clean full disassembly

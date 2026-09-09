@@ -19,7 +19,70 @@ citations_used:
 
 # Session log — iTidy DrawInfo ABI and pen / RastPort draw-mode semantics (2026-09-09)
 
-Purpose: Durable record of the session that fixed the screenshot-visible iTidy
+## Session prompts
+
+Raw DSH session: `session-b46fb28b-abde-4a66-b752-b3773cf1a093`
+Log: `/mnt/work/deepseek/.dsh/sessions/--workspace-amiga-ui--/session-b46fb28b-abde-4a66-b752-b3773cf1a093/session.jsonl.zstd`
+
+### Starting prompt (2026-09-09 15:07:23 UTC)
+
+````text
+You are working in the amiga-ui repository.
+
+Start from `development`. Inspect AGENTS.md, README.md, docs/workflows/dsh.md, docs/architecture/platform-target.md, docs/architecture/hosted-application-mode.md, docs/host-gui/translation-obligations.md, assets/generated/api-index.md, and the latest relevant session summary under docs/sessions. Session summaries from earlier work are also available there if needed.
+
+Then run the current iTidy GUI launch path and inspect the recorded operations and visible result. The current launch command successfully produces a host window, but its group-box title backgrounds and folder-path area appear as black bars. Treat this screenshot-visible defect as the present frontier.
+
+Objective: correct the classic DrawInfo/pen and RastPort draw-mode semantics needed to render iTidy’s existing drawing operations sensibly. Keep this as one coherent rendering-correctness increment. Do not move on to host input/event routing or broad GadTools widget projection until the current primitives and semantic pens render correctly.
+
+Investigate these two likely causes, but verify them against the local NDK, AutoDocs, iTidy source, recorded operations, and focused experiments rather than accepting them as conclusions:
+
+1. `GetScreenDrawInfo` currently appears to return a fabricated layout beginning with screen and RastPort fields. iTidy does not treat this value as opaque: its source dereferences fields including `dri_Pens`, `dri_Font`, and `dri_Depth`. Implement the correct classic AmigaOS 3.0-3.1 `struct DrawInfo` ABI required by the target, including a valid separately addressable pen array with the guaranteed classic semantic pen entries.
+
+2. The Qt renderer currently appears to apply one global rule in which JAM2 selects BPen for `Draw`, `AreaDraw`, `RectFill`, and `Text`. Audit this carefully. Distinguish the source/foreground pen used by vector and fill operations from JAM1/JAM2 foreground/background treatment for text or raster rendering. In particular, explain and test iTidy’s sequence of `SetAPen(dri_Pens[BACKGROUNDPEN])` followed by `RectFill`.
+
+Requirements:
+
+- Use the classic m68k Workbench/AmigaOS 3.0-3.1 ABI as the default target.
+- Do not infer OS4/PPC/ReAction/MorphOS behaviour.
+- Use the local NDK headers and AutoDocs as the primary behavioural evidence.
+- Use iTidy source and recorded operations to establish how the returned structures are actually consumed.
+- Correct inaccurate comments and documentation, especially any claim that iTidy treats `DrawInfo` as an opaque handle.
+- Give the notional public screen a coherent semantic pen mapping suitable for hosted application mode. The mapping may use an explicitly documented host palette approximation, but `dri_Pens` itself must be valid emulated memory with correct classic structure offsets and lifetime.
+- Ensure `FreeScreenDrawInfo` frees every allocation owned by that DrawInfo without affecting the screen or window RastPorts.
+- Do not special-case label strings, coordinates, or iTidy-specific window identities.
+- Do not hide the problem by changing the host surface to black or by suppressing fills.
+- Preserve per-window RastPort isolation and the invisible/notional public Workbench screen design.
+- Preserve the honest event-loop boundary: do not make `WaitPort` succeed on an empty queue.
+- Keep compatibility changes in the repository, not in `.venv/`.
+
+Add focused tests that prove at least:
+
+- the emulated `DrawInfo` layout matches the classic header offsets used by m68k code;
+- `dri_NumPens`, `dri_Pens`, `dri_Font`, and `dri_Depth` are meaningful;
+- the required semantic pen indexes can be dereferenced from emulated code;
+- multiple DrawInfo allocations have safe, independent lifetimes;
+- `FreeScreenDrawInfo` releases the DrawInfo and its owned pen array;
+- a `SetAPen(BACKGROUNDPEN)` plus `RectFill` sequence clears to the intended background under the applicable draw mode;
+- foreground text and group-box shine/shadow lines remain distinguishable;
+- the corrected tests do not encode the assumption that JAM2 universally means “draw using BPen”.
+
+Run the relevant narrow tests first, then the complete unit suite, lint/type checks, GUI smoke tests, the iTidy probe/analyser path, and a bounded real `amiga-ui run` launch. Where practical, add a visual or pixel-semantic assertion that checks the group-title clear region matches the background rather than merely counting non-background pixels.
+
+Prefer one branch for this coherent correction, created from `development`. If it is working and all gates pass, commit it and merge it into `development`. Do not proceed into event routing or general gadget rendering in the same branch.
+
+When finished, leave a concise summary of:
+
+1. what changed,
+2. what evidence established the ABI and drawing semantics,
+3. what was verified, including the visible result,
+4. what remains approximate or uncertain,
+5. whether GadTools projection or host-input/`IntuiMessage` routing should be attempted next.
+````
+
+## Purpose
+
+Durable record of the session that fixed the screenshot-visible iTidy
 GUI defect where **group-box title backgrounds and the folder-path area rendered
 as black bars**. The root cause was a fabricated `DrawInfo` whose `dri_Pens`
 pointed at the screen RastPort instead of a real pen-index array, so every
