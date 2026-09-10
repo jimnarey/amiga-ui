@@ -143,6 +143,13 @@ user-facing path. The target reaching its `WaitPort`-on-empty-queue boundary
 and the host shell exiting are separate, reported events — the run phase ends at
 the boundary, and the shell stays open afterwards for inspection.
 
+The static post-run shell is not the final interactive lifecycle. Live hosted
+interaction uses the single-active-context cooperative design in
+`cooperative-host-scheduler.md`: a supported blocking Amiga call yields to a
+Qt-free host scheduler boundary, the Qt backend services events, and target
+execution resumes only after the corresponding real Amiga-side condition is
+true.
+
 ## Non-Goals
 
 Hosted application mode does not require:

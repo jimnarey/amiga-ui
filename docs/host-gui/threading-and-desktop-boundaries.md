@@ -44,6 +44,20 @@ If background work later becomes necessary, the default pattern should still be 
 2. send back a result or intent,
 3. apply visible widget changes on the GUI thread.
 
+## Cooperative Blocking
+
+Keeping host GUI work single-threaded does not mean freezing Qt while the Amiga
+application waits. The interactive runtime uses the Qt-free cooperative
+scheduler boundary defined in
+`../architecture/cooperative-host-scheduler.md`. Its first backend may park the
+target's Python call stack in a controlled nested Qt event loop while one real
+Amiga wait condition is outstanding. Qt remains responsive, but emulated state
+and Qt widgets still have one owner thread.
+
+Do not place Qt event-loop code directly in `WaitPort`, use a busy
+`processEvents()` loop, or move vamos to a worker thread merely to make the first
+gadget clickable.
+
 ## Desktop Interoperability Boundaries
 
 Local LLMs should not make new interoperability decisions with the surrounding desktop environment unless the repo docs explicitly require them. That includes:

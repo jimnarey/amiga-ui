@@ -35,17 +35,18 @@ The helper inspects markdown paths and front matter only. Use it to discover wha
 7. `architecture/compatibility-scope.md`
 8. `architecture/gui-strategy.md`
 9. `architecture/hosted-application-mode.md` before implementing visible host GUI behavior
-10. `platform/amiga-primer.md`
-11. `runtime/vamos-overview.md`
-12. `runtime/headless-gui.md`
-13. `runtime/subsystem-stop-rules.md`
-14. `host-gui/README.md`
-15. `host-gui/translation-obligations.md` before implementing UI-related APIs
-16. `workflows/agent-tool-contract.md`
-17. `workflows/fake-and-deferred-implementations.md`
-18. `workflows/branching-and-merging.md`
-19. `workflows/error-driven-porting.md`
-20. `apps/itidy/runbook.md` for the current target application, then other relevant notes under `apps/` as more targets are added
+10. `architecture/cooperative-host-scheduler.md` before implementing live host interaction
+11. `platform/amiga-primer.md`
+12. `runtime/vamos-overview.md`
+13. `runtime/headless-gui.md`
+14. `runtime/subsystem-stop-rules.md`
+15. `host-gui/README.md`
+16. `host-gui/translation-obligations.md` before implementing UI-related APIs
+17. `workflows/agent-tool-contract.md`
+18. `workflows/fake-and-deferred-implementations.md`
+19. `workflows/branching-and-merging.md`
+20. `workflows/error-driven-porting.md`
+21. `apps/itidy/runbook.md` for the current target application, then other relevant notes under `apps/` as more targets are added
 
 ## Sections
 

@@ -128,6 +128,13 @@ it is interactive: enqueue an `IDCMP_REFRESHWINDOW` or `IDCMP_CLOSEWINDOW`
 message for a known window port, prove the normal wait/get/reply sequence works,
 and only then connect Qt widget events to the same path.
 
+That deterministic producer-side milestone is now implemented. The next live
+step uses the single-active-context design in
+`cooperative-host-scheduler.md`: an empty supported wait delegates to the host
+scheduler, Qt continues servicing events, and `WaitPort` resumes only after the
+real port queue has become non-empty. The scheduler does not consume the message
+or turn timeout/shutdown into an Amiga event.
+
 ## Example: Hosted Window And Menu Projection
 
 The default host presentation is hosted application mode. The compatibility
