@@ -16,8 +16,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..host.projection import OpenWindowIntent
+from ..host.projection import GadgetDescription, OpenWindowIntent
 from .base_library import BaseLibrary
+from .gadget_state import gadget_registry_from_ctx
 from .rastport_state import JAM1, RastPortRegistry
 
 # --- struct Screen (classic, pre-RasInfo ViewPort embedded) ------------------
@@ -165,6 +166,10 @@ _WIN_OFF_TITLE = 0x20  # STRPTR Title
 _WIN_OFF_WSCREEN = 0x2E  # APTR struct Screen *WScreen
 _WIN_OFF_RPORT = 0x32  # APTR struct RastPort *RPort
 _WIN_OFF_FIRSTGADGET = 0x3E  # APTR struct Gadget *FirstGadget
+# GadTools ``struct Gadget.NextGadget`` offset (0x00), same layout the
+# GadTools library writes. Intuition walks this chain to resolve the window's
+# own gadgets at OpenWindow time (classic Intuition owns Window.FirstGadget).
+_GAD_OFF_NEXT = 0x00  # APTR struct Gadget *NextGadget
 _WIN_OFF_IDCMP = 0x52  # ULONG IDCMPFlags
 _WIN_OFF_USERPORT = 0x56  # APTR struct MsgPort *UserPort
 _WIN_OFF_WINDOWPORT = 0x5A  # APTR struct MsgPort *WindowPort
@@ -373,6 +378,35 @@ class IntuitionLibrary(BaseLibrary):
             ctx.alloc.free_memory(pens)
         return None
 
+    def _collect_window_gadgets(self, ctx, first_gadget):
+        """Resolve a window's own GadTools gadgets from its ``FirstGadget`` chain.
+
+        Walks the real gadget chain (``NextGadget`` at offset 0x00) and returns
+        the decoded, host-safe descriptions for the *projectable* kinds only,
+        in chain order. The invisible context gadget (``KIND_CONTEXT``) and any
+        kind the projection does not render are skipped, and chain addresses the
+        GadTools library did not decode are skipped honestly (only decoded
+        gadgets are projected). This is what ties ``OpenWindow`` intent to the
+        gadgets the app actually associated with the window via the real
+        ``CreateContext`` / ``CreateGadgetA`` chain — no hard-coded count or
+        per-app identity.
+        """
+
+        registry = gadget_registry_from_ctx(ctx)
+        if registry is None or not first_gadget:
+            return ()
+        mem = ctx.mem
+        result: list[GadgetDescription] = []
+        cur = first_gadget
+        for _ in range(0x100):  # bounded: gadget lists are short; never loop forever
+            if not cur:
+                break
+            desc = registry.get(cur)
+            if desc is not None and desc.is_projectable:
+                result.append(desc)
+            cur = mem.r32(cur + _GAD_OFF_NEXT)
+        return tuple(result)
+
     def OpenWindowTagList(self, ctx, newWindow, tagList):
         """Open a real window on the (public) screen from a tag list.
 
@@ -472,6 +506,7 @@ class IntuitionLibrary(BaseLibrary):
                     rport_addr=mem.r32(addr + _WIN_OFF_RPORT),
                     idcmp=idcmp,
                     has_menu_strip=False,
+                    gadgets=self._collect_window_gadgets(ctx, gadgets),
                 )
             )
         return addr

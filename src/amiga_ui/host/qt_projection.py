@@ -8,9 +8,24 @@ that turns window-open / refresh / close intent into *real* host effects:
   geometry,
 - a focused custom drawing surface (:class:`RastPortReplaySurface`) that replays
   the ordered RastPort op stream recorded by the compatibility layer,
+- the window's GadTools gadgets, projected as positioned host widgets that
+  *overlay* the RastPort surface (the surface fills the host window, so the
+  widgets are placed at the gadget's window-relative NewGadget coordinates):
+  ``BUTTON`` -> :class:`QPushButton`, ``TEXT`` -> :class:`QLabel`,
+  ``CYCLE`` -> :class:`QComboBox` (plus its left-hand caption, approximating the
+  classic ``PLACETEXT_LEFT`` cycle label), ``CHECKBOX`` -> :class:`QCheckBox`;
+  only the projectable kinds are rendered — the invisible context gadget and any
+  unsupported kind are recorded by the boundary but never projected,
 - no menu bar unless an Amiga menu strip has actually been attached (none are
   in this increment, so every host window is menu-bar-free by construction),
 - no public Workbench screen canvas and no containing desktop surface.
+
+The widgets are *static* in this increment: they display the decoded initial
+state (labels, geometry, checkbox flag, cycle active option, text content) but
+are not yet wired to the Amiga event loop. The future interactive route — a Qt
+widget event -> a real :class:`IntuiMessage` posted to the window's real
+``UserPort`` -> ``WaitPort`` -> ``GT_GetIMsg`` -> ``GT_ReplyIMsg`` — is preserved
+but deliberately not wired here (see ``docs/host-gui/`` and the session log).
 
 Threading: every widget here is created and mutated on the GUI thread. The
 compatibility layer drives the projection during the in-process vamos run,
@@ -23,14 +38,30 @@ from the low-level Amiga library implementations.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPen
-from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from ..vamos.rastport_state import COMPLEMENT, INVERSVID, JAM2
-from .projection import OpenWindowIntent
+from .projection import (
+    KIND_BUTTON,
+    KIND_CHECKBOX,
+    KIND_CYCLE,
+    KIND_TEXT,
+    GadgetDescription,
+    OpenWindowIntent,
+)
 
 # --- Classic-style pen palette -----------------------------------------------
 # A small, deterministic, classic Workbench-flavoured 16-entry palette. This is
@@ -428,6 +459,10 @@ class _ProjectedWindow:
 
     intent: OpenWindowIntent
     host_window: AmigaHostWindow | None = None
+    # The host widgets this window owns (one or two per projectable gadget).
+    # They are children of ``host_window``; closing the host window releases
+    # them. Tracked here so tests / the shell can inspect and count them.
+    gadget_widgets: list[QWidget] = field(default_factory=list)
 
 
 class QtHostWindowProjection:
@@ -456,6 +491,80 @@ class QtHostWindowProjection:
     def bind_registry(self, registry: Any) -> None:
         self._registry = registry
 
+    # -- GadTools gadget projection -------------------------------------------
+    @staticmethod
+    def _cycle_caption_width(label: str, window: QWidget) -> int:
+        """Approximate pixel width of a cycle caption in the window's font."""
+
+        return window.fontMetrics().horizontalAdvance(label) + 2
+
+    def _build_gadget_widget(self, window: AmigaHostWindow, desc: GadgetDescription) -> list[QWidget]:
+        """Build the positioned host widget(s) for one projectable gadget.
+
+        The widget(s) are *direct children of* ``window`` (not in its layout),
+        placed at the gadget's NewGadget coordinates so they overlay the
+        RastPort surface (which fills the host window). NewGadget coordinates
+        are window-relative (window top-left, including the title bar area), and
+        the surface fills the host window, so the coordinates are used directly.
+
+        The gadget box geometry ``(left, top, width, height)`` is the *interactive
+        box*. The classic GadTools label placement (``PLACETEXT_IN`` / ``LEFT`` /
+        ``RIGHT``, not decoded here) means the label can sit inside the box
+        (button/text), to its left (cycle) or to its right (checkbox). The Qt
+        widget mapping handles each: button/checkbox/label carry their own text;
+        the cycle caption is a separate :class:`QLabel` to the left of the
+        :class:`QComboBox` (approximating ``PLACETEXT_LEFT``); the checkbox text
+        extends the box to the right (``PLACETEXT_RIGHT``).
+        """
+
+        left, top = desc.left, desc.top
+        width, height = desc.width, desc.height
+        kind = desc.kind_name
+        widgets: list[QWidget] = []
+        if kind == KIND_BUTTON:
+            widget = QPushButton(desc.label, window)
+            widget.setGeometry(left, top, max(1, width), max(1, height))
+            widgets.append(widget)
+        elif kind == KIND_CHECKBOX:
+            widget = QCheckBox(desc.label, window)
+            if desc.checked is not None:
+                widget.setChecked(desc.checked)
+            # The 26px box is the interactive part; the label extends to the
+            # right (PLACETEXT_RIGHT), so size the widget to box + label.
+            extra = self._cycle_caption_width(desc.label, window) if desc.label else 0
+            widget.setGeometry(left, top, max(1, width + extra + 4), max(1, height))
+            widgets.append(widget)
+        elif kind == KIND_CYCLE:
+            combo = QComboBox(window)
+            combo.addItems(list(desc.cycle_labels))
+            if 0 <= desc.cycle_active < len(desc.cycle_labels):
+                combo.setCurrentIndex(desc.cycle_active)
+            combo.setGeometry(left, top, max(1, width), max(1, height))
+            widgets.append(combo)
+            if desc.label:
+                # Caption to the left of the dropdown (PLACETEXT_LEFT): anchor
+                # its right edge a small gap left of the combo's left edge.
+                gap = 6
+                cap_w = self._cycle_caption_width(desc.label, window)
+                caption = QLabel(desc.label, window)
+                caption.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                caption.setGeometry(max(0, left - gap - cap_w), top, cap_w, max(1, height))
+                widgets.append(caption)
+        elif kind == KIND_TEXT:
+            # Show the displayed text (GTTX_Text) when non-empty; otherwise the
+            # gadget label (e.g. the "Folder:" static caption).
+            text = desc.text if desc.text else desc.label
+            widget = QLabel(text, window)
+            widget.setGeometry(left, top, max(1, width), max(1, height))
+            widgets.append(widget)
+        else:
+            return []
+        for w in widgets:
+            if not desc.enabled:
+                w.setEnabled(False)
+            w.raise_()  # ensure the gadget overlay sits above the RastPort surface
+        return widgets
+
     def open_window(self, intent: OpenWindowIntent) -> None:
         projected = _ProjectedWindow(intent=intent, host_window=None)
         self._windows[intent.window_addr] = projected
@@ -473,6 +582,13 @@ class QtHostWindowProjection:
             intent.has_menu_strip,
         )
         projected.host_window = window
+        # Project the window's own GadTools gadgets as positioned overlay
+        # widgets. Only projectable kinds appear in ``intent.gadgets`` (the
+        # compatibility layer already excludes the context gadget and any
+        # unsupported kind), but double-check before building.
+        for desc in intent.gadgets:
+            if desc.is_projectable:
+                projected.gadget_widgets.extend(self._build_gadget_widget(window, desc))
         window.show()
 
     def refresh_window(self, window_addr: int) -> None:
@@ -486,8 +602,18 @@ class QtHostWindowProjection:
 
     def close_window(self, window_addr: int) -> None:
         projected = self._windows.pop(window_addr, None)
-        if projected is not None and projected.host_window is not None:
-            projected.host_window.close()
+        if projected is None:
+            return  # idempotent: already closed / never opened
+        host_window = projected.host_window
+        projected.host_window = None
+        projected.gadget_widgets.clear()
+        if host_window is not None:
+            # Release this window's host projection — and, with it, the child
+            # gadget widgets it owns (Qt parent/child ownership). ``deleteLater``
+            # frees the C++ objects once control returns to the event loop; the
+            # association is already popped above, so a second close is a no-op.
+            host_window.close()
+            host_window.deleteLater()
 
     # -- inspection (for tests / the host shell) -----------------------------
     @property

@@ -18,7 +18,26 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..host.projection import (
+    KIND_BUTTON,
+    KIND_CHECKBOX,
+    KIND_CONTEXT,
+    KIND_CYCLE,
+    KIND_GENERIC,
+    KIND_INTEGER,
+    KIND_LISTVIEW,
+    KIND_MX,
+    KIND_NUMBER,
+    KIND_PALETTE,
+    KIND_SCROLLER,
+    KIND_SLIDER,
+    KIND_STRING,
+    KIND_TEXT,
+    KIND_UNSUPPORTED,
+    GadgetDescription,
+)
 from .base_library import BaseLibrary
+from .gadget_state import gadget_registry_from_ctx
 from .rastport_state import RastPortRegistry
 
 # --- struct VisualInfo (private GadTools block, screen‑derived) --------------
@@ -42,7 +61,12 @@ _SCR_OFF_BITMAP_DEPTH = 0xC1  # BitMap.PlaneCount (0xBC + 0x05)
 _TA_OFF_HEIGHT = 0x20  # UBYTE TaHeight (31‑byte TaName + TaFlags)
 
 # --- GadTools tag space ------------------------------------------------------
-_GT_TAG_BASE = 0x88000  # TAG_USER (0x8000) + 0x80000
+# GadTools tag base. The NDK header defines ``GT_TagBase = TAG_USER + 0x80000``
+# and ``TAG_USER = 1UL << 31 = 0x80000000`` (utility/tagitem.h), so the base is
+# 0x80080000. The real classic m68k binary emits tags in this space (e.g. the
+# cycle taglist carries 0x8008000e/0x8008000f for GTCY_Labels/GTCY_Active), so
+# this constant must match it for tag decoding to succeed.
+_GT_TAG_BASE = 0x80080000
 _GTVI_LEFT_BORDER = _GT_TAG_BASE + 96
 _GTVI_TOP_BORDER = _GT_TAG_BASE + 97
 # DrawBevelBox(A) tags (the group-box / frame bevel). The app's call passes
@@ -51,6 +75,62 @@ _GTVI_TOP_BORDER = _GT_TAG_BASE + 97
 _GTBB_RECESSED = _GT_TAG_BASE + 51  # make the bevel box recessed (TRUE/FALSE)
 _GT_VISUALINFO = _GT_TAG_BASE + 52  # a VisualInfo result (APTR)
 _TAG_DONE = 0
+
+# --- CreateGadget(A) state tags ----------------------------------------------
+# GadTools carries per-kind gadget state in the same tag list as
+# ``CreateGadgetA(kind, prevGad, ng, tag, ...)``. These live in the GadTools tag
+# space (``GT_TagBase`` = 0x88000), per NDK 3.2 ``libraries/gadtools.h``
+# (used here as field-by-field corroboration of the classic tag numbers):
+#
+#     GTCB_Checked  (GT_TagBase+4)   state of a CHECKBOX gadget (BOOL)
+#     GTTX_Text     (GT_TagBase+11)  text to display in a TEXT gadget (STRPTR)
+#     GTCY_Labels   (GT_TagBase+14)  NULL-terminated STRPTR array for CYCLE
+#     GTCY_Active   (GT_TagBase+15)  active index in a CYCLE gadget (UWORD)
+#     GTTX_Border   (GT_TagBase+57)  draw a border around a TEXT gadget (BOOL)
+#
+# NOTE: the app's ``GA_Disabled`` is an Intuition *gadget-class* tag
+# (``GA_Dummy`` = TAG_USER+0x30000 = 0x38000, so ``GA_Disabled`` = 0x3800E) — a
+# different tag space from the GadTools one — and classic GadTools' interpretation
+# of it is not established by the available evidence. The app passes ``FALSE``
+# (enabled) and the default is enabled, so decoded gadgets are recorded enabled;
+# we do not claim to have decoded a GadTools disable tag.
+_GTCB_CHECKED = _GT_TAG_BASE + 4
+_GTTX_TEXT = _GT_TAG_BASE + 11
+_GTCY_LABELS = _GT_TAG_BASE + 14
+_GTCY_ACTIVE = _GT_TAG_BASE + 15
+_GTTX_BORDER = _GT_TAG_BASE + 57
+
+# --- GadTools GadgetType values (NDK 3.2 ``libraries/gadtools.h``) ------------
+_GADTYPE_GENERIC = 0
+_GADTYPE_BUTTON = 1
+_GADTYPE_CHECKBOX = 2
+_GADTYPE_INTEGER = 3
+_GADTYPE_LISTVIEW = 4
+_GADTYPE_MX = 5
+_GADTYPE_NUMBER = 6
+_GADTYPE_CYCLE = 7
+_GADTYPE_PALETTE = 8
+_GADTYPE_SCROLLER = 9
+# 10 is reserved by the header
+_GADTYPE_SLIDER = 11
+_GADTYPE_STRING = 12
+_GADTYPE_TEXT = 13
+
+_GADTYPE_TO_KIND_NAME = {
+    _GADTYPE_GENERIC: KIND_GENERIC,
+    _GADTYPE_BUTTON: KIND_BUTTON,
+    _GADTYPE_CHECKBOX: KIND_CHECKBOX,
+    _GADTYPE_INTEGER: KIND_INTEGER,
+    _GADTYPE_LISTVIEW: KIND_LISTVIEW,
+    _GADTYPE_MX: KIND_MX,
+    _GADTYPE_NUMBER: KIND_NUMBER,
+    _GADTYPE_CYCLE: KIND_CYCLE,
+    _GADTYPE_PALETTE: KIND_PALETTE,
+    _GADTYPE_SCROLLER: KIND_SCROLLER,
+    _GADTYPE_SLIDER: KIND_SLIDER,
+    _GADTYPE_STRING: KIND_STRING,
+    _GADTYPE_TEXT: KIND_TEXT,
+}
 
 # Sensible fallbacks when the screen font is not populated.
 _DEFAULT_FONT_HEIGHT = 8
@@ -289,6 +369,59 @@ class GadToolsLibrary(BaseLibrary):
         return None
 
     # -- gadget list creation -------------------------------------------------
+    # -- Host-safe decoding helpers (68k -> immutable values) ----------------
+    # These interpret emulated memory *now*, while it is valid, and return
+    # copied host-safe values (str/int/tuple). The projection boundary never
+    # sees a live pointer.
+
+    @staticmethod
+    def _read_tag(mem, taglist, tag):
+        """Return the ULONG data for ``tag`` in a GadTools tag list, or ``None``.
+
+        A tag list is a sequence of ``(tag, data)`` ULONG pairs terminated by
+        ``TAG_DONE`` (0). The walk is bounded so a malformed list cannot hang.
+        """
+
+        if not taglist:
+            return None
+        offset = 0
+        for _ in range(0x100):
+            base = taglist + offset
+            current = mem.r32(base)
+            if current in (0, _TAG_DONE):
+                return None
+            if current == tag:
+                return mem.r32(base + 4)
+            offset += 8
+        return None
+
+    @staticmethod
+    def _decode_c_string(mem, addr, max_len=1024):
+        """Copy a NULL-terminated C string out of emulated memory into a ``str``."""
+
+        if not addr:
+            return ""
+        out = bytearray()
+        for i in range(max_len):
+            b = mem.r8(addr + i)
+            if b == 0:
+                break
+            out.append(b)
+        return out.decode("latin-1")
+
+    def _decode_cycle_labels(self, mem, labels_ptr, max_items=64):
+        """Copy a NULL-terminated array of label pointers into a tuple of ``str``."""
+
+        if not labels_ptr:
+            return ()
+        labels: list[str] = []
+        for i in range(max_items):
+            str_addr = mem.r32(labels_ptr + i * 4)
+            if not str_addr:
+                break
+            labels.append(self._decode_c_string(mem, str_addr))
+        return tuple(labels)
+
     def CreateContext(self, ctx, glistptr):
         """Create the invisible context gadget that heads a GadTools list.
 
@@ -309,6 +442,23 @@ class GadToolsLibrary(BaseLibrary):
         mem.w32(addr + _GAD_OFF_MUTE, glistptr)  # remember the glist pointer
         mem.w32(glistptr, addr)  # *glistptr = context gadget
         self._gadgets[addr] = gctx
+        # Record the context gadget explicitly (marked KIND_CONTEXT) so the
+        # boundary can prove it is present in the chain yet never projected.
+        registry = gadget_registry_from_ctx(ctx)
+        if registry is not None:
+            registry.record(
+                GadgetDescription(
+                    gadget_addr=addr,
+                    gadget_id=0,
+                    kind_name=KIND_CONTEXT,
+                    kind=_CONTEXT_KIND,
+                    left=0,
+                    top=0,
+                    width=0,
+                    height=0,
+                    label="",
+                )
+            )
         return addr
 
     def CreateGadgetA(self, ctx, kind, prev_gad, ng, taglist):
@@ -344,11 +494,66 @@ class GadToolsLibrary(BaseLibrary):
         # chain the new gadget after the previous one in the list
         mem.w32(prev_gad + _GAD_OFF_NEXT, addr)
         self._gadgets[addr] = gad
+
+        # Decode the gadget's immutable, host-safe state *now*, while emulated
+        # memory is valid, and record it for the projection boundary. The label
+        # is the ``ng_GadgetText`` C string (already read into ``text_ptr``); the
+        # per-kind state comes from the GadTools tag list. No live pointer is
+        # retained — only copied str/int/bool values.
+        raw_kind = kind & 0xFFFF
+        kind_name = _GADTYPE_TO_KIND_NAME.get(raw_kind, KIND_UNSUPPORTED)
+        gadget_id = mem.r16(ng + _NG_OFF_ID)
+        label = self._decode_c_string(mem, text_ptr)
+        checked: bool | None = None
+        cycle_labels: tuple[str, ...] = ()
+        cycle_active = 0
+        text: str | None = None
+        text_border: bool | None = None
+        if raw_kind == _GADTYPE_CHECKBOX:
+            checked_val = self._read_tag(mem, taglist, _GTCB_CHECKED)
+            checked = bool(checked_val) if checked_val is not None else False
+        elif raw_kind == _GADTYPE_CYCLE:
+            cycle_labels = self._decode_cycle_labels(mem, self._read_tag(mem, taglist, _GTCY_LABELS))
+            active_val = self._read_tag(mem, taglist, _GTCY_ACTIVE)
+            cycle_active = int(active_val) if active_val is not None else 0
+        elif raw_kind == _GADTYPE_TEXT:
+            text_val = self._read_tag(mem, taglist, _GTTX_TEXT)
+            text = self._decode_c_string(mem, text_val) if text_val else ""
+            border_val = self._read_tag(mem, taglist, _GTTX_BORDER)
+            text_border = bool(border_val) if border_val is not None else None
+
+        registry = gadget_registry_from_ctx(ctx)
+        if registry is not None:
+            registry.record(
+                GadgetDescription(
+                    gadget_addr=addr,
+                    gadget_id=gadget_id,
+                    kind_name=kind_name,
+                    kind=raw_kind,
+                    left=mem.r16(ng + _NG_OFF_LEFT),
+                    top=mem.r16(ng + _NG_OFF_TOP),
+                    width=mem.r16(ng + _NG_OFF_WIDTH),
+                    height=mem.r16(ng + _NG_OFF_HEIGHT),
+                    label=label,
+                    # Enabled by default. The app's GA_Disabled tag is in the
+                    # Intuition gadget-class space (0x3800E), not the GadTools
+                    # tag space, and its GadTools interpretation is not
+                    # established by classic evidence; the app passes FALSE
+                    # (enabled), matching this default. See the tag note above.
+                    enabled=True,
+                    checked=checked,
+                    cycle_labels=cycle_labels,
+                    cycle_active=cycle_active,
+                    text=text,
+                    text_border=text_border,
+                )
+            )
+
         # Let the host event bridge resolve IDCMP_GadgetUp IAddress targets to
         # a real gadget struct carrying this id (no-op without a bridge).
         bridge = getattr(ctx, "event_bridge", None)
         if bridge is not None:
-            bridge.register_gadget(addr, mem.r16(ng + _NG_OFF_ID))
+            bridge.register_gadget(addr, gadget_id)
         return addr
 
     def FreeGadgets(self, ctx, gad):
@@ -358,6 +563,7 @@ class GadToolsLibrary(BaseLibrary):
         mem = ctx.mem
         alloc = ctx.alloc
         cur = gad
+        registry = gadget_registry_from_ctx(ctx)
         # Bounded walk: the list is always NULL-terminated by CreateGadgetA.
         for _ in range(0x100):
             if not cur:
@@ -370,6 +576,9 @@ class GadToolsLibrary(BaseLibrary):
             obj = self._gadgets.pop(cur, None)
             if obj is not None:
                 alloc.free_memory(obj)
+            # Release the decoded description for this gadget (idempotent).
+            if registry is not None:
+                registry.release(cur)
             cur = mem.r32(cur + _GAD_OFF_NEXT)
         return None
 

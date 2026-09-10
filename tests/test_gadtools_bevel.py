@@ -21,7 +21,11 @@ The bevel-box args used here are the real values from the target's probe log
 import unittest
 from types import SimpleNamespace
 
-from amiga_ui.vamos.gadtools_library import GadToolsLibrary
+from amiga_ui.vamos.gadtools_library import (
+    _GT_VISUALINFO,
+    _GTBB_RECESSED,
+    GadToolsLibrary,
+)
 
 
 def _ctx() -> SimpleNamespace:
@@ -60,9 +64,9 @@ class _FakeMem:
         self.w8(addr + 3, value & 0xFF)
 
 
-# GadTools tag values (GT_TagBase = TAG_USER + 0x80000 = 0x88000).
-_GTBB_RECESSED = 0x88000 + 51
-_GT_VISUALINFO = 0x88000 + 52
+# GTBB_Recessed / GT_VisualInfo are imported from the library above so the
+# test's taglist can never drift from the base the library decodes (the classic
+# GT_TagBase is TAG_USER (1<<31) + 0x80000 = 0x80080000, matching the binary).
 _TAG_END = 0
 
 
