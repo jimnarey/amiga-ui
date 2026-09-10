@@ -81,9 +81,7 @@ def _vamos_log_path(vamos_args: list[str]) -> str | None:
 
 
 # Qt platforms that render without an external X11/Wayland display.
-_SELF_CONTAINED_QT_PLATFORMS = frozenset(
-    {"offscreen", "minimal", "minimalegl", "linuxfb", "eglfs", "vnc"}
-)
+_SELF_CONTAINED_QT_PLATFORMS = frozenset({"offscreen", "minimal", "minimalegl", "linuxfb", "eglfs", "vnc"})
 
 
 def _no_display_reason() -> str | None:
@@ -199,8 +197,7 @@ def _run_target_phase(
                 returncode = run_vamos_in_process(args=vamos_args, host_projection=projection)
         except RunTimeoutError:
             print(
-                f"amiga-ui run: target run exceeded the {timeout}s timeout; "
-                "the host shell is not started",
+                f"amiga-ui run: target run exceeded the {timeout}s timeout; the host shell is not started",
                 file=sys.stderr,
             )
             return returncode
