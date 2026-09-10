@@ -24,6 +24,7 @@ from .bootstrap import apply_runtime_patches
 from .event_bridge import IntuitionEventBridge
 from .extensions import get_library_impl_overrides
 from .fd_creator import install_repo_fd_creator
+from .gadget_state import GadgetDescriptionRegistry
 from .rastport_state import RastPortRegistry
 
 
@@ -53,6 +54,12 @@ class ProjectSetupLibManager(SetupLibManager):
         # window RastPort, so a future renderer needs their ops in ONE registry
         # in chronological order, not split across library instances.
         self.rastports = RastPortRegistry()
+        # One shared host-side registry of decoded GadTools gadget descriptions
+        # for the whole run. GadTools (CreateGadgetA/CreateContext) records each
+        # gadget's immutable, host-safe state here; Intuition (OpenWindow) walks
+        # the window's real FirstGadget chain to resolve which gadgets a window
+        # owns and projects them.
+        self.gadget_descriptions = GadgetDescriptionRegistry()
         # Bind the run-wide op registry to the projection so refresh_window can
         # resolve the RastPort op stream to replay for a window's RPort.
         self.host_projection.bind_registry(self.rastports)
@@ -85,6 +92,11 @@ class ProjectSetupLibManager(SetupLibManager):
         # (OpenWindowTagList/CloseWindow) and GadTools (GT_RefreshWindow) can
         # express window-open / refresh / close intent through the boundary.
         lib_mgr.vlib_mgr.set_ctx_extra_attr("host_projection", self.host_projection)
+        # Expose the shared gadget-description registry to library contexts so
+        # GadTools (CreateGadgetA/CreateContext/FreeGadgets) and Intuition
+        # (OpenWindowTagList) can share decoded gadget state without importing
+        # each other.
+        lib_mgr.vlib_mgr.set_ctx_extra_attr("gadget_descriptions", self.gadget_descriptions)
         # Resolve jump-table layouts for libraries missing from the bundled FD
         # data (gadtools, diskfont, workbench, asl) from the repository's NDK
         # FD tables, so their library-specific entries (e.g. GetVisualInfo)
