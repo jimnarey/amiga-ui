@@ -15,22 +15,25 @@ pending host events, ``WaitPort`` keeps its existing honest behaviour
 
 Layout evidence
 ---------------
-``struct IntuiMessage`` (V36+) as declared by NDK 3.2
-``Include_H/intuition/intuition.h`` (the layout the target binary was
-compiled against — it dereferences ``Class``/``Code``/``IAddress``/
-``MouseX``/``MouseY`` directly)::
+The iTidy target binary was compiled against NDK headers whose
+``struct Message`` is 0x14 bytes (one ULONG wider than the classic
+0x10-byte layout). That shifts every ``IntuiMessage`` field after
+``im_Message`` by +0x04 relative to the classic offsets. Established by
+targeted disassembly of ``handle_itidy_window_events`` (the app reads
+``im_Class`` from ``msg+0x14`` and ``im_IAddress`` from ``msg+0x1c``) and
+confirmed by runtime memory evidence::
 
     struct IntuiMessage {
-        struct Message ExecMessage;  /* ReplyMsg@0x00 + Node@0x04 (16 bytes) */
-        ULONG Class;                 /* 0x10 */
-        UWORD Code;                  /* 0x14 */
-        UWORD Qualifier;             /* 0x16 */
-        APTR IAddress;               /* 0x18 */
-        WORD MouseX, MouseY;         /* 0x1C, 0x1E */
-        ULONG Seconds, Micros;       /* 0x20, 0x24 */
-        struct Window *IDCMPWindow;  /* 0x28 */
-        struct IntuiMessage *SpecialLink;  /* 0x2C */
-    };  /* size 0x30 */
+        struct Message ExecMessage;  /* ReplyMsg@0x00 + Node@0x04 + pad (20 bytes) */
+        ULONG Class;                 /* 0x14 */
+        UWORD Code;                  /* 0x18 */
+        UWORD Qualifier;             /* 0x1A (padding) */
+        APTR IAddress;               /* 0x1C */
+        WORD MouseX, MouseY;         /* 0x20, 0x22 */
+        ULONG Seconds, Micros;       /* 0x24, 0x28 */
+        struct Window *IDCMPWindow;  /* 0x2C */
+        struct IntuiMessage *SpecialLink;  /* 0x30 */
+    };  /* size 0x34 */
 
 IDCMP_* flag values from the same header (lines 863-882). The classic
 ``WaitPort``/``GetMsg`` split (WaitPort reports the first queued message
@@ -46,23 +49,32 @@ from typing import Any
 
 from ..host.scheduler import WaitResource
 
-# --- struct IntuiMessage (V36+, NDK 3.2 intuition.h) -------------------------
-IMSG_SIZE = 0x30
+# --- struct IntuiMessage (iTidy target layout) --------------------------------
+#
+# The iTidy binary was built against NDK headers whose ``struct Message`` is
+# 0x14 bytes (one ULONG wider than the classic 0x10-byte layout), which shifts
+# every ``IntuiMessage`` field after ``im_Message`` by +0x04 relative to the
+# classic offsets. This was established by targeted disassembly of
+# ``handle_itidy_window_events`` (the app reads ``im_Class`` from ``msg+0x14``
+# and ``im_IAddress`` from ``msg+0x1c``) and confirmed by runtime memory
+# evidence (the app observed 0x00 at those offsets when the classic layout was
+# posted). See docs/apps/itidy/compatibility-notes.md.
+IMSG_SIZE = 0x34
 IMSG_OFF_REPLYMSG = 0x00  # APTR struct MsgPort * (from struct Message)
 IMSG_OFF_LN_TYPE = 0x04  # UBYTE (from struct Message.Node)
 IMSG_OFF_LN_PRI = 0x05  # BYTE (from struct Message.Node)
 IMSG_OFF_LN_SUCC = 0x08  # APTR (from struct Message.Node)
 IMSG_OFF_LN_PRED = 0x0C  # APTR (from struct Message.Node)
-IMSG_OFF_CLASS = 0x10  # ULONG
-IMSG_OFF_CODE = 0x14  # UWORD
-IMSG_OFF_QUALIFIER = 0x16  # UWORD
-IMSG_OFF_IADDRESS = 0x18  # APTR
-IMSG_OFF_MOUSEX = 0x1C  # WORD
-IMSG_OFF_MOUSEY = 0x1E  # WORD (consecutive with MouseX: ``WORD MouseX, MouseY;``)
-IMSG_OFF_SECONDS = 0x20  # ULONG
-IMSG_OFF_MICROS = 0x24  # ULONG
-IMSG_OFF_IDCMPWINDOW = 0x28  # APTR struct Window *
-IMSG_OFF_SPECIALLINK = 0x2C  # APTR struct IntuiMessage *
+IMSG_OFF_CLASS = 0x14  # ULONG
+IMSG_OFF_CODE = 0x18  # UWORD
+IMSG_OFF_QUALIFIER = 0x1A  # UWORD (padding between Code and IAddress)
+IMSG_OFF_IADDRESS = 0x1C  # APTR
+IMSG_OFF_MOUSEX = 0x20  # WORD
+IMSG_OFF_MOUSEY = 0x22  # WORD (consecutive with MouseX: ``WORD MouseX, MouseY;``)
+IMSG_OFF_SECONDS = 0x24  # ULONG
+IMSG_OFF_MICROS = 0x28  # ULONG
+IMSG_OFF_IDCMPWINDOW = 0x2C  # APTR struct Window *
+IMSG_OFF_SPECIALLINK = 0x30  # APTR struct IntuiMessage *
 
 # --- IDCMP_* (NDK 3.2 intuition.h, lines 863-882) -----------------------------
 IDCMP_SIZEVERIFY = 0x00000001
@@ -350,7 +362,7 @@ class IntuitionEventBridge:
         m.w16(imsg + IMSG_OFF_CODE, code & 0xFFFF)
         m.w16(imsg + IMSG_OFF_QUALIFIER, 0)
         m.w32(imsg + IMSG_OFF_IADDRESS, iaddress & 0xFFFFFFFF)
-        # ``WORD MouseX, MouseY;`` are consecutive words (0x1C, 0x1E) — no
+        # ``WORD MouseX, MouseY;`` are consecutive words (0x20, 0x22) — no
         # overlap, so plain word stores.
         m.w16(imsg + IMSG_OFF_MOUSEX, mousex & 0xFFFF)
         m.w16(imsg + IMSG_OFF_MOUSEY, mousey & 0xFFFF)

@@ -113,20 +113,26 @@ def _make_ctx(port_mgr: PortManager, mem: MockMemory, alloc: _FakeAlloc):
 
 
 class IntuiMessageLayoutTest(unittest.TestCase):
-    def test_intuimessage_v36_layout(self) -> None:
-        # struct IntuiMessage (V36+), NDK 3.2 intuition.h:
-        # Message(16) + Class@0x10 + Code@0x14 + Qualifier@0x16 + IAddress@0x18
-        # + MouseX@0x1C + MouseY@0x1E + Seconds@0x20 + Micros@0x24
-        # + IDCMPWindow@0x28 + SpecialLink@0x2C; size 0x30.
-        self.assertEqual(IMSG_SIZE, 0x30)
-        self.assertEqual(IMSG_OFF_CLASS, 0x10)
-        self.assertEqual(IMSG_OFF_CODE, 0x14)
-        self.assertEqual(IMSG_OFF_QUALIFIER, 0x16)
-        self.assertEqual(IMSG_OFF_IADDRESS, 0x18)
-        self.assertEqual(IMSG_OFF_MOUSEX, 0x1C)
-        self.assertEqual(IMSG_OFF_MOUSEY, 0x1E)  # consecutive word, no overlap
-        self.assertEqual(IMSG_OFF_IDCMPWINDOW, 0x28)
-        self.assertEqual(IMSG_OFF_SPECIALLINK, 0x2C)
+    def test_intuimessage_itidy_target_layout(self) -> None:
+        # iTidy target layout: the binary was built against NDK headers whose
+        # ``struct Message`` is 0x14 bytes (one ULONG wider than the classic
+        # 0x10-byte layout), shifting every field after ``im_Message`` by
+        # +0x04 relative to the classic offsets. Established by targeted
+        # disassembly of ``handle_itidy_window_events`` (the app reads
+        # ``im_Class`` from ``msg+0x14`` and ``im_IAddress`` from ``msg+0x1c``)
+        # and confirmed by runtime memory evidence.
+        # Message(20) + Class@0x14 + Code@0x18 + Qualifier@0x1A + IAddress@0x1C
+        # + MouseX@0x20 + MouseY@0x22 + Seconds@0x24 + Micros@0x28
+        # + IDCMPWindow@0x2C + SpecialLink@0x30; size 0x34.
+        self.assertEqual(IMSG_SIZE, 0x34)
+        self.assertEqual(IMSG_OFF_CLASS, 0x14)
+        self.assertEqual(IMSG_OFF_CODE, 0x18)
+        self.assertEqual(IMSG_OFF_QUALIFIER, 0x1A)
+        self.assertEqual(IMSG_OFF_IADDRESS, 0x1C)
+        self.assertEqual(IMSG_OFF_MOUSEX, 0x20)
+        self.assertEqual(IMSG_OFF_MOUSEY, 0x22)  # consecutive word, no overlap
+        self.assertEqual(IMSG_OFF_IDCMPWINDOW, 0x2C)
+        self.assertEqual(IMSG_OFF_SPECIALLINK, 0x30)
         self.assertEqual(IMSG_OFF_REPLYMSG, 0x00)
 
     def test_idcmp_flag_values_match_ndk(self) -> None:

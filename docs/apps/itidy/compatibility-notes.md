@@ -93,16 +93,34 @@ This ordering comes directly from the published feature set and the current sour
 
 ## Unresolved Struct-Offset Questions (binary confirmation pending)
 
-The classic `struct Gadget` tail fields (`GadgetID`, `UserData`, `SpecialInfo`) and
-the event `IAddress` are settled: the repo offsets (`GadgetID@0x26`, `UserData@0x28`,
-`SpecialInfo@0x22`, `IntuiMessage.IAddress@0x18`) match both the classic m68k NDK and
-the header cached in the repo, and the `IAddress` value is exercised end-to-end by the
-working event bridge (`WaitPort -> GT_GetIMsg -> GT_ReplyIMsg`). `struct NewGadget`
-matches the classic layout. There are **two distinct `IntuiText` layouts** in the
-repo: `gadtools_library.py` builds repo-allocated GadgetText in the 3.x `iT_*` layout
-(separate, currently inert — nothing dereferences it), while `intuition.library`
-`IntuiTextLength`/`PrintIText` read the **app's** IntuiText in the old pre-2.0 field
-layout the target builds (settled below).
+The classic `struct Gadget` tail fields (`GadgetID`, `UserData`, `SpecialInfo`) are
+settled: the repo offsets (`GadgetID@0x26`, `UserData@0x28`, `SpecialInfo@0x22`) match
+the classic m68k NDK and the header cached in the repo. `struct NewGadget` matches the
+classic layout.
+
+**`struct IntuiMessage` — the target uses a +0x04-shifted layout (settled from the
+running binary).** The iTidy binary was built against NDK headers whose
+`struct Message` is **0x14 bytes** (one ULONG wider than the classic 0x10-byte
+layout). That shifts every `IntuiMessage` field after `im_Message` by **+0x04**
+relative to the classic offsets the repo previously used. This was established by
+targeted disassembly of `handle_itidy_window_events` (the app reads `im_Class` from
+`msg+0x14` and `im_IAddress` from `msg+0x1c`, then `gad->GadgetID` from
+`gad+0x26`) and confirmed by runtime memory evidence (with the classic layout posted,
+the app observed `0x00` at `msg+0x14`/`msg+0x1c` and never matched
+`IDCMP_GADGETUP`; after the shift it reads `0x40`/the gadget pointer and dispatches
+`GID_CANCEL` cleanly). The settled iTidy offsets (see `event_bridge.py`) are:
+`Class@0x14`, `Code@0x18`, `IAddress@0x1C`, `MouseX@0x20`, `MouseY@0x22`,
+`Seconds@0x24`, `Micros@0x28`, `IDCMPWindow@0x2C`, `SpecialLink@0x30`, size `0x34`.
+The `im_Message` prefix (`ReplyMsg@0x00`, `Node@0x04`) is unchanged and is not
+dereferenced by the handler. The full path
+`WaitPort -> GT_GetIMsg -> (IDCMP_GADGETUP + GID_CANCEL) -> GT_ReplyIMsg ->
+CloseWindow -> clean exit` is now exercised end-to-end by the interactive smoke.
+
+There are **two distinct `IntuiText` layouts** in the repo: `gadtools_library.py`
+builds repo-allocated GadgetText in the 3.x `iT_*` layout (separate, currently inert —
+nothing dereferences it), while `intuition.library` `IntuiTextLength`/`PrintIText`
+read the **app's** IntuiText in the old pre-2.0 field layout the target builds
+(settled below).
 
 - **`struct IntuiText` ABI — settled from the running target.** The target's
   `vc +aos68k` compiler **aligns** members to their natural alignment (it does not
