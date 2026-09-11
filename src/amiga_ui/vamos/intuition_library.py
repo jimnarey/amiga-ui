@@ -797,6 +797,13 @@ class IntuitionLibrary(BaseLibrary):
         self._registry(ctx).remove(win_rp.addr)
         ctx.alloc.free_memory(win_rp)
         ctx.alloc.free_memory(win)
+        # Host event bridge stale guard: forget the window (and its gadgets) so
+        # a late projected-widget or window-manager callback cannot post into a
+        # released UserPort (idempotent; no Qt import here). No-op for plain
+        # probes (no bridge).
+        bridge = getattr(ctx, "event_bridge", None)
+        if bridge is not None:
+            bridge.on_window_closed(window)
         # Host window projection hook: remove the host projection for this
         # window (idempotent; no Qt import here). No-op for plain probes.
         projection = getattr(ctx, "host_projection", None)

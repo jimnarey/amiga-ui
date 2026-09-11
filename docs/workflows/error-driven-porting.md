@@ -82,6 +82,51 @@ omitting required memory/state effects. Track such methods explicitly as
 `recorded-but-unimplemented` (or an equivalent honest status), and keep them in
 the semantic frontier whenever the target begins to rely on their effects.
 
+### Evidence Escalation: When To Use Disassembly
+
+Disassembly is a targeted discriminator, not a general-purpose substitute for
+documentation or a way to search indefinitely for an explanation. Use it when
+the exact shipped binary matters and a narrow question cannot be settled by the
+runtime trace, the app source, classic headers/FD files, AutoDocs, or an existing
+documented decision. Suitable questions include:
+
+- which displacement a particular call site uses for one structure field;
+- which library vector or register contract the binary actually invokes;
+- whether a documented source path is present in the shipped executable; or
+- how a known runtime PC relates to a bounded block of relocated code.
+
+Do not begin broad binary archaeology while a simpler contradiction is still
+available to test. First compare a proposed offset with the current
+implementation, focused layout tests, app compatibility notes, and earlier
+corrections. If a known-good layout was changed in the current diff, restore and
+retest it before attempting to rediscover the ABI from the binary.
+
+When disassembly is justified, state the exact question and stop condition
+before running it. Use the repo-owned 68k helper and account for HUNK boundaries,
+relocations, segment bases, and data embedded in code. A raw file offset is not
+automatically a runtime address, and a disassembler remaining synchronized is
+not by itself proof that a guessed structure interpretation is correct.
+
+### Never Infer The Target ABI From The Host Compiler
+
+Do not compile a copied Amiga structure with the machine's native compiler and
+use `sizeof` or `offsetof` as evidence for the classic m68k ABI. Pointer size,
+fundamental type widths, alignment, padding, compiler options, and structure
+packing belong to the compiler target ABI. Replacing pointers with `uint32_t`
+only changes their width; it does not make the host compiler use m68k alignment
+rules. A self-consistent host experiment can therefore produce completely wrong
+offsets and tests that merely repeat the same wrong assumption.
+
+For this project, do not introduce a cross-compiler merely to answer a layout
+question. Use the existing classic documentation, app notes, focused memory
+dumps, and bounded inspection of the shipped binary. A genuine Amiga m68k
+cross-compiler could only be supplementary evidence anyway: its headers and
+options might not match those used for the shipped application. Unless a future
+task explicitly adopts and validates such a toolchain, compiler-produced layout
+results are not admissible evidence for repo ABI changes. Native host compilation
+remains useful for ordinary host code, but never for reconstructing Amiga memory
+layouts.
+
 ### 5. Implement One Fix
 
 Implement the narrowest change that plausibly resolves the classified failure:

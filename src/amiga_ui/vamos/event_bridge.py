@@ -42,6 +42,10 @@ without removing it; GetMsg removes it) is what the app's drain loop
 
 from __future__ import annotations
 
+from typing import Any
+
+from ..host.scheduler import WaitResource
+
 # --- struct IntuiMessage (V36+, NDK 3.2 intuition.h) -------------------------
 IMSG_SIZE = 0x30
 IMSG_OFF_REPLYMSG = 0x00  # APTR struct MsgPort * (from struct Message)
@@ -96,6 +100,17 @@ class IntuitionEventBridge:
     """
 
     def __init__(self) -> None:
+        # The live vamos context (set on the first window open). The Qt host
+        # path reaches the bridge from a widget signal callback that has no
+        # direct ``ctx`` handle, so the bridge stores it here to allocate
+        # messages and reach the exec PortManager.
+        self._ctx: Any = None
+        # The exec PortManager, captured at the first window open while the
+        # intuition ctx is known-good. Re-looking it up later via
+        # ``ctx.vlib_mgr`` is fragile: the vlib registry a lazy LibCtx exposes
+        # does not always retain the bootstrap exec lib, so the captured handle
+        # is authoritative for queueing messages.
+        self._port_mgr: Any = None
         # window addr -> {"title": str, "idcmp": int, "user_port": int,
         #                 "window_port": int}  (insertion order = open order)
         self._windows: dict[int, dict] = {}
@@ -179,6 +194,9 @@ class IntuitionEventBridge:
         (``"first"`` = first window admitting the class, or a case-insensitive
         title substring).
         """
+        self._ctx = ctx
+        if self._port_mgr is None:
+            self._port_mgr = self._get_port_mgr(ctx)
         self._windows[window_addr] = {
             "title": title,
             "idcmp": idcmp_flags,
@@ -200,6 +218,92 @@ class IntuitionEventBridge:
         if gadget_addr:
             self._gadgets[gadget_addr] = gadget_id
 
+    def unregister_gadget(self, gadget_addr: int) -> None:
+        """Forget a freed gadget (called from ``FreeGadgets``).
+
+        A host widget that outlives the emulated gadget is stale: dropping the
+        registration makes a later activation a no-op rather than a message the
+        app would dereference through a freed ``struct Gadget *``.
+        """
+        if gadget_addr:
+            self._gadgets.pop(gadget_addr, None)
+
+    def on_window_closed(self, window_addr: int) -> None:
+        """Forget a closed window and the gadgets it owned (stale guard).
+
+        Called from ``CloseWindow``. A projected widget (or a late window-manager
+        close callback) that fires after the Amiga window is gone must not post
+        into a released ``UserPort``: dropping the window record makes any such
+        activation a no-op, and repeated closes are idempotent.
+        """
+        info = self._windows.pop(window_addr, None)
+        if info is None:
+            return
+        # Gadget registrations do not currently carry window ownership, so do
+        # not guess by deleting the global gadget map here: that would corrupt
+        # every other projected window. ``FreeGadgets`` unregisters the actual
+        # released chain. A late callback for this window is already rejected
+        # by the missing window record above.
+
+    def gadget_up(
+        self,
+        window_addr: int,
+        gadget_addr: int,
+        *,
+        code: int = 0,
+        mousex: int = 0,
+        mousey: int = 0,
+    ) -> int | None:
+        """Translate one projected-gadget activation into a real ``IntuiMessage``.
+
+        This is the Qt-free semantic path a projected button's activation is
+        routed through. It is *address-based* (``window_addr`` / ``gadget_addr``
+        are the real emulated addresses recorded on the widget) — it never
+        matches a label string, a hard-coded ``GadgetID`` or a window title.
+
+        Steps, in order:
+        1. verify the owning window is still open and requested ``IDCMP_GADGETUP``
+           (real Intuition never generates a class a window did not request);
+        2. verify the gadget is still registered (not freed / released);
+        3. allocate and fill a complete real ``IntuiMessage`` (``IAddress`` = the
+           real emulated ``struct Gadget *``, so the app reads the genuine
+           ``GadgetID`` from that structure);
+        4. enqueue it on the owning ``Window.UserPort``;
+        5. only *after* the queue insertion, notify the scheduler (a hint to
+           recheck the real port).
+
+        Returns the ``IntuiMessage`` address, or ``None`` when the activation is
+        stale or filtered out (recorded in ``self.skipped``).
+        """
+        info = self._windows.get(window_addr)
+        if info is None:
+            self.skipped.append(f"gadgetup: window {window_addr:06x} not open (stale activation)")
+            return None
+        if not (info["idcmp"] & IDCMP_GADGETUP):
+            self.skipped.append(f"gadgetup: window {window_addr:06x} did not request IDCMP_GADGETUP")
+            return None
+        if gadget_addr not in self._gadgets:
+            self.skipped.append(f"gadgetup: gadget {gadget_addr:06x} not registered (released)")
+            return None
+        if self._ctx is None:
+            self.skipped.append("gadgetup: no live context to allocate the message")
+            return None
+        imsg = self.post_event(
+            self._ctx,
+            window_addr,
+            IDCMP_GADGETUP,
+            code=code,
+            iaddress=gadget_addr,
+            mousex=mousex,
+            mousey=mousey,
+        )
+        # The message is on the real UserPort now; only then is the hint
+        # meaningful. The scheduler rechecks the real queue before resuming.
+        scheduler = getattr(self._ctx, "scheduler", None)
+        if scheduler is not None:
+            scheduler.notify_resource_changed(WaitResource.MESSAGE_PORT, info["user_port"])
+        return imsg
+
     # -- message plumbing -------------------------------------------------------
     def post_event(
         self,
@@ -220,10 +324,20 @@ class IntuitionEventBridge:
         info = self._windows.get(window_addr)
         if info is None:
             raise RuntimeError(f"event bridge: post_event for unknown window {window_addr:06x}")
-        port_mgr = self._get_port_mgr(ctx)
+        # Prefer the captured exec PortManager (set at the first window open,
+        # when the intuition ctx is known-good); fall back to a live lookup.
+        port_mgr = self._port_mgr
+        if port_mgr is None:
+            port_mgr = self._get_port_mgr(ctx)
         user_port = info["user_port"]
         if port_mgr is None or not port_mgr.has_port(user_port):
             raise RuntimeError(f"event bridge: UserPort {user_port:06x} not registered with PortManager")
+        # Classic per-message lifetime: allocate one real IntuiMessage block per
+        # event (freed by ``release_message`` when the app replies). The machine
+        # buffer is alive for the whole run — a projected-gadget click is
+        # serviced on the GUI thread while the target is parked in the scheduler
+        # (same thread, machine not yet cleaned up) — so the allocator's block
+        # erase is safe here.
         mem = ctx.alloc.alloc_memory(IMSG_SIZE, label="EventBridge.IMsg")
         imsg = mem.addr
         m = ctx.mem
@@ -253,6 +367,7 @@ class IntuitionEventBridge:
                 "code": code,
                 "iaddress": iaddress,
                 "imsg": imsg,
+                "port": user_port,
             }
         )
         return imsg
@@ -262,9 +377,11 @@ class IntuitionEventBridge:
 
         The classic reply (PutMsg to ``msg->ReplyMsg`` / the WindowPort) has
         no consumer on the headless host — nothing ever waits on the
-        WindowPort — so the observable work is releasing the block the
-        bridge allocated. Addresses the bridge did not allocate are ignored
-        (they would belong to a PutMsg the host cannot own).
+        WindowPort — so the observable work is releasing the block the bridge
+        allocated. The app replies on the GUI thread while the machine is alive
+        (it is resuming from the scheduler), so the free is safe. Addresses the
+        bridge did not allocate are ignored (they would belong to a PutMsg the
+        host cannot own).
         """
         if not imsg_addr:
             return

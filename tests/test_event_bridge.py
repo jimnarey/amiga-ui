@@ -31,6 +31,7 @@ from amitools.vamos.machine.mockmem import MockMemory
 from amitools.vamos.machine.regs import REG_A0
 
 from amiga_ui.config import PROJECT_ROOT
+from amiga_ui.host.scheduler import WaitResource
 from amiga_ui.vamos.event_bridge import (
     IDCMP_CLOSEWINDOW,
     IDCMP_GADGETUP,
@@ -308,6 +309,145 @@ class EventBridgeUnitTest(unittest.TestCase):
         bridge.release_message(env.ctx, 0x0FFFFF)
         self.assertEqual(bridge.released, [])
         self.assertEqual(env.alloc.freed, [])
+
+
+class _FakeScheduler:
+    """Records resource-change hints (the scheduler notify seam)."""
+
+    def __init__(self) -> None:
+        self.notified: list[tuple] = []
+
+    def notify_resource_changed(self, resource, address: int) -> None:
+        self.notified.append((resource, address))
+
+
+class GadgetUpActivationTest(unittest.TestCase):
+    """The generic, address-based projected-gadget activation path (``gadget_up``).
+
+    This is the Qt-free semantic path a projected button's activation is routed
+    through: it is *address-based* (real emulated window/gadget addresses, never
+    a label string or hard-coded GadgetID), verifies the window requested
+    ``IDCMP_GADGETUP``, posts a complete real ``IntuiMessage`` (``IAddress`` =
+    the real ``struct Gadget *``) on the window's real ``UserPort``, and only
+    *then* notifies the scheduler (a hint to recheck the real port). Stale or
+    filtered activations are honest no-ops recorded in ``skipped``.
+    """
+
+    def _setup(self, idcmp: int):
+        mem = MockMemory(1024)
+        alloc = _FakeAlloc(mem)
+        port_mgr = PeekPortManager(alloc)
+        main_up = alloc.alloc_memory(0x14).addr
+        main_wp = alloc.alloc_memory(0x14).addr
+        port_mgr.register_port(main_up)
+        ctx = _make_ctx(port_mgr, mem, alloc)
+        return SimpleNamespace(mem=mem, alloc=alloc, port_mgr=port_mgr, ctx=ctx, main_up=main_up, main_wp=main_wp)
+
+    def test_posts_real_intuimessage_with_real_iaddress_on_real_userport(self) -> None:
+        env = self._setup(IDCMP_GADGETUP)
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        gadget_addr = env.alloc.alloc_memory(0x2C).addr
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, IDCMP_GADGETUP, "Main")
+        bridge.register_gadget(gadget_addr, 42)
+
+        imsg = bridge.gadget_up(win, gadget_addr, mousex=5, mousey=6)
+
+        self.assertIsNotNone(imsg)
+        assert imsg is not None
+        # The message is on the window's REAL UserPort queue.
+        self.assertTrue(env.port_mgr.has_msg(env.main_up))
+        self.assertEqual(env.port_mgr.peek_msg(env.main_up), imsg)
+        # Complete real struct IntuiMessage: GADGETUP class, real IAddress.
+        self.assertEqual(env.mem.r32(imsg + IMSG_OFF_CLASS), IDCMP_GADGETUP)
+        self.assertEqual(env.mem.r32(imsg + IMSG_OFF_IADDRESS), gadget_addr)
+        self.assertEqual(env.mem.r16(imsg + IMSG_OFF_MOUSEX), 5)
+        self.assertEqual(env.mem.r16(imsg + IMSG_OFF_MOUSEY), 6)
+        self.assertEqual(env.mem.r32(imsg + IMSG_OFF_IDCMPWINDOW), win)
+        self.assertEqual(env.mem.r32(imsg + IMSG_OFF_REPLYMSG), env.main_wp)
+        # The posted record carries the real UserPort and the real IAddress.
+        self.assertEqual(bridge.posted[0]["port"], env.main_up)
+        self.assertEqual(bridge.posted[0]["iaddress"], gadget_addr)
+
+    def test_requires_window_to_request_gadgetup(self) -> None:
+        env = self._setup(IDCMP_REFRESHWINDOW)  # admits refresh, not gadgetup
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        gadget_addr = env.alloc.alloc_memory(0x2C).addr
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, IDCMP_REFRESHWINDOW, "Main")
+        bridge.register_gadget(gadget_addr, 1)
+
+        imsg = bridge.gadget_up(win, gadget_addr)
+
+        self.assertIsNone(imsg)
+        self.assertEqual(bridge.posted, [])
+        self.assertEqual(len(bridge.skipped), 1)
+        self.assertIn("did not request IDCMP_GADGETUP", bridge.skipped[0])
+
+    def test_released_gadget_activation_is_noop(self) -> None:
+        env = self._setup(IDCMP_GADGETUP)
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        gadget_addr = env.alloc.alloc_memory(0x2C).addr
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, IDCMP_GADGETUP, "Main")
+        bridge.register_gadget(gadget_addr, 1)
+        bridge.unregister_gadget(gadget_addr)  # FreeGadgets: the gadget is gone
+
+        imsg = bridge.gadget_up(win, gadget_addr)
+
+        self.assertIsNone(imsg)
+        self.assertEqual(bridge.posted, [])
+        self.assertEqual(len(bridge.skipped), 1)
+        self.assertIn("released", bridge.skipped[0])
+
+    def test_stale_window_activation_is_noop(self) -> None:
+        env = self._setup(IDCMP_GADGETUP)
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        gadget_addr = env.alloc.alloc_memory(0x2C).addr
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, IDCMP_GADGETUP, "Main")
+        bridge.register_gadget(gadget_addr, 1)
+        bridge.on_window_closed(win)  # CloseWindow: the window (and gadgets) are gone
+
+        imsg = bridge.gadget_up(win, gadget_addr)
+
+        self.assertIsNone(imsg)
+        self.assertEqual(bridge.posted, [])
+        self.assertEqual(len(bridge.skipped), 1)
+        self.assertIn("not open", bridge.skipped[0])
+
+    def test_notifies_scheduler_after_queue_insert(self) -> None:
+        env = self._setup(IDCMP_GADGETUP)
+        scheduler = _FakeScheduler()
+        env.ctx.scheduler = scheduler  # as the launcher installs it
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        gadget_addr = env.alloc.alloc_memory(0x2C).addr
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, IDCMP_GADGETUP, "Main")
+        bridge.register_gadget(gadget_addr, 1)
+
+        imsg = bridge.gadget_up(win, gadget_addr)
+
+        self.assertIsNotNone(imsg)
+        # The message is really on the port before any resume can happen.
+        self.assertTrue(env.port_mgr.has_msg(env.main_up))
+        # The hint names the message-port resource and the real UserPort.
+        self.assertEqual(scheduler.notified, [(WaitResource.MESSAGE_PORT, env.main_up)])
+
+    def test_without_scheduler_still_posts(self) -> None:
+        env = self._setup(IDCMP_GADGETUP)
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        gadget_addr = env.alloc.alloc_memory(0x2C).addr
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, IDCMP_GADGETUP, "Main")
+        bridge.register_gadget(gadget_addr, 1)
+
+        imsg = bridge.gadget_up(win, gadget_addr)
+
+        # No scheduler on the context: the notify is skipped, but the real
+        # message is still posted (the classic peek path would find it).
+        self.assertIsNotNone(imsg)
+        self.assertTrue(env.port_mgr.has_msg(env.main_up))
 
 
 class EventBridgeIntegrationTest(unittest.TestCase):

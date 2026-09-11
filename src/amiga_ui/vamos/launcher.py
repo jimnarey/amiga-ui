@@ -36,6 +36,7 @@ class ProjectSetupLibManager(SetupLibManager):
         *args,
         event_bridge: IntuitionEventBridge | None = None,
         host_projection: Any = None,
+        host_scheduler: Any = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -43,6 +44,14 @@ class ProjectSetupLibManager(SetupLibManager):
         # scripted events"; setup() then installs a fresh empty bridge so
         # impls always find the ``event_bridge`` context attribute.
         self.event_bridge = event_bridge
+        # Cooperative host scheduler (interactive run). Named ``host_scheduler``
+        # to stay clear of the vamos CPU ``scheduler`` (``SetupLibManager`` sets
+        # ``self.scheduler`` to the CPU scheduler from ``*args``). ``None`` means
+        # "no interactive scheduler": ``WaitPort`` keeps its honest headless
+        # boundary. When set (the graphical ``run`` path), it is installed as
+        # the ``scheduler`` context attribute so ``WaitPort`` and the event
+        # bridge can reach it.
+        self.host_scheduler = host_scheduler
         # Host window projection (test/Qt). ``None`` -> a no-op default so impls
         # always find the ``host_projection`` context attribute and plain probes
         # never require a display. A Qt-backed projection is only ever installed
@@ -84,6 +93,11 @@ class ProjectSetupLibManager(SetupLibManager):
         if self.event_bridge is None:
             self.event_bridge = IntuitionEventBridge()
         lib_mgr.vlib_mgr.set_ctx_extra_attr("event_bridge", self.event_bridge)
+        # Expose the cooperative host scheduler to library contexts so Exec
+        # (WaitPort) and the event bridge can reach it. ``None`` (plain probes)
+        # leaves WaitPort on its honest headless boundary; the graphical run
+        # path installs a real scheduler with its Qt event-service backend.
+        lib_mgr.vlib_mgr.set_ctx_extra_attr("scheduler", self.host_scheduler)
         # Expose the shared RastPort op log to every library context so
         # graphics (Text) and intuition (PrintIText) record into one unified
         # per-RastPort op log instead of per-library registries.
@@ -97,12 +111,40 @@ class ProjectSetupLibManager(SetupLibManager):
         # (OpenWindowTagList) can share decoded gadget state without importing
         # each other.
         lib_mgr.vlib_mgr.set_ctx_extra_attr("gadget_descriptions", self.gadget_descriptions)
+        # ``super().setup()`` registered the bootstrap exec/dos contexts via
+        # ``add_ctx`` *before* the extra attributes above were set; ``add_ctx``
+        # copies the then-empty extra-attr set, so those contexts never saw
+        # them. Every *lazily* created context (dos/intuition/gadtools/...) is
+        # created later via ``_create_vlib`` and picks them up — but the exec
+        # library (WaitPort) runs on the bootstrap exec context, so without
+        # this it sees ``scheduler``/``event_bridge``/... as missing and
+        # ``WaitPort`` falls back to the honest headless boundary. Re-apply the
+        # full extra-attr set to every already-registered context (idempotent
+        # for the later-created ones).
+        self._apply_extra_attrs_to_registered_ctxs(lib_mgr)
         # Resolve jump-table layouts for libraries missing from the bundled FD
         # data (gadtools, diskfont, workbench, asl) from the repository's NDK
         # FD tables, so their library-specific entries (e.g. GetVisualInfo)
         # exist in the jump table instead of a std-calls-only fake one.
         install_repo_fd_creator(lib_mgr.vlib_mgr)
         return lib_mgr
+
+    @staticmethod
+    def _apply_extra_attrs_to_registered_ctxs(lib_mgr) -> None:
+        """Copy the VLibManager extra-attr set onto already-registered contexts.
+
+        ``set_ctx_extra_attr`` only affects contexts created *after* the call
+        (``add_ctx`` / ``_create_vlib`` copy the dict at creation time). The
+        bootstrap exec/dos contexts are registered during ``super().setup()``,
+        i.e. before the repo's attributes are set, so they must be patched
+        explicitly here or the exec library (WaitPort) would not see the
+        cooperative host scheduler.
+        """
+
+        vlib_mgr = lib_mgr.vlib_mgr
+        for ctx in list(vlib_mgr.ctx_map.values()):
+            for key, val in vlib_mgr.ctx_extra_attr.items():
+                setattr(ctx, key, val)
 
 
 class VamosSessionRunner:
@@ -218,6 +260,7 @@ class VamosSessionRunner:
         main_profiler: MainProfiler,
         event_bridge: IntuitionEventBridge | None = None,
         host_projection: Any = None,
+        host_scheduler: Any = None,
     ) -> ProjectSetupLibManager:
         """Create the repo-owned library manager wrapper."""
 
@@ -229,6 +272,7 @@ class VamosSessionRunner:
             main_profiler=main_profiler,
             event_bridge=event_bridge,
             host_projection=host_projection,
+            host_scheduler=host_scheduler,
         )
 
     @staticmethod
@@ -242,6 +286,7 @@ class VamosSessionRunner:
         args: list[str],
         event_bridge: IntuitionEventBridge | None = None,
         host_projection: Any = None,
+        host_scheduler: Any = None,
     ):
         self.args = args
         # Host event source for IntuiMessages (test/Qt). ``None`` -> setup
@@ -251,6 +296,10 @@ class VamosSessionRunner:
         # (non-GUI) probes never require a display. A Qt-backed projection is
         # only ever passed in by the GUI path.
         self.host_projection = host_projection
+        # Cooperative host scheduler (interactive run). ``None`` -> plain
+        # (non-GUI) probes keep the honest WaitPort headless boundary; the
+        # graphical run path passes a real scheduler + its Qt backend.
+        self.host_scheduler = host_scheduler
         self.mp: VamosMainParser | None = None
         self.main_profiler: MainProfiler | None = None
         self.machine: Machine | None = None
@@ -367,6 +416,7 @@ class VamosSessionRunner:
             main_profiler,
             event_bridge=self.event_bridge,
             host_projection=self.host_projection,
+            host_scheduler=self.host_scheduler,
         )
         lib_cfg = mp.get_libs_dict()
         if not slm.parse_config(lib_cfg):
@@ -510,6 +560,7 @@ def run_vamos_in_process(
     args: list[str],
     event_bridge: IntuitionEventBridge | None = None,
     host_projection: Any = None,
+    host_scheduler: Any = None,
 ) -> int:
     """Run vamos in-process with project bootstrap hooks.
 
@@ -523,8 +574,18 @@ def run_vamos_in_process(
     through it, and a Qt-backed projection creates real host top-level windows
     and replays the recorded RastPort op stream. When omitted, a no-op default
     is installed and plain (non-GUI) probes never require a display.
+
+    ``host_scheduler`` is an optional cooperative host scheduler (the graphical
+    ``run`` path only). When provided, an empty ``WaitPort`` enters it and the
+    interactive Qt backend services host events until the real condition is met;
+    when omitted, ``WaitPort`` keeps its honest headless boundary.
     """
 
     with apply_runtime_patches():
-        runner = VamosSessionRunner(args, event_bridge=event_bridge, host_projection=host_projection)
+        runner = VamosSessionRunner(
+            args,
+            event_bridge=event_bridge,
+            host_projection=host_projection,
+            host_scheduler=host_scheduler,
+        )
         return runner.run()

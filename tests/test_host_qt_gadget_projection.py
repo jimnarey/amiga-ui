@@ -92,7 +92,9 @@ class GadgetWidgetClassTest(unittest.TestCase):
         return [type(w).__name__ for w in proj.windows[0x1000].gadget_widgets]
 
     def test_button_is_push_button(self) -> None:
-        self.assertEqual(self._classes([_desc(kind_name=KIND_BUTTON)]), ["QPushButton"])
+        # The interactive subclass retains Amiga identity while preserving the
+        # documented QPushButton widget mapping.
+        self.assertEqual(self._classes([_desc(kind_name=KIND_BUTTON)]), ["QtGadgetButton"])
 
     def test_checkbox_is_qcheckbox(self) -> None:
         self.assertEqual(self._classes([_desc(kind_name=KIND_CHECKBOX)]), ["QCheckBox"])

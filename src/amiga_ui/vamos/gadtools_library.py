@@ -564,6 +564,7 @@ class GadToolsLibrary(BaseLibrary):
         alloc = ctx.alloc
         cur = gad
         registry = gadget_registry_from_ctx(ctx)
+        bridge = getattr(ctx, "event_bridge", None)
         # Bounded walk: the list is always NULL-terminated by CreateGadgetA.
         for _ in range(0x100):
             if not cur:
@@ -579,6 +580,11 @@ class GadToolsLibrary(BaseLibrary):
             # Release the decoded description for this gadget (idempotent).
             if registry is not None:
                 registry.release(cur)
+            # Forgetting the gadget in the event bridge makes a late activation
+            # on the (now freed) gadget a no-op rather than a stale IntuiMessage
+            # (idempotent; no-op when no bridge is installed).
+            if bridge is not None:
+                bridge.unregister_gadget(cur)
             cur = mem.r32(cur + _GAD_OFF_NEXT)
         return None
 
@@ -598,8 +604,7 @@ class GadToolsLibrary(BaseLibrary):
         port_mgr = self._get_port_mgr(ctx)
         if port_mgr is None or not port_mgr.has_port(iport):
             return 0
-        result = port_mgr.get_msg(iport) or 0
-        return result
+        return port_mgr.get_msg(iport) or 0
 
     def GT_ReplyIMsg(self, ctx, imsg):
         """Classic GadTools: reply to and release an ``IntuiMessage``.

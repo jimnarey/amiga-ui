@@ -268,16 +268,18 @@ class BoundedGuiLaunchTest(unittest.TestCase):
         completed = _run_python(code, env_overrides={"QT_QPA_PLATFORM": "offscreen"})
         self.assertEqual(completed.returncode, 0, f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}")
         out = completed.stdout
-        # The target run reached its honest WaitPort boundary (not a clean exit).
-        self.assertIn("WaitPort-on-empty-queue", out)
+        # The interactive scheduler reached its honest automation timeout; it
+        # did not turn an empty WaitPort into a fabricated event.
+        self.assertIn("interactive wait timed out", completed.stderr)
+        self.assertIn("no message was fabricated", completed.stderr)
         # The real Qt projection was used (a titled host window was projected).
         self.assertIn("PYSIDE True", out)
         self.assertIn("iTidy v1.0 - Icon Cleanup Tool", out)
         # The shell entered, printed its projected windows, and exited on the
         # automation timer (no manual interaction).
-        self.assertIn("host shell active", out)
+        self.assertIn("projected window(s) remain", out)
         self.assertIn("host shell exited", out)
-        self.assertIn("RC 0", out)
+        self.assertIn("RC 3", out)
 
 
 if __name__ == "__main__":

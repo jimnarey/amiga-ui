@@ -453,6 +453,35 @@ class AmigaHostWindow(QWidget):
         return self._has_menu_strip
 
 
+class QtGadgetButton(QPushButton):
+    """A projected ``BUTTON`` gadget recording its real Amiga window/gadget address.
+
+    The recorded addresses are what the *generic* activation path posts: a click
+    becomes a real ``IDCMP_GADGETUP`` IntuiMessage whose ``IAddress`` is this
+    gadget's real emulated ``struct Gadget *``, queued on the owning window's
+    real ``UserPort``. Which button gets clicked is the host/test's business (a
+    person clicks, or a test locates the widget by its visible text); the
+    *translation* of a click into an Amiga message is always address-based, never
+    string-based — no ``"Exit"`` literal or hard-coded ``GadgetID`` ever appears
+    in the production path.
+    """
+
+    def __init__(
+        self,
+        text: str,
+        window_addr: int,
+        gadget_addr: int,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(text, parent)
+        # Emulated addresses (identity keys only — never dereferenced by the
+        # host). ``window_addr`` is the owning window's real ``struct Window *``
+        # (its ``UserPort`` is what the message is queued on); ``gadget_addr`` is
+        # this gadget's real ``struct Gadget *`` (preserved as ``IAddress``).
+        self.amiga_window_addr = window_addr
+        self.amiga_gadget_addr = gadget_addr
+
+
 @dataclass
 class _ProjectedWindow:
     """Host-side association of one Amiga window address to its projection."""
@@ -480,12 +509,27 @@ class QtHostWindowProjection:
         app: QApplication,
         palette: tuple[tuple[int, int, int], ...] = CLASSIC_PEN_PALETTE,
         background: tuple[int, int, int] = DEFAULT_SURFACE_BACKGROUND,
+        event_source: Any = None,
+        window_projected_hook: Any = None,
     ) -> None:
         self._app = app
         self._palette = palette
         self._background = background
         self._registry: Any = None
         self._windows: dict[int, _ProjectedWindow] = {}
+        # Host event source (the Intuition event bridge). When set, a projected
+        # ``BUTTON`` click is translated into a real ``IDCMP_GADGETUP``
+        # IntuiMessage on the owning window's real ``UserPort`` (address-based;
+        # see :class:`QtGadgetButton`). ``None`` keeps the widgets display-only
+        # (the pre-interactive behaviour), so plain projection smoke tests never
+        # need an event bridge.
+        self._event_source = event_source
+        # Optional host callback ``window_projected(window_addr)`` invoked after
+        # an app-facing window is fully projected (window + gadget widgets built
+        # and shown). A generic readiness hook: the host shell can use it to
+        # enable its chrome, and the interactive test uses it to schedule the
+        # gadget activation once the window (and its buttons) exist.
+        self._window_projected_hook = window_projected_hook
 
     # -- HostWindowProjection interface --------------------------------------
     def bind_registry(self, registry: Any) -> None:
@@ -498,7 +542,7 @@ class QtHostWindowProjection:
 
         return window.fontMetrics().horizontalAdvance(label) + 2
 
-    def _build_gadget_widget(self, window: AmigaHostWindow, desc: GadgetDescription) -> list[QWidget]:
+    def _build_gadget_widget(self, window: AmigaHostWindow, desc: GadgetDescription, window_addr: int) -> list[QWidget]:
         """Build the positioned host widget(s) for one projectable gadget.
 
         The widget(s) are *direct children of* ``window`` (not in its layout),
@@ -522,8 +566,14 @@ class QtHostWindowProjection:
         kind = desc.kind_name
         widgets: list[QWidget] = []
         if kind == KIND_BUTTON:
-            widget = QPushButton(desc.label, window)
+            # A BUTTON is an address-recording widget: a click is translated
+            # (generically, address-based) into a real ``IDCMP_GADGETUP`` on the
+            # owning window's real ``UserPort`` via the event bridge. Without an
+            # event source the button stays display-only (pre-interactive).
+            widget = QtGadgetButton(desc.label, window_addr, desc.gadget_addr, window)
             widget.setGeometry(left, top, max(1, width), max(1, height))
+            if self._event_source is not None:
+                widget.clicked.connect(lambda _checked=False, btn=widget: self._on_gadget_clicked(btn))
             widgets.append(widget)
         elif kind == KIND_CHECKBOX:
             widget = QCheckBox(desc.label, window)
@@ -588,8 +638,32 @@ class QtHostWindowProjection:
         # unsupported kind), but double-check before building.
         for desc in intent.gadgets:
             if desc.is_projectable:
-                projected.gadget_widgets.extend(self._build_gadget_widget(window, desc))
+                projected.gadget_widgets.extend(self._build_gadget_widget(window, desc, intent.window_addr))
         window.show()
+        if self._window_projected_hook is not None:
+            # A generic readiness notification (not Amiga-specific): the app's
+            # window and its gadget widgets now exist on the host. The
+            # interactive test uses this to schedule the gadget activation once
+            # the buttons exist; the host shell could use it to enable chrome.
+            self._window_projected_hook(intent.window_addr)
+
+    def _on_gadget_clicked(self, button: QtGadgetButton) -> None:
+        """Translate a projected BUTTON click into a real Amiga gadget event.
+
+        The generic, address-based activation path: it asks the event source
+        (the Intuition event bridge) to post a real ``IDCMP_GADGETUP``
+        IntuiMessage — carrying this button's real emulated ``struct Gadget *``
+        as ``IAddress`` — onto the owning window's real ``UserPort``. No host
+        event is ever fabricated by the scheduler itself; the real message is
+        what wakes any target parked in ``WaitPort``. Stale clicks (the window
+        already closed, the gadget already released) are handled by the bridge
+        as honest no-ops (recorded in its ``skipped`` list), so a late signal
+        after release can never corrupt a released port.
+        """
+
+        if self._event_source is None:
+            return
+        self._event_source.gadget_up(button.amiga_window_addr, button.amiga_gadget_addr)
 
     def refresh_window(self, window_addr: int) -> None:
         projected = self._windows.get(window_addr)

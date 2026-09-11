@@ -155,8 +155,15 @@ same `WaitPort -> GT_GetIMsg -> GT_ReplyIMsg` path as other input.
 
 ## Example: Disassembling 68k Call Sites
 
+Use disassembly only to answer a bounded binary-specific question after traces,
+app source, classic headers/FD files, AutoDocs, and settled project notes have
+failed to decide it. Good examples are identifying the displacement used by one
+known field access or mapping a runtime PC to one call site. Do not use broad
+disassembly exploration to replace those sources, and do not reopen a settled
+ABI merely because a native-host `sizeof` experiment disagrees with it.
+
 When the observed behavior suggests a library call is not reaching a `vamos`
-trap, prefer a repo-owned disassembly path over ad hoc opcode decoding. Use
+trap, prefer the repo-owned path over ad hoc opcode decoding. Use
 `tools/disassemble_m68k.py` for raw binary, segment, or memory-dump inspection:
 
 ```bash
@@ -167,6 +174,15 @@ Remember that Amiga hunk file offsets are not automatically runtime addresses.
 For relocated `vamos` code, first identify the loaded segment base or dump the
 relocated bytes, then pass `--base` or `--address` so printed instructions line
 up with addresses from `vamos.log`.
+
+Before starting, record the exact instruction, field, vector, or branch being
+sought and a concrete stop condition. Treat failure to find it as inconclusive,
+not permission for open-ended binary archaeology. Native host compilers are not
+a shortcut for this work: substituting four-byte integers for Amiga pointers
+does not reproduce the classic m68k compiler ABI. Do not add a cross-compiler
+just to answer a layout question; use the existing evidence path. Unless a
+future task explicitly introduces and validates a target toolchain, compiler
+output is not evidence for changing repo ABI constants.
 
 ## Design Rules
 

@@ -45,6 +45,25 @@ When diagnosing an app failure, prefer evidence in this order:
 
 If these sources disagree, stop and document the conflict rather than silently choosing a later platform model.
 
+### Compiler and ABI evidence
+
+Never derive classic m68k structure offsets by compiling a copied declaration
+with the native host compiler. Matching a target pointer's four-byte *width*
+with `uint32_t` does not reproduce its alignment, padding, fundamental C type
+model, packing options, or compiler ABI. The resulting `sizeof`/`offsetof`
+values describe the host ABI and can be internally consistent while remaining
+wrong for every target access.
+
+Do not introduce a cross-compiler merely to settle a structure layout. The
+project's normal evidence path is classic documentation, app-specific notes,
+focused runtime memory evidence and, only when necessary, bounded inspection of
+the shipped binary. Even a genuine Amiga m68k cross-compiler would be
+supplementary because its compiler family, headers and options might differ from
+those used for the target application. Unless a future task explicitly adopts
+and validates such a toolchain, no compiler-produced `sizeof`/`offsetof` result
+is admissible evidence for changing the compatibility ABI. Never let an ad hoc
+compiler experiment override a settled layout.
+
 ### Cached NDK provenance warning
 
 The directory name `assets/docs/ndk/NDK3.2/` is not sufficient provenance for
