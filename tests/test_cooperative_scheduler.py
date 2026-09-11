@@ -11,18 +11,19 @@ separately (it needs a QApplication); here the backend is a scripted stand-in.
 
 from __future__ import annotations
 
+import dataclasses
 import time
 import unittest
 
 from amiga_ui.host.scheduler import (
     EXECUTION_CONTEXT_ID,
+    CooperativeHostScheduler,
     HostEventServiceBackend,
     MessagePortWait,
     SchedulerBusyError,
     WaitOutcome,
     WaitRegistration,
     WaitResource,
-    CooperativeHostScheduler,
 )
 
 PORT = 0x00A1B2C0
@@ -76,7 +77,7 @@ class MessagePortWaitRequestTest(unittest.TestCase):
 
     def test_request_is_immutable(self) -> None:
         request = MessagePortWait(port_addr=PORT)
-        with self.assertRaises(Exception):
+        with self.assertRaises(dataclasses.FrozenInstanceError):
             request.port_addr = OTHER_PORT  # type: ignore[misc]
 
 

@@ -32,8 +32,8 @@ from PySide6.QtWidgets import QApplication, QPushButton  # noqa: E402
 
 from amiga_ui.config import PROJECT_ROOT  # noqa: E402
 from amiga_ui.host.projection import (  # noqa: E402
-    GadgetDescription,
     KIND_BUTTON,
+    GadgetDescription,
     OpenWindowIntent,
 )
 from amiga_ui.host.qt_projection import QtGadgetButton, QtHostWindowProjection  # noqa: E402

@@ -102,8 +102,7 @@ def _run(app_dir: Path) -> int:
 
     from amiga_ui.host.qt_projection import QtGadgetButton, QtHostWindowProjection
     from amiga_ui.host.qt_scheduler_backend import QtEventLoopBackend
-    from amiga_ui.host.scheduler import CooperativeHostScheduler, WaitOutcome
-    from amiga_ui.vamos.event_bridge import IDCMP_GADGETUP
+    from amiga_ui.host.scheduler import CooperativeHostScheduler
     from amiga_ui.vamos.event_bridge import IntuitionEventBridge
     from amiga_ui.vamos.launcher import run_vamos_in_process
     from tests.test_vamos_launcher import _LauncherRuntimeFixture

@@ -33,8 +33,9 @@ from __future__ import annotations
 
 import enum
 import time
-from dataclasses import dataclass, field
-from typing import Callable, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+
 
 # --- Wait outcomes -------------------------------------------------------------
 class WaitOutcome(enum.Enum):
@@ -112,7 +113,7 @@ class WaitRegistration:
     request: MessagePortWait
     execution_context: str
     state: str = "pending"  # "pending" | "satisfied" | "cancelled"
-    outcome: Optional[WaitOutcome] = None
+    outcome: WaitOutcome | None = None
 
 
 # --- Replaceable host event-service backend ------------------------------------
@@ -130,7 +131,7 @@ class HostEventServiceBackend:
         self,
         registration: WaitRegistration,
         readiness: Callable[[], bool],
-        deadline: Optional[float],
+        deadline: float | None,
     ) -> WaitOutcome:
         """Block the event service until ``readiness()`` is true or a terminal
         outcome is reached.
@@ -167,21 +168,21 @@ class CooperativeHostScheduler:
 
     def __init__(self, backend: HostEventServiceBackend) -> None:
         self._backend = backend
-        self._active: Optional[WaitRegistration] = None
+        self._active: WaitRegistration | None = None
         self._token_seq = 0
         # The terminal outcome of the most recent wait (``None`` before any
         # wait, or when the run never reached a supported wait). The run command
         # reads this to distinguish application-driven completion, host
         # shutdown, automation timeout, and target-phase failure.
-        self.last_outcome: Optional[WaitOutcome] = None
+        self.last_outcome: WaitOutcome | None = None
         # Optional automation/diagnostic bound for a wait, in seconds. When set,
         # a wait entered through :meth:`run_wait` without an explicit deadline
         # is bounded by ``monotonic() + wait_bound`` so automation can terminate
         # it honestly (a :attr:`WaitOutcome.TIMEOUT`, never a fabricated
         # message). ``None`` means "no bound" (interactive, no automation).
-        self._wait_bound: Optional[float] = None
+        self._wait_bound: float | None = None
 
-    def set_wait_bound(self, seconds: Optional[float]) -> None:
+    def set_wait_bound(self, seconds: float | None) -> None:
         """Set (or clear, with ``None``) the automation wait bound in seconds."""
 
         self._wait_bound = seconds
@@ -191,7 +192,7 @@ class CooperativeHostScheduler:
         self,
         request: MessagePortWait,
         readiness: Callable[[], bool],
-        deadline: Optional[float] = None,
+        deadline: float | None = None,
     ) -> WaitOutcome:
         """Wait until the real condition named by ``request`` is satisfied.
 
@@ -212,8 +213,7 @@ class CooperativeHostScheduler:
 
         if self._active is not None:
             raise SchedulerBusyError(
-                "a second independently active wait is not supported by the "
-                "single-active-context cooperative scheduler"
+                "a second independently active wait is not supported by the single-active-context cooperative scheduler"
             )
 
         # Apply the automation bound when the caller did not pass an explicit
@@ -273,7 +273,7 @@ class CooperativeHostScheduler:
 
     # -- introspection (tests / the run command) ------------------------------
     @property
-    def active(self) -> Optional[WaitRegistration]:
+    def active(self) -> WaitRegistration | None:
         """The currently outstanding registration (or ``None``)."""
 
         return self._active

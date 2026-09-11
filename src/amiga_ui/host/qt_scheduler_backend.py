@@ -22,7 +22,7 @@ never by the low-level Amiga library implementations.
 from __future__ import annotations
 
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from PySide6.QtCore import QEventLoop, QTimer
 
@@ -38,8 +38,8 @@ class QtEventLoopBackend(HostEventServiceBackend):
         # in a nested one). ``None`` is tolerated for tests that construct the
         # backend without a live app.
         self._app = app
-        self._loop: Optional[QEventLoop] = None
-        self._timeout_timer: Optional[QTimer] = None
+        self._loop: QEventLoop | None = None
+        self._timeout_timer: QTimer | None = None
         self._shutdown_requested = False
         self._timeout_fired = False
 
@@ -48,7 +48,7 @@ class QtEventLoopBackend(HostEventServiceBackend):
         self,
         registration: WaitRegistration,
         readiness: Callable[[], bool],
-        deadline: Optional[float],
+        deadline: float | None,
     ) -> WaitOutcome:
         """Park the target's call stack in a nested Qt loop until ``readiness``.
 
@@ -90,7 +90,7 @@ class QtEventLoopBackend(HostEventServiceBackend):
             self._stop_timeout_timer()
             self._loop = None
 
-    def wake(self, registration: Optional[WaitRegistration]) -> None:
+    def wake(self, registration: WaitRegistration | None) -> None:
         """Wake the blocked nested loop so it can recheck the real condition.
 
         ``registration`` is not used to decide anything (the loop is the single
