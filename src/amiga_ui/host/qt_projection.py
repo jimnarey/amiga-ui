@@ -425,7 +425,9 @@ class AmigaHostWindow(QWidget):
     request is answered with a real ``IDCMP_CLOSEWINDOW`` ``IntuiMessage`` for
     this window's real ``struct Window *``, and the widget stays open. Only the
     application's own ``CloseWindow`` — which reaches the projection through
-    :meth:`QtHostWindowProjection.close_window` — destroys the widget. See
+    :meth:`QtHostWindowProjection.close_window` — destroys the widget while the
+    session is live; a forced host shutdown (after the session ended, see
+    :meth:`QtHostWindowProjection.mark_session_ended`) completes in Qt. See
     ``docs/architecture/cooperative-host-scheduler.md`` "Window Close Semantics".
     """
 
@@ -483,10 +485,13 @@ class AmigaHostWindow(QWidget):
         Repeated requests are harmless: the bridge treats a second request while
         the first is still in flight as an idempotent no-op.
 
-        The one case that must still close is the app-driven release:
-        :meth:`QtHostWindowProjection.close_window` pops the projection record
+        The cases that must still close: the app-driven release
+        (:meth:`QtHostWindowProjection.close_window` pops the projection record
         *before* calling ``host_window.close()``, so the handler reports "no
-        window left to notify" and the close proceeds.
+        window left to notify" and the close proceeds), and a forced host
+        shutdown once the Amiga session has ended
+        (:meth:`QtHostWindowProjection.mark_session_ended` — including the
+        synthesised close events that ``QApplication::quit()`` delivers).
         """
 
         handler = self._close_request_handler
@@ -578,6 +583,14 @@ class QtHostWindowProjection:
         # enable its chrome, and the interactive test uses it to schedule the
         # gadget activation once the window (and its buttons) exist.
         self._window_projected_hook = window_projected_hook
+        # Set once the Amiga session behind this projection has ended (the
+        # target returned from the run): no later host close request can be
+        # translated into a target event any more — the bridge's emulated
+        # context is gone. From then on a close request is the *forced host
+        # shutdown* case of "Window Close Semantics": a host-lifecycle
+        # outcome, never a deferrable interactive request. See
+        # :meth:`mark_session_ended`.
+        self._session_ended = False
 
     # -- HostWindowProjection interface --------------------------------------
     def bind_registry(self, registry: Any) -> None:
@@ -720,6 +733,27 @@ class QtHostWindowProjection:
             return
         self._event_source.gadget_up(button.amiga_window_addr, button.amiga_gadget_addr)
 
+    def mark_session_ended(self) -> None:
+        """Record that the Amiga session behind this projection has ended.
+
+        The host shell calls this as soon as the target returns from the run.
+        The emulated context is gone by then, so a close request can no longer
+        be translated into a real ``IDCMP_CLOSEWINDOW`` message for the app —
+        and per ``docs/architecture/cooperative-host-scheduler.md`` ("Window
+        Close Semantics") an *explicit forced host shutdown* remains possible
+        as a host-lifecycle outcome. Marking the session ended is exactly that
+        switch: subsequent close requests are completed by Qt instead of being
+        deferred to a session that can no longer answer them.
+
+        This is also what keeps ``QApplication::quit()`` working: the widgets
+        layer turns an application quit into a synthesised (non-spontaneous)
+        ``QCloseEvent`` per visible top-level window, so deferring those
+        forever — with nothing left to notify, and a dead bridge context
+        behind them — would both crash and wedge the shutdown.
+        """
+
+        self._session_ended = True
+
     def _on_close_request(self, window_addr: int) -> bool:
         """Route one host window-manager close request to the Amiga side.
 
@@ -731,16 +765,19 @@ class QtHostWindowProjection:
         requested ``IDCMP_CLOSEWINDOW``) and makes a second request while the
         first is still in flight an idempotent no-op.
 
-        Returns ``True`` when the window is still projected: the app owns the
-        close decision, so the widget must stay open until *it* calls
-        ``CloseWindow`` (a close request that never gets a reply leaves the host
-        window open rather than silently vanishing). Returns ``False`` when this
-        address is no longer projected — which is exactly the app-driven release
-        in :meth:`close_window`, where the record is popped before the widget is
-        closed — so that close is allowed to complete.
+        Returns ``True`` when the window is still projected and the session is
+        live: the app owns the close decision, so the widget must stay open
+        until *it* calls ``CloseWindow`` (a close request that never gets a
+        reply leaves the host window open rather than silently vanishing).
+        Returns ``False`` — let Qt complete the close — when there is no Amiga
+        window left to notify: either this address is no longer projected
+        (exactly the app-driven release in :meth:`close_window`, where the
+        record is popped before the widget is closed), or the session has
+        ended (:meth:`mark_session_ended`) and the request is a forced host
+        shutdown, not a deferrable interactive close.
         """
 
-        if self._event_source is None or window_addr not in self._windows:
+        if self._event_source is None or self._session_ended or window_addr not in self._windows:
             return False
         self._event_source.request_close_window(window_addr)
         return True

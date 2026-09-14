@@ -13,9 +13,12 @@ The route under test (``docs/architecture/cooperative-host-scheduler.md``
 These are the widget/projection-level tests (no target binary): the close
 request is refused by Qt and forwarded *by real window address*; a window that
 never requested ``IDCMP_CLOSEWINDOW`` gets no message and must not vanish; the
-second request is an idempotent no-op; and the app-driven release path
+second request is an idempotent no-op; the app-driven release path
 (:meth:`QtHostWindowProjection.close_window`) remains the only place the widget
-is destroyed. The full real-iTidy route is covered by
+is destroyed while the session is live; and once the session has ended
+(``mark_session_ended`` — ``--auto-close-after``'s forced shutdown, whose
+``app.quit()`` synthesises a close per visible window) closes complete in Qt
+without touching the bridge. The full real-iTidy route is covered by
 ``tests/run_interactive_close_smoke_test.py``.
 
 Requires PySide6 and a headless display: run under Xvfb or with
@@ -34,7 +37,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from amiga_ui.host.projection import OpenWindowIntent  # noqa: E402
-from amiga_ui.host.qt_projection import QtHostWindowProjection  # noqa: E402
+from amiga_ui.host.qt_projection import AmigaHostWindow, QtHostWindowProjection  # noqa: E402
 from amiga_ui.host.scheduler import WaitResource  # noqa: E402
 from amiga_ui.vamos.event_bridge import (  # noqa: E402
     IDCMP_CLOSEWINDOW,
@@ -120,6 +123,14 @@ def _live_bridge(idcmp: int = _MAIN_IDCMP, window_addr: int = WINDOW_ADDR):
     return bridge, ctx, port_mgr, scheduler, user_port, window_port
 
 
+def _projected_window(projection: QtHostWindowProjection, window_addr: int = WINDOW_ADDR) -> AmigaHostWindow:
+    """Narrow ``host_window(...)``: the projection must have projected this window."""
+
+    window = projection.host_window(window_addr)
+    assert window is not None, f"window {window_addr:06x} was never projected"
+    return window
+
+
 class CloseRequestDeferralTest(_QtTestCase):
     """A host close request never destroys the widget; it becomes an Amiga event."""
 
@@ -127,7 +138,7 @@ class CloseRequestDeferralTest(_QtTestCase):
         bridge = _CloseRecordingBridge()
         projection = QtHostWindowProjection(self.app, event_source=bridge)
         projection.open_window(_intent())
-        window = projection.host_window(WINDOW_ADDR)
+        window = _projected_window(projection)
         self.assertTrue(window.isVisible())
 
         closed = window.close()  # the host asking this window to close
@@ -142,7 +153,7 @@ class CloseRequestDeferralTest(_QtTestCase):
         bridge = _CloseRecordingBridge()
         projection = QtHostWindowProjection(self.app, event_source=bridge)
         projection.open_window(_intent())
-        window = projection.host_window(WINDOW_ADDR)
+        window = _projected_window(projection)
 
         self.assertFalse(window.close())
         self.assertFalse(window.close())
@@ -153,7 +164,7 @@ class CloseRequestDeferralTest(_QtTestCase):
     def test_widget_without_event_source_keeps_plain_qt_behaviour(self) -> None:
         projection = QtHostWindowProjection(self.app, event_source=None)
         projection.open_window(_intent())
-        window = projection.host_window(WINDOW_ADDR)
+        window = _projected_window(projection)
         # Display-only projection: no Amiga window to notify, so the pre-existing
         # plain-Qt close behaviour is preserved (this is what the non-interactive
         # projection smoke tests rely on).
@@ -164,7 +175,7 @@ class CloseRequestDeferralTest(_QtTestCase):
         bridge = _CloseRecordingBridge()
         projection = QtHostWindowProjection(self.app, event_source=bridge)
         projection.open_window(_intent())
-        window = projection.host_window(WINDOW_ADDR)
+        window = _projected_window(projection)
 
         projection.close_window(WINDOW_ADDR)  # the app called CloseWindow
 
@@ -181,7 +192,7 @@ class CloseRequestBridgeTest(_QtTestCase):
         bridge, ctx, port_mgr, _sched, user_port, window_port = _live_bridge()
         projection = QtHostWindowProjection(self.app, event_source=bridge)
         projection.open_window(_intent())
-        window = projection.host_window(WINDOW_ADDR)
+        window = _projected_window(projection)
 
         window.close()
         window.close()  # double-click / a request while the first is pending
@@ -193,6 +204,7 @@ class CloseRequestBridgeTest(_QtTestCase):
         self.assertEqual(record["port"], user_port)
         self.assertTrue(port_mgr.has_msg(user_port))
         imsg = port_mgr.peek_msg(user_port)
+        assert imsg is not None, "the real message must be queued on the real UserPort"
         self.assertEqual(imsg, record["imsg"])
         # The settled iTidy IntuiMessage layout (offsets unchanged this session).
         self.assertEqual(ctx.mem.r32(imsg + IMSG_OFF_CLASS), IDCMP_CLOSEWINDOW)
@@ -210,7 +222,7 @@ class CloseRequestBridgeTest(_QtTestCase):
         projection = QtHostWindowProjection(self.app, event_source=bridge)
         projection.open_window(_intent())
 
-        projection.host_window(WINDOW_ADDR).close()
+        _projected_window(projection).close()
 
         self.assertEqual(scheduler.notified, [(WaitResource.MESSAGE_PORT, user_port)])
         # The hint is only meaningful once the message is really queued.
@@ -222,7 +234,7 @@ class CloseRequestBridgeTest(_QtTestCase):
         )
         projection = QtHostWindowProjection(self.app, event_source=bridge)
         projection.open_window(_intent(idcmp=IDCMP_GADGETUP))
-        window = projection.host_window(WINDOW_ADDR)
+        window = _projected_window(projection)
 
         closed = window.close()
 
@@ -253,7 +265,7 @@ class CloseRequestBridgeTest(_QtTestCase):
         bridge, ctx, port_mgr, _scheduler, user_port, _window_port = _live_bridge()
         projection = QtHostWindowProjection(self.app, event_source=bridge)
         projection.open_window(_intent())
-        window = projection.host_window(WINDOW_ADDR)
+        window = _projected_window(projection)
 
         window.close()
         first = bridge.posted[0]["imsg"]
@@ -271,7 +283,7 @@ class CloseRequestBridgeTest(_QtTestCase):
         bridge, _ctx, port_mgr, _scheduler, user_port, window_port = _live_bridge()
         projection = QtHostWindowProjection(self.app, event_source=bridge)
         projection.open_window(_intent())
-        window = projection.host_window(WINDOW_ADDR)
+        window = _projected_window(projection)
 
         window.close()
         # The app closed this window; a *new* window later reuses the address.
@@ -281,6 +293,70 @@ class CloseRequestBridgeTest(_QtTestCase):
 
         self.assertEqual(bridge.request_close_window(WINDOW_ADDR) is not None, True)
         self.assertEqual(len(bridge.posted), 2)
+
+
+class HostForcedShutdownTest(_QtTestCase):
+    """The forced-host-shutdown case: closes once the Amiga session has ended.
+
+    ``--auto-close-after`` bounds the interactive wait and then asks the shell
+    to exit via ``app.quit()`` — which the widgets layer answers with a
+    *synthesised* ``QCloseEvent`` per visible top-level window. That is not a
+    genuine interactive close request: the target has already returned, its
+    emulated context is gone, and deferring the request would both post into a
+    dead allocator and wedge the quit forever (an ignored close keeps Qt from
+    leaving the loop). ``mark_session_ended()`` is the documented host-lifecycle
+    switch ("Window Close Semantics": an explicit forced host shutdown remains
+    possible); these tests pin down both sides of it.
+    """
+
+    def test_live_session_close_request_still_defers(self) -> None:
+        # Sanity for the switch's *absence*: before the session ends, the
+        # deferral is intact (this is the interactive close path, not a
+        # forced shutdown).
+        bridge = _CloseRecordingBridge()
+        projection = QtHostWindowProjection(self.app, event_source=bridge)
+        projection.open_window(_intent())
+        window = _projected_window(projection)
+
+        self.assertFalse(window.close())
+
+        self.assertTrue(window.isVisible())
+        self.assertEqual(bridge.close_requests, [WINDOW_ADDR])
+
+    def test_close_after_session_end_completes_in_qt_without_the_bridge(self) -> None:
+        bridge = _CloseRecordingBridge()
+        projection = QtHostWindowProjection(self.app, event_source=bridge)
+        projection.open_window(_intent())
+        window = _projected_window(projection)
+
+        # The target returned: run_command marks the session ended, and the
+        # forced shutdown (app.quit()'s synthesised close, or a plain close
+        # click now) must destroy the window rather than defer it.
+        projection.mark_session_ended()
+        self.assertTrue(window.close())
+
+        self.assertFalse(window.isVisible())
+        # Nothing was fabricated: no close-window request reached the bridge.
+        self.assertEqual(bridge.close_requests, [])
+        # The projection record stays the release path's to pop, exactly as
+        # before: host teardown goes through close_window (idempotent here).
+        projection.close_window(WINDOW_ADDR)
+        self.assertEqual(projection.windows, {})
+
+    def test_session_end_still_lets_the_app_release_path_close(self) -> None:
+        bridge, _ctx, port_mgr, _scheduler, user_port, _window_port = _live_bridge()
+        projection = QtHostWindowProjection(self.app, event_source=bridge)
+        projection.open_window(_intent())
+        window = _projected_window(projection)
+
+        projection.mark_session_ended()
+        projection.close_window(WINDOW_ADDR)
+
+        self.assertIsNone(projection.host_window(WINDOW_ADDR))
+        self.assertFalse(window.isVisible())
+        # close_window remains the only destruction path; no message appears.
+        self.assertEqual(bridge.posted, [])
+        self.assertFalse(port_mgr.has_msg(user_port))
 
 
 if __name__ == "__main__":
