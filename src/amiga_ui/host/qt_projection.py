@@ -419,6 +419,14 @@ class AmigaHostWindow(QWidget):
     unless an Amiga menu strip is attached — none are in this increment, so every
     host window is menu-bar-free by construction. It carries the Amiga window's
     title and initial geometry and hosts one :class:`RastPortReplaySurface`.
+
+    Host close requests are **deferred, not honoured**, whenever an event source
+    is wired (``close_request_handler``): the window-manager / close-button
+    request is answered with a real ``IDCMP_CLOSEWINDOW`` ``IntuiMessage`` for
+    this window's real ``struct Window *``, and the widget stays open. Only the
+    application's own ``CloseWindow`` — which reaches the projection through
+    :meth:`QtHostWindowProjection.close_window` — destroys the widget. See
+    ``docs/architecture/cooperative-host-scheduler.md`` "Window Close Semantics".
     """
 
     def __init__(
@@ -432,10 +440,22 @@ class AmigaHostWindow(QWidget):
         background: tuple[int, int, int] = DEFAULT_SURFACE_BACKGROUND,
         has_menu_strip: bool = False,
         parent: QWidget | None = None,
+        window_addr: int = 0,
+        close_request_handler: Any = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle(title)
         self._has_menu_strip = has_menu_strip
+        # Emulated identity key (never dereferenced by the host): the real
+        # ``struct Window *`` this widget projects. The close path is
+        # address-based, exactly like :class:`QtGadgetButton`'s activation.
+        self.amiga_window_addr = window_addr
+        # ``close_request_handler(window_addr) -> bool``: set by the projection
+        # when an event source exists. Truthy means "the Amiga-side close path
+        # took the request over" (stay open); falsy means there is no Amiga
+        # window left to notify — the app already called ``CloseWindow`` and the
+        # release path is closing this widget, so Qt may finish the job.
+        self._close_request_handler = close_request_handler
         # Menu bar only when an Amiga menu strip is actually attached; none in
         # this increment, so the default is "no menu bar".
         self.menu_bar: Any = None
@@ -451,6 +471,34 @@ class AmigaHostWindow(QWidget):
     @property
     def has_menu_strip(self) -> bool:
         return self._has_menu_strip
+
+    def closeEvent(self, event: Any) -> None:  # noqa: N802 (Qt naming)
+        """Defer a host close request to the Amiga side; never self-destroy.
+
+        A window-manager close request is *not* permission to destroy the
+        projection: the app owns the window's lifetime. When an event source is
+        wired, the event is refused (``event.ignore()`` — the widget stays open)
+        and the request is forwarded, by real window address, to the projection,
+        which asks the event bridge for a real ``IDCMP_CLOSEWINDOW`` message.
+        Repeated requests are harmless: the bridge treats a second request while
+        the first is still in flight as an idempotent no-op.
+
+        The one case that must still close is the app-driven release:
+        :meth:`QtHostWindowProjection.close_window` pops the projection record
+        *before* calling ``host_window.close()``, so the handler reports "no
+        window left to notify" and the close proceeds.
+        """
+
+        handler = self._close_request_handler
+        if handler is None:
+            # No event source (display-only projection / plain smoke tests):
+            # keep the pre-existing Qt behaviour and close normally.
+            super().closeEvent(event)
+            return
+        if handler(self.amiga_window_addr):
+            event.ignore()
+            return
+        super().closeEvent(event)
 
 
 class QtGadgetButton(QPushButton):
@@ -630,6 +678,13 @@ class QtHostWindowProjection:
             self._palette,
             self._background,
             intent.has_menu_strip,
+            # The close path is address-based, like the gadget path: the widget
+            # carries the real ``struct Window *`` it projects and defers any
+            # host close request back to the projection (only with an event
+            # source; otherwise the widget keeps the plain display-only
+            # behaviour and closes normally).
+            window_addr=intent.window_addr,
+            close_request_handler=self._on_close_request if self._event_source is not None else None,
         )
         projected.host_window = window
         # Project the window's own GadTools gadgets as positioned overlay
@@ -664,6 +719,31 @@ class QtHostWindowProjection:
         if self._event_source is None:
             return
         self._event_source.gadget_up(button.amiga_window_addr, button.amiga_gadget_addr)
+
+    def _on_close_request(self, window_addr: int) -> bool:
+        """Route one host window-manager close request to the Amiga side.
+
+        Called from :meth:`AmigaHostWindow.closeEvent` with that widget's real
+        ``struct Window *`` — the same address-based pattern as
+        :meth:`_on_gadget_clicked`. It asks the event source for a real
+        ``IDCMP_CLOSEWINDOW`` ``IntuiMessage`` on that window's real
+        ``UserPort``; the bridge filters it (window gone, or the window never
+        requested ``IDCMP_CLOSEWINDOW``) and makes a second request while the
+        first is still in flight an idempotent no-op.
+
+        Returns ``True`` when the window is still projected: the app owns the
+        close decision, so the widget must stay open until *it* calls
+        ``CloseWindow`` (a close request that never gets a reply leaves the host
+        window open rather than silently vanishing). Returns ``False`` when this
+        address is no longer projected — which is exactly the app-driven release
+        in :meth:`close_window`, where the record is popped before the widget is
+        closed — so that close is allowed to complete.
+        """
+
+        if self._event_source is None or window_addr not in self._windows:
+            return False
+        self._event_source.request_close_window(window_addr)
+        return True
 
     def refresh_window(self, window_addr: int) -> None:
         projected = self._windows.get(window_addr)
