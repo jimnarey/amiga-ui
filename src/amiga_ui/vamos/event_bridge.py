@@ -372,14 +372,10 @@ class IntuitionEventBridge:
             self.skipped.append(f"closewindow: window {window_addr:06x} not open (stale request)")
             return None
         if not (info["idcmp"] & IDCMP_CLOSEWINDOW):
-            self.skipped.append(
-                f"closewindow: window {window_addr:06x} did not request IDCMP_CLOSEWINDOW"
-            )
+            self.skipped.append(f"closewindow: window {window_addr:06x} did not request IDCMP_CLOSEWINDOW")
             return None
         if window_addr in self._close_pending:
-            self.skipped.append(
-                f"closewindow: window {window_addr:06x} close request already pending (idempotent)"
-            )
+            self.skipped.append(f"closewindow: window {window_addr:06x} close request already pending (idempotent)")
             return None
         if self._ctx is None:
             self.skipped.append("closewindow: no live context to allocate the message")

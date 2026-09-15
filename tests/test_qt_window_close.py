@@ -229,9 +229,7 @@ class CloseRequestBridgeTest(_QtTestCase):
         self.assertEqual(scheduler.port_had_message_at_notify, [True])
 
     def test_window_that_did_not_request_closewindow_gets_no_message(self) -> None:
-        bridge, _ctx, port_mgr, scheduler, user_port, _window_port = _live_bridge(
-            idcmp=IDCMP_GADGETUP
-        )
+        bridge, _ctx, port_mgr, scheduler, user_port, _window_port = _live_bridge(idcmp=IDCMP_GADGETUP)
         projection = QtHostWindowProjection(self.app, event_source=bridge)
         projection.open_window(_intent(idcmp=IDCMP_GADGETUP))
         window = _projected_window(projection)
