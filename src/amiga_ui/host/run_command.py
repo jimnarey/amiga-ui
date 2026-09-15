@@ -161,6 +161,17 @@ def run_gui_launch(
         host_scheduler=host_scheduler,
         projection=projection,
     )
+    # The Amiga session is over: the target returned, so the bridge's emulated
+    # context is gone and no later host close request can become a real
+    # ``IDCMP_CLOSEWINDOW``. From here on, closing a projected window is the
+    # *forced host shutdown* case of "Window Close Semantics" — a host-lifecycle
+    # outcome. Without this switch the shell would be wedged twice over: the
+    # deferred ``closeEvent`` would route the synthesised close of ``app.quit()``
+    # into the dead context (SIGSEGV), and its ``event.ignore()`` would keep Qt
+    # from ever leaving the shell loop.
+    mark_session_ended = getattr(projection, "mark_session_ended", None)
+    if mark_session_ended is not None:
+        mark_session_ended()
     outcome = _report_outcome(returncode, host_scheduler, projection)
 
     # The application-driven Exit path closes the target's own window, so no

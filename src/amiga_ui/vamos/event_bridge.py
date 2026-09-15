@@ -106,6 +106,10 @@ class IntuitionEventBridge:
         rc = run_vamos_in_process(args=..., event_bridge=bridge)
         assert bridge.posted  # introspect what was delivered
 
+    ``schedule_*`` is the *pre-open* form: the event waits until a window that
+    admits the class opens. A live Qt host instead drives the address-based
+    forms from widget callbacks — ``gadget_up()`` for a projected BUTTON and
+    ``request_close_window()`` for a host window-manager close request.
     The library impls reach the bridge through the ``event_bridge`` context
     extra attribute (registered by the launcher); without it (plain probes)
     the bridge simply never gets hooks and behaviour is unchanged.
@@ -130,6 +134,11 @@ class IntuitionEventBridge:
         self._gadgets: dict[int, int] = {}
         # scheduled but not yet delivered events (in schedule order)
         self._pending: list[dict] = []
+        # window addr -> the IntuiMessage address of the close-window event that
+        # is currently *in flight* for it (posted, not yet released by the app).
+        # This is what makes repeated host close requests idempotent: a second
+        # request while the first is unanswered posts nothing new.
+        self._close_pending: dict[int, int] = {}
         # imsg addr -> MemoryBlock (freed by release_message)
         self._imsgs: dict[int, object] = {}
         # introspection: one record per delivered message
@@ -215,6 +224,11 @@ class IntuitionEventBridge:
             "user_port": user_port_addr,
             "window_port": window_port_addr,
         }
+        # A freshly opened window is a fresh close lifecycle: drop any stale
+        # in-flight marker left by an earlier window that reused this address
+        # (the emulated allocator recycles blocks), so a new window's first
+        # host close request is never swallowed.
+        self._close_pending.pop(window_addr, None)
         if not self._pending:
             return
         still_pending = []
@@ -251,6 +265,10 @@ class IntuitionEventBridge:
         info = self._windows.pop(window_addr, None)
         if info is None:
             return
+        # The close lifecycle ends with the window: forget its in-flight close
+        # marker (a late window-manager request is now rejected by the missing
+        # window record above, and a recycled address starts clean).
+        self._close_pending.pop(window_addr, None)
         # Gadget registrations do not currently carry window ownership, so do
         # not guess by deleting the global gadget map here: that would corrupt
         # every other projected window. ``FreeGadgets`` unregisters the actual
@@ -311,6 +329,60 @@ class IntuitionEventBridge:
         )
         # The message is on the real UserPort now; only then is the hint
         # meaningful. The scheduler rechecks the real queue before resuming.
+        scheduler = getattr(self._ctx, "scheduler", None)
+        if scheduler is not None:
+            scheduler.notify_resource_changed(WaitResource.MESSAGE_PORT, info["user_port"])
+        return imsg
+
+    def request_close_window(self, window_addr: int) -> int | None:
+        """Translate one *host window-manager* close request into a real event.
+
+        The live counterpart of :meth:`schedule_close_window`, exactly as
+        :meth:`gadget_up` is the live counterpart of :meth:`schedule_gadget_up`:
+        a host close request arrives while the window is already open and the
+        target is parked in ``WaitPort``, so the event must go to *that* window
+        now — not sit in the pre-open pending list waiting for a window that is
+        never opened again. It is address-based (``window_addr`` is the real
+        ``struct Window *`` recorded on the host widget), never title- or
+        label-based.
+
+        Steps, in the same order as :meth:`gadget_up`:
+
+        1. verify the window is still open (a request racing the app's own
+           ``CloseWindow`` is an honest no-op);
+        2. verify it requested ``IDCMP_CLOSEWINDOW`` (real Intuition never
+           generates a class a window did not request);
+        3. verify no close-window message is already in flight for it —
+           repeated host close requests (double click, a click while the first
+           is still unanswered) are idempotent no-ops, not duplicate messages;
+        4. allocate and fill a real ``IntuiMessage`` of class
+           ``IDCMP_CLOSEWINDOW`` (``IAddress`` = 0: a close request carries no
+           gadget; the window identity is ``IDCMPWindow``);
+        5. only *after* the queue insertion, notify the scheduler (a hint to
+           recheck the real port).
+
+        Returns the ``IntuiMessage`` address, or ``None`` when the request was
+        stale, filtered or a duplicate (recorded in ``self.skipped``). The host
+        window is *not* destroyed here: only the app's own ``CloseWindow``
+        releases the projection (see ``docs/architecture/
+        cooperative-host-scheduler.md`` "Window Close Semantics").
+        """
+        info = self._windows.get(window_addr)
+        if info is None:
+            self.skipped.append(f"closewindow: window {window_addr:06x} not open (stale request)")
+            return None
+        if not (info["idcmp"] & IDCMP_CLOSEWINDOW):
+            self.skipped.append(f"closewindow: window {window_addr:06x} did not request IDCMP_CLOSEWINDOW")
+            return None
+        if window_addr in self._close_pending:
+            self.skipped.append(f"closewindow: window {window_addr:06x} close request already pending (idempotent)")
+            return None
+        if self._ctx is None:
+            self.skipped.append("closewindow: no live context to allocate the message")
+            return None
+        imsg = self.post_event(self._ctx, window_addr, IDCMP_CLOSEWINDOW)
+        # In flight until the app replies to *this* message (see release_message).
+        self._close_pending[window_addr] = imsg
         scheduler = getattr(self._ctx, "scheduler", None)
         if scheduler is not None:
             scheduler.notify_resource_changed(WaitResource.MESSAGE_PORT, info["user_port"])
@@ -401,6 +473,13 @@ class IntuitionEventBridge:
         if mem is not None:
             ctx.alloc.free_memory(mem)
             self.released.append(imsg_addr)
+            # The app acknowledged this message. If it was the in-flight
+            # host close-window request, that window's close request is no
+            # longer outstanding — a later request is a fresh event, not a
+            # duplicate of one the app already answered.
+            for addr, pending in list(self._close_pending.items()):
+                if pending == imsg_addr:
+                    del self._close_pending[addr]
 
     # -- internals ----------------------------------------------------------------
     def _targets(self, spec: dict, window_addr: int) -> bool:
