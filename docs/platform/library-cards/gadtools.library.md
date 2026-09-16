@@ -118,3 +118,28 @@ The bevel-box tags the app passes are the two above plus `TAG_END`; the optional
 The selector encoding (`MENUNULL`, `NOMENU`/`NOITEM`/`NOSUB`, 1-based fields) and
 the binary evidence behind these obligations are recorded in
 `docs/apps/itidy/menu-strip-menupick-abi.md`.
+
+## Checkbox Gadget State (`GTCB_Checked`)
+
+`GT_GetGadgetAttrsA(gad, win, req, taglist)` (LVO 174) and
+`GT_SetGadgetAttrsA(gad, win, req, taglist)` (LVO 42) are implemented
+(`src/amiga_ui/vamos/gadtools_library.py`). These are the `A` variants the app's
+variadic `GT_GetGadgetAttrs`/`GT_SetGadgetAttrs` taglib stubs expand to — the
+names the released binary actually calls (not the non-`A` forms). They round-trip
+a CHECKBOX gadget's live checked state through the host-side `GadgetDescription`
+registry (the non-classic gadget layout has no emulated `Gadget.Value` field, so
+the registry is the genuine store):
+
+- `GT_GetGadgetAttrsA` reads the `GTCB_Checked` out-param address from the tag
+  list and writes the gadget's current checked state to it. This is what iTidy's
+  `GID_BACKUP` handler uses after a backup-checkbox click to learn the new state.
+- `GT_SetGadgetAttrsA` reads the `GTCB_Checked` value (the new checked state) from
+  the tag list and re-records the description in place. This is what iTidy's
+  LHA-not-found *Continue* branch uses to uncheck the backup checkbox after the
+  user chooses to continue without backups.
+
+The checked state itself is toggled by the host event bridge on each projected
+checkbox click (`event_bridge.py` `gadget_up`), mirroring classic Intuition's
+"toggle the clicked gadget's `Value`, then report the `GADGETUP`". Both return the
+number of tags processed (`1`), or `0` when the gadget is unknown or the tag is
+absent.

@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from amitools.vamos.error import UnsupportedFeatureError
+
 from ..host.projection import GadgetDescription, OpenWindowIntent
 from . import menu_state
 from .base_library import BaseLibrary
@@ -226,6 +228,21 @@ _WA_BUSY_POINTER = _WA_DUMMY + 0x35  # WA_BusyPointer (BOOL): busy cursor on/off
 # garbage width (same policy as graphics.library).
 _FALLBACK_CHAR_WIDTH = 6
 _MAX_CHAR_WIDTH = 32
+
+# --- struct EasyStruct (classic, 5 ULONGs = 20 bytes) ------------------------
+# EasyRequestArgs (LVO 588) presents the app's own EasyStruct: a title, a
+# TextFormat body and a pipe-separated GadgetFormat button list. The accepted
+# target (iTidy's LHA-not-found dialog) uses two buttons, "Continue|Cancel".
+# Classic return semantics (settled from the AutoDocs EasyRequestArgs example —
+# "Retry|Cancel", ``CANCEL 0``, ``while (EasyRequest() != CANCEL)`` — and the
+# task): the positive (first) button returns nonzero, the cancel (last) button
+# returns 0. Offsets per the NDK ``struct EasyStruct`` (``es_StructSize``,
+# ``es_Flags``, ``es_Title``, ``es_TextFormat``, ``es_GadgetFormat``).
+_EASY_OFF_STRUCT_SIZE = 0x00  # ULONG es_StructSize
+_EASY_OFF_FLAGS = 0x04  # ULONG es_Flags
+_EASY_OFF_TITLE = 0x08  # STRPTR es_Title
+_EASY_OFF_TEXT_FORMAT = 0x0C  # STRPTR es_TextFormat
+_EASY_OFF_GADGET_FORMAT = 0x10  # STRPTR es_GadgetFormat
 
 
 class IntuitionLibrary(BaseLibrary):
@@ -941,3 +958,60 @@ class IntuitionLibrary(BaseLibrary):
             busy, new_pos = self._parse_window_pointer_tags(mem, taglist)
         self.set_window_pointer_ops.append({"win": win, "busy_pointer": busy, "new_pos": new_pos})
         return None
+
+    def EasyRequestArgs(self, ctx, window, easyStruct, idcmpPtr, args):
+        """intuition.library ``EasyRequestArgs(window, easyStruct, idcmpPtr, args)`` (LVO 588).
+
+        A *blocking* call: it presents the app's own ``EasyStruct`` (title,
+        TextFormat body, pipe-separated GadgetFormat button list) on a real host
+        dialog parented to the app's window, waits for the user's actual button
+        choice, and returns the classic result code — nonzero for the positive
+        (first) button, 0 for the cancel (last) button. This is the Qt-free seam:
+        the EasyStruct decoding and the result-code mapping live here; the actual
+        QMessageBox lives in the host projection (Qt), so the library stays
+        Qt-free (headless-safe) and no generic requester manager is introduced.
+
+        ``idcmpPtr`` is NULL for the accepted target's usage (``EasyRequest(win,
+        &es, NULL)``), so IDCMP-termination is out of scope for this increment:
+        the dialog is dismissed by a button, not by an IDCMP event. ``args`` is
+        unused by the accepted target (passed through as NULL).
+        """
+        projection = getattr(ctx, "host_projection", None)
+        if projection is None:
+            # Honest headless boundary: there is no host surface to present the
+            # requester on. A plain (non-GUI) probe stops earlier, at WaitPort,
+            # so this is a defensive guard; failing here beats fabricating a
+            # default answer the app would branch on.
+            raise UnsupportedFeatureError("EasyRequestArgs: no host projection to present the requester on")
+        title, body, buttons = self._decode_easy_struct(ctx, easyStruct)
+        index = projection.show_easy_request(window, title, body, buttons)
+        return self._easy_request_code(index, len(buttons))
+
+    def _decode_easy_struct(self, ctx, easyStruct) -> tuple[str, str, list[str]]:
+        """Decode the app's own EasyStruct into a host-safe ``(title, body, buttons)``.
+
+        Reads the three STRPTR fields and their C strings from emulated memory and
+        splits the pipe-separated GadgetFormat into the button label list. Returns
+        a single default ("OK") button when the GadgetFormat is empty, since a real
+        requester always offers at least one dismiss button.
+        """
+        title = self._read_cstr(ctx, self._read_u32(ctx, easyStruct + _EASY_OFF_TITLE))
+        body = self._read_cstr(ctx, self._read_u32(ctx, easyStruct + _EASY_OFF_TEXT_FORMAT))
+        gadget_format = self._read_cstr(ctx, self._read_u32(ctx, easyStruct + _EASY_OFF_GADGET_FORMAT))
+        buttons = [b for b in gadget_format.split("|") if b]
+        return title, body, (buttons or ["OK"])
+
+    @staticmethod
+    def _easy_request_code(index: int, count: int) -> int:
+        """Map a clicked button index to the classic EasyRequest result code.
+
+        The last (rightmost) button is the cancel and returns 0; every other button
+        returns its 1-based position, so the first (positive) button is 1. A
+        single-button requester has no cancel, so its one button is the positive
+        action and returns 1.
+        """
+        if count <= 1:
+            return 1
+        if index == count - 1:
+            return 0
+        return index + 1

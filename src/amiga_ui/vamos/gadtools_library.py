@@ -604,6 +604,62 @@ class GadToolsLibrary(BaseLibrary):
             cur = mem.r32(cur + _GAD_OFF_NEXT)
         return None
 
+    def GT_GetGadgetAttrsA(self, ctx, gad, window, requester, taglist):
+        """GadTools ``GT_GetGadgetAttrsA(gad, win, req, taglist)`` (LVO 174).
+
+        The binary calls the ``A`` variant: the app's variadic
+        ``GT_GetGadgetAttrs(gad, win, req, GTCB_Checked, &checked, TAG_DONE)`` is
+        the taglib varargs stub that expands to it. Reads the live checked state
+        of a CHECKBOX gadget and writes it to the ``GTCB_Checked`` out-param the
+        app provided. This repo stores a checkbox's value in the host-side
+        :class:`GadgetDescription` registry (the non-classic gadget layout has no
+        emulated ``Gadget.Value`` field), toggled by the event bridge on each
+        projected click — so this is the genuine read path for the app. iTidy's
+        ``GID_BACKUP`` handler uses it after a backup-checkbox click to learn the
+        new state. Returns the number of tags processed (1), or 0 when the
+        gadget is unknown or the tag is absent.
+        """
+        mem = ctx.mem
+        if not gad:
+            return 0
+        out = self._read_tag(mem, taglist, _GTCB_CHECKED)
+        if not out:
+            return 0
+        registry = gadget_registry_from_ctx(ctx)
+        desc = registry.get(gad) if registry is not None else None
+        if desc is None:
+            return 0
+        checked = bool(desc.checked) if desc.checked is not None else False
+        mem.w32(out, 1 if checked else 0)
+        return 1
+
+    def GT_SetGadgetAttrsA(self, ctx, gad, window, requester, taglist):
+        """GadTools ``GT_SetGadgetAttrsA(gad, win, req, taglist)`` (LVO 42).
+
+        The binary calls the ``A`` variant: the app's variadic
+        ``GT_SetGadgetAttrs(gad, win, req, GTCB_Checked, FALSE, TAG_DONE)`` is the
+        taglib varargs stub that expands to it. Sets a CHECKBOX gadget's live
+        checked state (host-side registry) from the ``GTCB_Checked`` tag,
+        re-recording the description in place. This is what iTidy's LHA-not-found
+        *Continue* branch uses to uncheck the backup checkbox after the user
+        chooses to continue without backups. Returns the number of tags
+        processed (1), or 0 when the gadget is unknown or the tag is absent.
+        """
+        mem = ctx.mem
+        if not gad:
+            return 0
+        new_checked = self._read_tag(mem, taglist, _GTCB_CHECKED)
+        if new_checked is None:
+            return 0
+        registry = gadget_registry_from_ctx(ctx)
+        if registry is None:
+            return 0
+        desc = registry.get(gad)
+        if desc is None:
+            return 0
+        registry.record(replace(desc, checked=bool(new_checked)))
+        return 1
+
     # -- IntuiMessage consumption (the app's event loop) ----------------------
     def GT_GetIMsg(self, ctx, iport):
         """Classic GadTools: ``GetMsg`` on a window's ``UserPort``.

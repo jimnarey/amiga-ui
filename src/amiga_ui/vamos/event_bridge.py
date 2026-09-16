@@ -45,9 +45,12 @@ without removing it; GetMsg removes it) is what the app's drain loop
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
+from ..host.projection import KIND_CHECKBOX
 from ..host.scheduler import WaitResource
+from .gadget_state import gadget_registry_from_ctx
 
 # --- struct IntuiMessage (iTidy target layout) --------------------------------
 #
@@ -330,6 +333,18 @@ class IntuitionEventBridge:
         if self._ctx is None:
             self.skipped.append("gadgetup: no live context to allocate the message")
             return None
+        # A CHECKBOX activation toggles the gadget's live checked state (host-side
+        # registry) *before* the message is posted, so the app's
+        # ``GT_GetGadgetAttrs(GTCB_Checked)`` read (e.g. iTidy's backup checkbox)
+        # sees the value the user just set. Classic Intuition toggles the clicked
+        # gadget's Value and only then reports the GADGETUP. This is the only
+        # interactive-checkbox path; buttons and every other kind carry no checked
+        # state and are unaffected, so the settled button/menu/close flows are
+        # untouched.
+        registry = gadget_registry_from_ctx(self._ctx)
+        desc = registry.get(gadget_addr) if registry is not None else None
+        if registry is not None and desc is not None and desc.kind_name == KIND_CHECKBOX and desc.checked is not None:
+            registry.record(replace(desc, checked=not desc.checked))
         imsg = self.post_event(
             self._ctx,
             window_addr,
