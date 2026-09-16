@@ -96,8 +96,10 @@ class GadgetWidgetClassTest(unittest.TestCase):
         # documented QPushButton widget mapping.
         self.assertEqual(self._classes([_desc(kind_name=KIND_BUTTON)]), ["QtGadgetButton"])
 
-    def test_checkbox_is_qcheckbox(self) -> None:
-        self.assertEqual(self._classes([_desc(kind_name=KIND_CHECKBOX)]), ["QCheckBox"])
+    def test_checkbox_is_gadget_checkbox(self) -> None:
+        # The interactive subclass retains Amiga identity while preserving the
+        # documented QCheckBox widget mapping.
+        self.assertEqual(self._classes([_desc(kind_name=KIND_CHECKBOX)]), ["QtGadgetCheckbox"])
 
     def test_cycle_is_combobox_with_caption(self) -> None:
         self.assertEqual(

@@ -56,6 +56,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMenu,
     QMenuBar,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -659,6 +660,31 @@ class QtGadgetButton(QPushButton):
         self.amiga_gadget_addr = gadget_addr
 
 
+class QtGadgetCheckbox(QCheckBox):
+    """A projected ``CHECKBOX`` gadget recording its real Amiga window/gadget address.
+
+    Same address-recording pattern as :class:`QtGadgetButton`, for checkboxes: a
+    real toggle becomes a real ``IDCMP_GADGETUP`` IntuiMessage (``IAddress`` =
+    this gadget's real ``struct Gadget *``) queued on the owning window's real
+    ``UserPort``. The host-side registry also tracks the live checked state so
+    ``GT_GetGadgetAttrsA``/``GT_SetGadgetAttrsA`` (``GTCB_Checked``) round-trip
+    through the real app's own reads and writes of the checkbox.
+    """
+
+    def __init__(
+        self,
+        text: str,
+        window_addr: int,
+        gadget_addr: int,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(text, parent)
+        # Emulated addresses (identity keys only — never dereferenced by the
+        # host); see :class:`QtGadgetButton` for the roles.
+        self.amiga_window_addr = window_addr
+        self.amiga_gadget_addr = gadget_addr
+
+
 class QtMenuAction(QAction):
     """A projected Amiga menu entry recording the real addresses it stands for.
 
@@ -789,13 +815,25 @@ class QtHostWindowProjection:
                 widget.clicked.connect(lambda _checked=False, btn=widget: self._on_gadget_clicked(btn))
             widgets.append(widget)
         elif kind == KIND_CHECKBOX:
-            widget = QCheckBox(desc.label, window)
+            widget = QtGadgetCheckbox(desc.label, window_addr, desc.gadget_addr, window)
             if desc.checked is not None:
                 widget.setChecked(desc.checked)
             # The 26px box is the interactive part; the label extends to the
             # right (PLACETEXT_RIGHT), so size the widget to box + label.
             extra = self._cycle_caption_width(desc.label, window) if desc.label else 0
             widget.setGeometry(left, top, max(1, width + extra + 4), max(1, height))
+            # A CHECKBOX, like a BUTTON, is an address-recording interactive
+            # widget: a real user click is routed (generically, address-based)
+            # to the event bridge's ``gadget_up``. The bridge toggles the
+            # gadget's live checked state (host-side registry) and posts a real
+            # ``IDCMP_GADGETUP`` on the owning window's ``UserPort`` — so the
+            # app's ``GT_GetGadgetAttrs(GTCB_Checked)`` read sees the value the
+            # user just set. Without an event source the checkbox stays
+            # display-only (pre-interactive), exactly like the buttons.
+            if self._event_source is not None:
+                widget.toggled.connect(
+                    lambda _checked, win=window_addr, gad=desc.gadget_addr: self._event_source.gadget_up(win, gad)
+                )
             widgets.append(widget)
         elif kind == KIND_CYCLE:
             combo = QComboBox(window)
@@ -993,6 +1031,51 @@ class QtHostWindowProjection:
         if state is None:
             return
         projected.host_window.surface.replay(state)
+
+    def show_easy_request(self, window_addr: int, title: str, body: str, buttons: Sequence[str]) -> int:
+        """Show the app's EasyStruct as a real, blocking :class:`QMessageBox`.
+
+        The host half of ``intuition.library``'s ``EasyRequestArgs``: a real
+        confirmation dialog, parented to the app's own host window (the same
+        top-level the requester logically lives on), carrying the app's own title,
+        body text and button labels. ``.exec()`` blocks the GUI thread until the
+        user actually clicks a button, and the method returns the 0-based index
+        of the clicked button in ``buttons``. The *classic result-code* mapping
+        (positive -> nonzero, cancel -> 0) is the caller's job (the Qt-free
+        Intuition library), not the host's — the host only reports which of the
+        app's own buttons was chosen.
+
+        The last button is added with ``RejectRole`` (so Escape maps to it, as
+        classic) and the first with ``YesRole``; a single button is ``AcceptRole``.
+        """
+        parent = self.host_window(window_addr)
+        if parent is None:
+            # No host surface to parent the requester to: there is no app window
+            # here. Failing beats showing an unparented top-level that the app
+            # would not have produced.
+            raise ValueError(f"show_easy_request: window {window_addr:06x} is not projected")
+        box = QMessageBox(parent)
+        box.setWindowTitle(title)
+        box.setText(body)
+        for i, label in enumerate(buttons):
+            if len(buttons) == 1:
+                role = QMessageBox.ButtonRole.AcceptRole
+            elif i == 0:
+                role = QMessageBox.ButtonRole.YesRole
+            elif i == len(buttons) - 1:
+                role = QMessageBox.ButtonRole.RejectRole
+            else:
+                role = QMessageBox.ButtonRole.ActionRole
+            box.addButton(label, role)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is not None:
+            for i, label in enumerate(buttons):
+                if clicked.text() == label:
+                    return i
+        # Defensive: exec() always returns via a button click, so this is not
+        # reachable in practice; fall back to the (cancel) position.
+        return len(buttons) - 1
 
     def close_window(self, window_addr: int) -> None:
         projected = self._windows.pop(window_addr, None)
