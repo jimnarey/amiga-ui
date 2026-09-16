@@ -107,6 +107,26 @@ than silently dropping it. The target's NDK encodes `TAG_USER` as the high bit,
 so `WA_BusyPointer = (1<<31) + 99 + 0x35 = 0x80000098` — the value the running
 binary uses.
 
+## Requesters (EasyRequestArgs)
+
+`EasyRequestArgs(window, easyStruct, idcmpPtr, args)` (LVO 588) is implemented
+(`src/amiga_ui/vamos/intuition_library.py`) as a genuinely *blocking* call: it
+decodes the app's own `struct EasyStruct` (the `es_Title` at `+0x08`, the
+`es_TextFormat` body at `+0x0C`, and the pipe-separated `es_GadgetFormat` button
+list at `+0x10`) from emulated memory, presents it on a real, parented host
+`QMessageBox`, and returns the classic result code — nonzero for the positive
+(first) button, `0` for the cancel (last) button, `1` for a single-button
+requester. The Qt-free decode and result-code mapping live in the Intuition
+library; the actual `QMessageBox` lives in the host projection
+(`QtHostWindowProjection.show_easy_request`), which blocks in `.exec()` until the
+user actually clicks a button and reports which of the app's own buttons was
+chosen. Keeping the decode + code mapping in the library and the dialog in the
+projection is what lets the library stay headless-safe and avoids a generic
+requester manager. `idcmpPtr` is `NULL` for the accepted target (iTidy's
+LHA-not-found dialog), so IDCMP-termination is out of scope: the dialog is
+dismissed by a button, not an IDCMP event. `AutoRequest`, `EasyRequest`, and
+`BuildEasyRequest` are not implemented (deferred to a future increment).
+
 ## Gadgets
 
 The Intuition gadget docs describe gadgets as the Amiga equivalent of buttons, knobs, and similar controls, and distinguish between:
