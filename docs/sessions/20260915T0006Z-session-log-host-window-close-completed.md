@@ -23,32 +23,73 @@ was merged into `development`.
 Raw DSH session: `session-c3731eda-4429-46d2-913b-a1d4b16a6b4f`
 Log: `/home/runuser/.dsh/sessions/--workspace-amiga-ui--/session-c3731eda-4429-46d2-913b-a1d4b16a6b4f/session.jsonl.zstd`
 
-### Starting prompt (2026-09-15 00:0x UTC)
+### Starting prompt (2026-09-14 23:29:50 UTC)
 
-Resumed `feat/host-window-close` at `c8d9182` ("Further incomplete progress
-on host window feature", clean tree) and asked the model to finish the
-increment without broad investigation, trusting the 19:42 handoff:
+```text
+You are working in the amiga-ui repository.
 
-1. `ruff format tests/test_qt_window_close.py` for the one flagged line
-   (formatting-only, verified against `git diff`).
-2. Write the interactive close smoke test mirroring
-   `tests/run_interactive_exit_smoke_test.py`, triggering via the host
-   window's close control instead of the projected Exit button, asserting the
-   full real path: host close request -> real `IDCMP_CLOSEWINDOW`
-   `IntuiMessage` -> `WaitPort` resume -> iTidy's own `CloseWindow` -> host
-   window actually closes -> clean exit ("observe the app doing this, not
-   fabricate any part of it").
+You are resuming, not starting fresh. `feat/host-window-close` already exists
+and is checked out. Do not create a new branch.
+
+    git status   # should show a clean tree on feat/host-window-close
+    git log --oneline -3   # top commit should be c8d9182 "Further incomplete progress on host window feature"
+
+Start by reading, in this order:
+
+1. docs/sessions/20260914T1942Z-session-log-host-window-close-recovery-interrupted.md
+   — the most recent handoff for this branch. It records that the
+   --auto-close-after SIGSEGV regression from the session before it was
+   fixed and independently verified, pyright and ruff check both pass, and
+   exactly two things remain: one trivial ruff-format line, and the
+   interactive close smoke test. Do not re-derive any of this — read the log
+   and trust it, then verify it yourself with the commands below rather than
+   re-investigating from scratch.
+2. `git show c8d9182 --stat` and `git show c8d9182` to see exactly what
+   changed since the log above was written (the session-ended /
+   forced-shutdown distinction in AmigaHostWindow.closeEvent and
+   QtHostWindowProjection).
+3. tests/run_interactive_exit_smoke_test.py — the pattern to mirror for the
+   still-missing interactive close smoke test.
+
+Objective: finish this increment. Nothing here should require broad
+investigation — every remaining step is small and already scoped.
+
+1. Run `uv run ruff format tests/test_qt_window_close.py` (or `pre-commit run
+   ruff-format --files tests/test_qt_window_close.py`) to clear the one
+   flagged line. Confirm with `git diff` that it only reformats, changes no
+   logic.
+2. Write the interactive close smoke test: mirror
+   tests/run_interactive_exit_smoke_test.py, but trigger via the host
+   window's close control instead of the projected Exit button. Assert the
+   full path: host close request -> real IDCMP_CLOSEWINDOW IntuiMessage ->
+   WaitPort resume -> iTidy's own CloseWindow call -> host window actually
+   closes -> clean exit. The test must observe the app doing this, not
+   fabricate any part of it.
 3. Run the full gate: focused event-bridge and Qt-projection tests, the full
-   non-GUI suite (expect 268+ passing plus the one pre-existing
-   environment-dependent `test_xvfb` failure), the Qt offscreen suite, both
-   interactive smoke tests, and `pre-commit`.
-4. If genuinely gated, merge into `development` per
-   `docs/workflows/branching-and-merging.md`. No new compatibility feature in
-   the same session.
+   non-GUI suite (expect 268+ passing, plus the one pre-existing
+   environment-dependent test_xvfb failure documented in the session logs —
+   that one is not yours to fix), the Qt offscreen suite, both interactive
+   smoke tests (the existing Exit one and the new Close one), and
+   pre-commit.
+4. If everything passes and is genuinely gated, merge feat/host-window-close
+   into development per docs/workflows/branching-and-merging.md. Do not
+   start a new compatibility feature in the same session.
 
-Constraints: do not touch `QtHostWindowProjection.close_window`, the
-IntuiMessage ABI, or the scheduler core; keep the diff scoped to the smoke
-test file, the formatting fix, and documentation.
+Constraints:
+
+- Do not touch QtHostWindowProjection.close_window, the IntuiMessage ABI, or
+  the scheduler core.
+- Keep the diff scoped to the smoke test file, the formatting fix, and
+  documentation.
+- If you notice yourself repeating earlier points without new evidence, stop
+  and take one concrete action instead (read the specific file/line, or run
+  the specific test) rather than continuing to reason abstractly.
+
+When finished, leave a session summary under docs/sessions in the existing
+format covering: what was fixed or built, checks run and their results,
+remaining uncertainty, whether the branch was merged, and the recommended
+next increment.
+```
 
 ## What was done
 

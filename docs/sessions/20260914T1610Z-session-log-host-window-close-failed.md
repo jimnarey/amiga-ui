@@ -71,9 +71,71 @@ QCloseEvent on a projected window) through the same validated mechanism the
 Exit-gadget path already uses, instead of letting Qt destroy the widget
 directly. Do not broaden this into general window-management or menu work.
 
-[... six numbered implementation steps, architectural constraints, and a
-pre-merge checklist, matching the format of prior session prompts in this log
-— omitted here for length; the full text is in the raw DSH session log above.]
+Work in small, checkable steps, and keep each one concrete rather than
+open-ended reasoning — you have limited output per turn, so prefer reading a
+specific file or running a specific test over reasoning about the system in
+the abstract:
+
+1. Confirm `schedule_close_window` and its existing tests still pass unmodified
+   (`uv run python -m unittest tests.test_event_bridge`). If they don't, stop
+   and report — do not touch that file to make it pass.
+2. In `AmigaHostWindow`, add a `closeEvent` override. On a host close request:
+   call `event.ignore()` (do not let Qt destroy the widget), then ask the
+   projection's event source to call `schedule_close_window` for that window's
+   real Amiga window address — the same address-based pattern
+   `_on_gadget_clicked` already uses for `gadget_up`. Before scheduling, verify
+   the window actually requested `IDCMP_CLOSEWINDOW` (mirror the existing
+   `IDCMP_GADGETUP` request check in `event_bridge.py` around line 294) rather
+   than assuming every window wants it.
+3. A second close request (double-click, or a close while the first is still
+   pending) must be an idempotent no-op, not a crash or a duplicate message —
+   the architecture doc requires this explicitly.
+4. Do not touch `QtHostWindowProjection.close_window` itself. That remains the
+   *only* place a host window is actually destroyed, and it must still only run
+   when the target calls `CloseWindow` and the app-side path reaches it.
+5. Add or extend unit tests for the new `closeEvent` wiring at the Qt-projection
+   level (no real binary needed) before writing any interactive smoke test.
+6. Write one new interactive smoke test, modeled directly on
+   tests/run_interactive_exit_smoke_test.py, that triggers via the host
+   window's close control instead of the projected Exit button, and asserts the
+   full path: host close request -> real IDCMP_CLOSEWINDOW IntuiMessage ->
+   WaitPort resume -> iTidy's own CloseWindow call -> host window actually
+   closes -> clean exit. Do not fabricate the CloseWindow call or the exit
+   yourself; the test must observe the app doing it.
+
+Architectural constraints:
+
+- Keep one active Amiga execution context on one host thread; do not introduce
+  new scheduler machinery for this.
+- The host window must not be destroyed until the app itself calls
+  `CloseWindow`. A close request that never gets a reply must leave the host
+  window open, not silently vanish.
+- Do not change the IntuiMessage field offsets or other ABI constants settled
+  in the previous session. If you find yourself wanting to touch
+  `event_bridge.py`'s offset table, stop — that is not this blocker.
+- Do not add a generic `wake()`-style API; keep using the resource-specific
+  `schedule_close_window` / `notify_resource_changed` pattern already in place.
+- Keep the diff small: this should touch `qt_projection.py`, its tests, one new
+  interactive smoke test, and documentation — not the scheduler, the event
+  bridge's message layout, or unrelated libraries.
+- If you notice yourself producing long chains of reasoning that repeat
+  earlier points without new evidence, stop mid-turn and take one concrete
+  action instead (read the specific file/line in question, or run the
+  specific test in question). Prefer a short, direct answer over an
+  exhaustive one when the evidence already supports a conclusion.
+
+Before merging: run the focused event-bridge and Qt-projection tests, the full
+non-GUI suite, the Qt offscreen suite, both interactive smoke tests (the
+existing Exit one and the new close one), and pre-commit. Account explicitly
+for any environment-dependent skipped test (e.g. missing Xvfb). If everything
+passes and is genuinely gated, merge feat/host-window-close into development
+per docs/workflows/branching-and-merging.md. Do not start a new compatibility
+feature in the same session.
+
+When finished, leave a session summary under docs/sessions in the existing
+format covering: what was verified or built, the observed close-request event
+path, checks run and their results, remaining uncertainty, whether the branch
+was merged, and the recommended next increment.
 ```
 
 There were no additional human-authored prompts in this session; the user

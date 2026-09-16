@@ -29,16 +29,119 @@ citations_used: []
 Raw DSH session: `session-eb55b066-453d-4c79-bee6-de235c5e6d54`
 Log: `/home/runuser/.dsh/sessions/--workspace-amiga-ui--/session-eb55b066-453d-4c79-bee6-de235c5e6d54/session.jsonl.zstd`
 
-Started 2026-09-15 00:57:00 UTC, on a fresh `feat/host-menu-strip` branch off
-the (by then merged) `development`, immediately following the completed
-host-window-close increment. Objective: implement `SetMenuStrip` /
-`ClearMenuStrip` / `ItemAddress` and real `IDCMP_MENUPICK` delivery for
-iTidy's `Project -> Close` menu item, mirroring the address-based, real-ABI
-pattern already used for the gadget-click and window-close paths. The prompt
-explicitly permitted binary disassembly "if [source/NDK/AutoDocs] leave a
-specific required fact unresolved," and required focused tests, both existing
-interactive smoke tests, a new menu smoke test, the full suite, and
-pre-commit before merging.
+### Starting prompt (2026-09-15 00:57:00 UTC)
+
+```text
+You are working in the amiga-ui repository.
+
+Start from the current `development` branch. Create one fresh branch for this
+coherent increment:
+
+    git checkout development
+    git checkout -b feat/host-menu-strip
+
+Inspect:
+
+- AGENTS.md and docs/README.md;
+- docs/architecture/hosted-application-mode.md;
+- docs/architecture/cooperative-host-scheduler.md;
+- docs/host-gui/README.md and the menu/dialog/requester guidance;
+- docs/apps/itidy/compatibility-notes.md and the latest three session summaries;
+- `amiga_apps/itidy1classic/source/src/GUI/main_window.c`, especially:
+  `main_window_menu_template`, `setup_main_window_menus`,
+  `handle_main_window_menu_selection`, the `IDCMP_MENUPICK` event case, and
+  cleanup through `ClearMenuStrip`;
+- `src/amiga_ui/vamos/gadtools_library.py`, especially `CreateMenusA`,
+  `LayoutMenusA`, and the emulated `Menu` / `MenuItem` layouts;
+- `src/amiga_ui/vamos/intuition_library.py`, especially `SetMenuStrip`,
+  `CloseWindow`, and the currently missing `ClearMenuStrip` / `ItemAddress`
+  path;
+- `src/amiga_ui/vamos/event_bridge.py`;
+- `src/amiga_ui/host/qt_projection.py`;
+- `tests/run_interactive_exit_smoke_test.py` and
+  `tests/run_interactive_close_smoke_test.py`.
+
+Run the current probe/analyser path before changing code. Use the local NDK
+headers, FD table, AutoDocs and iTidy source for menu semantics; do not begin
+binary disassembly unless those sources leave a specific required fact
+unresolved.
+
+Objective: implement the smallest meaningful hosted-menu increment for iTidy
+and other classic GadTools applications.
+
+The intended end-to-end path is:
+
+    SetMenuStrip on an already projected Amiga window
+    -> a host menu bar appears only for that window
+    -> host selection of a real projected menu item
+    -> real IDCMP_MENUPICK IntuiMessage on that window's UserPort
+    -> WaitPort resumes
+    -> GT_GetIMsg / GT_ReplyIMsg
+    -> ItemAddress resolves the real emulated MenuItem from Code
+    -> iTidy reads its existing GTMENUITEM_USERDATA
+    -> iTidy performs its own action and lifecycle
+
+For this increment, use iTidy's existing `Project -> Close` item as the
+end-to-end acceptance route. It is a useful safe action because iTidy already
+owns the resulting `CloseWindow` path. Do not hard-code "Project", "Close", or
+iTidy's numeric menu IDs in production translation code.
+
+Implementation boundaries:
+
+- Preserve hosted application mode: no visible Workbench desktop.
+- Add a host menu bar only after a real Amiga menu strip is attached; do not
+  add one to windows without a menu strip.
+- `SetMenuStrip` must update meaningful emulated state and notify the active
+  host projection; `ClearMenuStrip` must detach the host projection and clear
+  the corresponding emulated state.
+- Decode the actual emulated `Menu` / `MenuItem` chain created by GadTools.
+  Preserve ordinary item labels and separators for the supported first slice.
+- Translate a selected item to the correct classic menu-number encoding in
+  `IntuiMessage.Code`; do not substitute `nm_UserData` / `GTMENUITEM_USERDATA`
+  for the Amiga menu number.
+- Implement the needed classic `ItemAddress(menuStrip, menuNumber)` semantics
+  against the real emulated menu structures and FD dispatch signature, enough
+  for valid item selection and safe invalid / `MENUNULL` handling.
+- Post `IDCMP_MENUPICK` only when the target window requested it. The real
+  message must be allocated, queued, woken and released through the existing
+  bridge and scheduler; never fabricate a successful empty `WaitPort`.
+- Keep host menu action routing address- and structure-based, as the existing
+  gadget and close paths are. Do not add right-click activation.
+- Do not broaden this increment into submenus, menu images, keyboard shortcut
+  emulation, general requester work, or a general menu framework beyond what
+  the real iTidy menu strip requires.
+- Do not alter the target-specific iTidy `IntuiMessage` ABI or scheduler core.
+
+Add focused tests for:
+
+- host menu-bar attachment after `SetMenuStrip`;
+- detachment through `ClearMenuStrip`;
+- no menu bar for a window with no attached strip;
+- correct decoding of the real menu/item structures and separators;
+- correct `ItemAddress` behavior for valid and invalid menu numbers;
+- `IDCMP_MENUPICK` filtering, real queued message fields, and lifecycle;
+- a real Xvfb-backed iTidy smoke test which triggers the projected
+  `Project -> Close` action and verifies the app's own message dispatch,
+  reply, `CloseWindow`, host-window release, and clean exit.
+
+Run focused tests, both existing interactive smoke tests, the new menu smoke
+test, the full suite, and pre-commit. Account explicitly for the known
+order-dependent Xvfb environment test if it remains the sole aggregate-suite
+failure.
+
+If the increment is genuinely working and gated, commit it on the feature
+branch and merge it into `development`. Do not start another compatibility
+feature in the same session.
+
+When finished, leave a concise summary of:
+
+1. what changed,
+2. the observed real menu-event path,
+3. verification run and results,
+4. remaining uncertainty,
+5. whether the branch was merged,
+6. the next recommended blocker.
+```
 
 There were no additional human-authored prompts in this session; the human
 observed and discussed the session's behavior in a separate conversation with

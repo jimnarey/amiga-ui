@@ -18,17 +18,89 @@ followed the failed session was not more reasoning about the same open
 question: the question was settled from the shipped binary first, and the
 implementation was written against the settled answer.
 
-## Session prompt
+## Session prompts
 
-Objective carried over from the failed session: implement `SetMenuStrip`,
-`ClearMenuStrip`, `ItemAddress`, and real `IDCMP_MENUPICK` delivery for iTidy's
-`Project → Close`, "mirroring the address-based, real-ABI pattern already used
-for the gadget-click and window-close paths", with UI functions backed by "real
-Qt-backed host state, not a value that merely lets the binary proceed"
-(`docs/host-gui/translation-obligations.md`). Gate: focused unit tests, both
-existing interactive smoke tests still passing, a new interactive menu smoke
-test observing the real round trip without fabricating any part of it, the full
-suite, `pre-commit`, then merge into `development`.
+Raw DSH session: `session-f778f0a3-c053-4150-9ba6-dd0a08c4ae4d`
+Log: `/home/runuser/.dsh/sessions/--workspace-amiga-ui--/session-f778f0a3-c053-4150-9ba6-dd0a08c4ae4d/session.jsonl.zstd`
+
+### Starting prompt (2026-09-15 15:43:10 UTC)
+
+```text
+Continue on feat/host-menu-strip. This branch already had one attempt
+(2026-09-15, session eb55b066, see
+docs/sessions/20260915T0057Z-session-log-host-menu-strip-failed.md): one
+turn ran 5h41m and ended on max-tokens having written zero lines of code.
+git status on this branch is clean — nothing to recover, restart cleanly.
+
+Before writing any menu code, settle one specific ABI question by
+disassembly, as a standalone first step: does iTidy's shipped binary convert
+IntuiMessage.Code (the 1-based, 5-bit menu/item pair Intuition delivers on
+IDCMP_MENUPICK) into a MenuNumber before calling ItemAddress, per classic
+semantics — or does it read Code directly as MenuNumber? The prior session's
+own reasoning (step 28 of session eb55b066) is a lucid statement of this
+exact tension and a reasonable starting point, but verify against the binary
+directly rather than trusting it uninspected. This is exactly the kind of
+target-specific fact this project's evidence order already puts the shipped
+binary above NDK prose for; do not re-derive it from prose a second time.
+
+Once settled, implement SetMenuStrip, ClearMenuStrip, ItemAddress, and real
+IDCMP_MENUPICK delivery for iTidy's Project -> Close menu item, mirroring
+the address-based, real-ABI pattern already used for the gadget-click and
+window-close paths (docs/architecture/hosted-application-mode.md and
+docs/sessions/20260915T0006Z-session-log-host-window-close-completed.md).
+For UI-related functions, correctness means real Qt-backed host state, not a
+value that merely lets the binary proceed — see
+docs/host-gui/translation-obligations.md.
+
+Before merging: focused unit tests for the new path, the existing
+interactive smoke tests still passing, a new interactive menu smoke test
+observing the real IDCMP_MENUPICK round trip (not fabricating any part of
+it), the full suite, and pre-commit.
+
+## Where this model/harness combination has struggled here
+
+Two failure modes have actually occurred on this repository with Flash Next,
+both worth watching for directly rather than assuming the infra fixes below
+have eliminated them — neither has been exercised in a real session yet:
+
+1. Getting stuck re-deriving one already-answered question instead of
+   acting. The menu-strip failure above is the clearest case: the model
+   identified the Code/MenuNumber tension correctly on step 28, then spent
+   30+ further steps re-arriving at the same offsets without ever running
+   the disassembly its own prompt had already authorized. If you notice
+   yourself restating a conclusion you've already reached, stop and take the
+   concrete action (read the binary, run the check) instead of reasoning
+   further about it.
+2. Compaction calls that fail with "summarization produced no text summary
+   content" (6 of 10 attempts in the same session) rather than truncating
+   cleanly. The most likely mechanism: the compaction request replays your
+   full tool set alongside the checkpoint instruction, and a response that
+   calls a tool instead of writing prose — or that never leaves reasoning —
+   produces no text content block, which this harness treats as a hard
+   failure rather than retrying with a nudge. If a compaction attempt
+   appears to hang or fail, that's a known harness gap, not a sign the
+   conversation state is lost.
+
+A `--reasoning-budget 8000` cap (forcing a stop-and-redirect message once
+reasoning exceeds it) has since been applied to this model's serving config
+specifically in response to (1), and `streamIdleTimeoutMs` was raised
+earlier in response to a separate stream-timeout failure mode — but neither
+has yet been proven against a real long session. Do not treat their presence
+as a guarantee; if either failure shape recurs despite them, that's useful
+signal for the next infra iteration, not a contradiction of this note.
+```
+
+### Additional prompt 1 (2026-09-15 19:37:47 UTC)
+
+```text
+Please continue the work.
+```
+
+This followed a period during which the turn had ended after a routine
+context compaction produced only a one-line acknowledgement of replayed
+workspace instructions, with no tool call — an idle stall, not a crash or
+hang. The human's message was the only intervention that restarted the
+session; nothing in the harness auto-continued it.
 
 ## The blocking question, settled first
 
