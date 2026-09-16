@@ -68,6 +68,26 @@ host/test event  ->  IntuiMessage  ->  Window.UserPort  ->  WaitPort  ->  GT_Get
 
 **Honest-failure note.** The in-process run is not a clean interactive session: after the target's event loop consumes the delivered message it `WaitPort`s the now-empty queue, which fails honestly with `UnsupportedFeatureError` because the queue really is empty. That failure is the intended behavior — the emulator refusing to invent a message — not a bridge defect. The compiled target's event handling also differs from the checked-in repo source (it drains the message before its real event loop), so a delivered close event is not guaranteed to produce a clean process exit; delivery and consumption are what the bridge guarantees.
 
+## Menu Strip And Menu Picks
+
+`SetMenuStrip()` and `ClearMenuStrip()` are implemented (`src/amiga_ui/vamos/intuition_library.py`):
+they record `Window.MenuStrip` (`+0x1C`) and project or detach a real host menu bar on that
+window's Qt host window (`QMenuBar`, explicitly non-native, inserted above the window content),
+built from the host-safe `MenuStripDescription` the GadTools layer recorded for the strip. A
+strip with no recorded description is kept as an *unprojected* strip rather than silently
+dropped, so the gap stays visible.
+
+`ItemAddress()` implements the classic walk — `Menu.NextMenu` for the menu,
+`FirstItem`/`NextItem` for the item, `SubItem` plus its own `NextItem` chain for a third
+level — and returns NULL for `MENUNULL` or an exhausted chain instead of inventing a handle.
+
+`IDCMP_MENUPICK` is delivered on the same real path as the other classes: a host menu action
+posts a genuine `struct IntuiMessage` carrying the item's packed selector `Code` (with
+`IAddress = 0`) on the window's real `UserPort`, and the application resolves that selector
+itself through `ItemAddress()`. The selector encoding, the application's walk, and the
+`mi_NextSelect` terminator obligation are settled at byte level in
+`docs/apps/itidy/menu-strip-menupick-abi.md`.
+
 ## Text Drawing
 
 `IntuiTextLength()` and `PrintIText()` are implemented (`src/amiga_ui/vamos/intuition_library.py`). The target builds its `struct IntuiText` with the **old pre-2.0 field names**, and its `vc +aos68k` compiler **aligns** the members (not packs them), so the string pointer `IText` sits at `0x0C` — confirmed from the running target, where the three group-box titles decode correctly only at that offset. See `docs/apps/itidy/compatibility-notes.md` (IntuiText ABI) for the settled layout.

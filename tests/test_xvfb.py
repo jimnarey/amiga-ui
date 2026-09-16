@@ -1,3 +1,4 @@
+import os
 import subprocess
 import tempfile
 import unittest
@@ -11,6 +12,22 @@ from amiga_ui.host.xvfb import (
 
 
 class XvfbHelpersTest(unittest.TestCase):
+    """Hermetic about ``QT_QPA_PLATFORM``.
+
+    Other Qt test modules export ``QT_QPA_PLATFORM=offscreen`` into the process
+    environment, so a test of ``build_env``'s *default* has to clear the variable
+    itself: otherwise discovery order decides whether the default is observable.
+    """
+
+    def setUp(self) -> None:
+        self._saved_qt_platform = os.environ.get("QT_QPA_PLATFORM")
+
+    def tearDown(self) -> None:
+        if self._saved_qt_platform is None:
+            os.environ.pop("QT_QPA_PLATFORM", None)
+        else:
+            os.environ["QT_QPA_PLATFORM"] = self._saved_qt_platform
+
     def test_normalize_cli_command_strips_separator(self) -> None:
         self.assertEqual(
             _normalize_cli_command(["--", "python", "-V"]),
@@ -24,6 +41,7 @@ class XvfbHelpersTest(unittest.TestCase):
         )
 
     def test_build_env_sets_display_and_default_qt_platform(self) -> None:
+        os.environ.pop("QT_QPA_PLATFORM", None)  # exercise the default, whatever the ambient env says
         process = subprocess.Popen(["true"])
         runtime_dir = Path(tempfile.mkdtemp())
         session: XvfbSession | None = None

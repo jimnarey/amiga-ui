@@ -294,6 +294,27 @@ class EventBridgeUnitTest(unittest.TestCase):
         self.assertEqual(len(bridge.skipped), 1)
         self.assertIn("99", bridge.skipped[0])
 
+    def test_menupick_delivered_with_packed_code_and_null_iaddress(self) -> None:
+        env = self._setup()
+        bridge = IntuitionEventBridge()
+        code = 0x0021  # first item of the first menu, NOSUB (packed MenuNumber)
+        bridge.schedule_menu_pick(code=code, mousex=7, mousey=9)
+
+        # A backdrop window that never asked for MENUPICK must not receive it.
+        bridge.on_window_opened(env.ctx, 0x060000, env.backdrop_up, env.backdrop_wp, 0, "")
+        self.assertEqual(bridge.posted, [])
+
+        bridge.on_window_opened(env.ctx, 0x062000, env.main_up, env.main_wp, _MAIN_WINDOW_IDCMP, _MAIN_WINDOW_TITLE)
+
+        self.assertEqual(len(bridge.posted), 1)
+        imsg = bridge.posted[0]["imsg"]
+        self.assertEqual(env.mem.r32(imsg + IMSG_OFF_CLASS), IDCMP_MENUPICK)
+        self.assertEqual(env.mem.r16(imsg + IMSG_OFF_CODE), code, "Code carries the packed selector")
+        self.assertEqual(env.mem.r32(imsg + IMSG_OFF_IADDRESS), 0, "a menu pick carries no struct pointer")
+        self.assertEqual(env.mem.r16(imsg + IMSG_OFF_MOUSEX), 7)
+        self.assertEqual(env.mem.r16(imsg + IMSG_OFF_MOUSEY), 9)
+        self.assertEqual(env.mem.r32(imsg + IMSG_OFF_IDCMPWINDOW), 0x062000)
+
     def test_release_message_frees_bridge_allocated_block(self) -> None:
         env = self._setup()
         bridge = IntuitionEventBridge()
@@ -454,6 +475,115 @@ class GadgetUpActivationTest(unittest.TestCase):
         # message is still posted (the classic peek path would find it).
         self.assertIsNotNone(imsg)
         self.assertTrue(env.port_mgr.has_msg(env.main_up))
+
+
+class MenuPickActivationTest(unittest.TestCase):
+    """The address-based projected menu-bar activation path (``menu_pick``).
+
+    The live counterpart of ``schedule_menu_pick`` and the exact mirror of
+    ``gadget_up``: a projected ``QMenuBar`` action fires while the window is open
+    and the target is parked in ``WaitPort``, so the pick is carried by *its*
+    real ``struct Window`` address plus the packed ``MenuNumber`` recorded on the
+    host action when the strip was created. The delivered ``IntuiMessage`` has
+    class ``IDCMP_MENUPICK``, that selector in ``Code``, and ``IAddress`` = 0 —
+    which is what the target resolves with ``ItemAddress(strip, Code)`` (see
+    ``docs/apps/itidy/menu-strip-menupick-abi.md``). No label participates, and a
+    pick that races window close or a window that never asked for the class is an
+    honest no-op recorded in ``skipped``.
+    """
+
+    def _setup(self, idcmp: int = _MAIN_WINDOW_IDCMP):
+        mem = MockMemory(1024)
+        alloc = _FakeAlloc(mem)
+        port_mgr = PeekPortManager(alloc)
+        main_up = alloc.alloc_memory(0x14).addr
+        main_wp = alloc.alloc_memory(0x14).addr
+        port_mgr.register_port(main_up)
+        ctx = _make_ctx(port_mgr, mem, alloc)
+        return SimpleNamespace(mem=mem, alloc=alloc, port_mgr=port_mgr, ctx=ctx, main_up=main_up, main_wp=main_wp)
+
+    def test_posts_real_menupick_with_code_on_real_userport(self) -> None:
+        env = self._setup()
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        code = 0x0821  # second item of the first menu, NOSUB
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, _MAIN_WINDOW_IDCMP, _MAIN_WINDOW_TITLE)
+
+        imsg = bridge.menu_pick(win, code, mousex=3, mousey=4)
+
+        self.assertIsNotNone(imsg)
+        assert imsg is not None
+        self.assertTrue(env.port_mgr.has_msg(env.main_up))
+        self.assertEqual(env.port_mgr.peek_msg(env.main_up), imsg)
+        self.assertEqual(env.mem.r32(imsg + IMSG_OFF_CLASS), IDCMP_MENUPICK)
+        self.assertEqual(env.mem.r16(imsg + IMSG_OFF_CODE), code)
+        self.assertEqual(env.mem.r32(imsg + IMSG_OFF_IADDRESS), 0, "the selector lives in Code, not IAddress")
+        self.assertEqual(env.mem.r16(imsg + IMSG_OFF_MOUSEX), 3)
+        self.assertEqual(env.mem.r32(imsg + IMSG_OFF_IDCMPWINDOW), win)
+        self.assertEqual(env.mem.r32(imsg + IMSG_OFF_REPLYMSG), env.main_wp)
+        self.assertEqual(bridge.posted[0]["port"], env.main_up)
+        self.assertEqual(bridge.posted[0]["code"], code)
+
+    def test_requires_window_to_request_menupick(self) -> None:
+        env = self._setup(IDCMP_GADGETUP)  # admits gadgetup, not menupick
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, IDCMP_GADGETUP, "Main")
+
+        self.assertIsNone(bridge.menu_pick(win, 0x0021))
+        self.assertEqual(bridge.posted, [])
+        self.assertEqual(env.port_mgr.has_msg(env.main_up), False)
+        self.assertEqual(len(bridge.skipped), 1)
+        self.assertIn("did not request IDCMP_MENUPICK", bridge.skipped[0])
+
+    def test_stale_window_pick_is_noop(self) -> None:
+        env = self._setup()
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, _MAIN_WINDOW_IDCMP, _MAIN_WINDOW_TITLE)
+        bridge.on_window_closed(win)  # the app closed the window (or raced it)
+
+        self.assertIsNone(bridge.menu_pick(win, 0x0021))
+        self.assertEqual(bridge.posted, [])
+        self.assertEqual(len(bridge.skipped), 1)
+        self.assertIn("not open", bridge.skipped[0])
+
+    def test_notifies_scheduler_after_queue_insert(self) -> None:
+        env = self._setup()
+        scheduler = _FakeScheduler()
+        env.ctx.scheduler = scheduler
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, _MAIN_WINDOW_IDCMP, _MAIN_WINDOW_TITLE)
+
+        self.assertIsNotNone(bridge.menu_pick(win, 0x0021))
+        # The message is really on the port before any resume can happen.
+        self.assertTrue(env.port_mgr.has_msg(env.main_up))
+        self.assertEqual(scheduler.notified, [(WaitResource.MESSAGE_PORT, env.main_up)])
+
+    def test_without_scheduler_still_posts(self) -> None:
+        env = self._setup()
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, _MAIN_WINDOW_IDCMP, _MAIN_WINDOW_TITLE)
+
+        self.assertIsNotNone(bridge.menu_pick(win, 0x0021))
+        self.assertTrue(env.port_mgr.has_msg(env.main_up))
+
+    def test_two_picks_queue_two_messages(self) -> None:
+        env = self._setup()
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, _MAIN_WINDOW_IDCMP, _MAIN_WINDOW_TITLE)
+
+        first = bridge.menu_pick(win, 0x0021)
+        second = bridge.menu_pick(win, 0x0041)
+
+        self.assertIsNotNone(first)
+        self.assertIsNotNone(second)
+        self.assertNotEqual(first, second)
+        self.assertEqual(len(bridge.posted), 2)
+        self.assertEqual([record["code"] for record in bridge.posted], [0x0021, 0x0041])
 
 
 class EventBridgeIntegrationTest(unittest.TestCase):

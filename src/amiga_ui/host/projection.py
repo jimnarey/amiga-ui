@@ -7,16 +7,21 @@ and ``gadtools.library``) expresses *intent* about app-facing Amiga windows:
   flags, and the immutable, host-safe descriptions of the GadTools gadgets the
   window owns),
 - a window should be repainted (the ``GT_RefreshWindow`` boundary),
+- a menu strip was attached to (``SetMenuStrip``) or detached from
+  (``ClearMenuStrip``) a window,
 - a window was closed.
 
 Gadget intent is carried as :class:`GadgetDescription` values — immutable,
 host-safe records of one gadget's decoded state (kind, geometry, label, and
 kind-specific state such as cycle labels / active index or the checkbox flag).
-The compatibility layer decodes the 68k ``struct Gadget`` / ``NewGadget`` and
-the GadTools tag list *while emulated memory is still valid* and hands the
-projection only these copied values; the Qt projection never dereferences
-emulated memory. The invisible ``CreateContext``/``GContext`` gadget is
-carried with :data:`KIND_CONTEXT` and is never projected.
+Menu-strip intent is carried as :class:`MenuStripDescription` — the decoded
+titles, entries, and the packed classic ``MenuNumber`` a host pick must deliver
+for each entry. The compatibility layer decodes the 68k ``struct Gadget`` /
+``NewGadget`` and the ``struct Menu`` / ``struct MenuItem`` chains *while
+emulated memory is still valid* and hands the projection only these copied
+values; the Qt projection never dereferences emulated memory. The invisible
+``CreateContext``/``GContext`` gadget is carried with :data:`KIND_CONTEXT` and
+is never projected.
 
 The compatibility layer never imports or constructs Qt widgets: it calls these
 semantic methods on whatever projection the launcher installed on the library
@@ -126,6 +131,70 @@ class GadgetDescription:
         return self.kind_name in PROJECTABLE_KINDS
 
 
+@dataclass(frozen=True)
+class MenuEntryDescription:
+    """Immutable, host-safe description of one entry of an Amiga menu.
+
+    Decoded by the compatibility layer (``gadtools.library``, which created the
+    real ``struct MenuItem``) while emulated memory is still valid.
+
+    ``code`` is the packed classic ``MenuNumber`` Intuition would deliver for
+    this entry — the value a host menu pick must carry in ``IntuiMessage.Code``
+    so the app's own ``ItemAddress(strip, Code)`` resolves back to this very
+    item. ``item_data`` is what the app reads back through
+    ``GTMENUITEM_USERDATA(item)``; it is carried for observation only, never
+    interpreted by the host. ``item_addr`` is the emulated ``struct MenuItem *``
+    kept purely as an identity key.
+
+    A classic separator bar (``NM_BARLABEL``) has an empty ``label`` and
+    :attr:`is_separator` set; it is projected as a separator, never as a
+    triggerable action. ``sub_items`` carries the optional third level
+    (``NM_SUB`` entries): each sub-entry has its own packed ``code`` — with the
+    sub-item field set — and is projected as a nested host menu.
+    """
+
+    item_addr: int
+    code: int
+    label: str = ""
+    is_separator: bool = False
+    command_key: str = ""
+    item_data: int = 0
+    sub_items: tuple[MenuEntryDescription, ...] = ()
+
+    @property
+    def is_selectable(self) -> bool:
+        """Whether picking this entry is an action the app can be told about.
+
+        A separator bar is never an action, and neither is a plain title that
+        only opens a sub-menu — only a leaf entry with a label is.
+        """
+
+        return not self.is_separator and bool(self.label) and not self.sub_items
+
+
+@dataclass(frozen=True)
+class MenuTitleDescription:
+    """One top-level menu of a strip: its decoded title and its entries."""
+
+    title: str
+    items: tuple[MenuEntryDescription, ...] = ()
+
+
+@dataclass(frozen=True)
+class MenuStripDescription:
+    """Immutable, host-safe description of a whole ``struct Menu`` strip.
+
+    ``strip_addr`` is the emulated ``struct Menu *`` (identity key only).
+    ``entry_count`` is the total number of decoded entries — separators
+    included — so a host can report what it attached without re-walking
+    anything.
+    """
+
+    strip_addr: int = 0
+    menus: tuple[MenuTitleDescription, ...] = ()
+    entry_count: int = 0
+
+
 @dataclass
 class OpenWindowIntent:
     """One window-open intent as expressed by the compatibility layer.
@@ -185,6 +254,19 @@ class HostWindowProjection(Protocol):
     def close_window(self, window_addr: int) -> None:
         """Remove the projection for ``window_addr``. Idempotent."""
 
+    def set_menu_strip(self, window_addr: int, strip: MenuStripDescription) -> None:
+        """Attach a decoded Amiga menu strip to ``window_addr``'s projection.
+
+        Called by ``intuition.library`` from ``SetMenuStrip``, i.e. usually
+        *after* the window was opened. A projection that has no host window for
+        ``window_addr`` records nothing and returns; a real projection shows the
+        strip as the host window's menu bar (the Amiga menu bar belongs to its
+        window, never to a shared/native application menu bar).
+        """
+
+    def clear_menu_strip(self, window_addr: int) -> None:
+        """Detach the menu strip of ``window_addr``'s projection. Idempotent."""
+
     def bind_registry(self, registry: Any) -> None:
         """Attach the run-wide RastPort op registry used to resolve replay ops."""
 
@@ -200,6 +282,10 @@ class NullHostWindowProjection:
         self.opened: list[OpenWindowIntent] = []
         self.refreshed: list[int] = []
         self.closed: list[int] = []
+        # window addr -> the decoded strip last attached to it (only known
+        # windows can hold one; a clear removes it and is recorded).
+        self.strips: dict[int, MenuStripDescription] = {}
+        self.strips_cleared: list[int] = []
         self._registry: Any = None
         self._known: set[int] = set()
 
@@ -215,8 +301,19 @@ class NullHostWindowProjection:
 
     def close_window(self, window_addr: int) -> None:
         self._known.discard(window_addr)
+        self.strips.pop(window_addr, None)
         if window_addr not in self.closed:
             self.closed.append(window_addr)
+
+    def set_menu_strip(self, window_addr: int, strip: MenuStripDescription) -> None:
+        # Mirrors the real projection: a strip only attaches to a window that
+        # was actually opened here.
+        if window_addr in self._known:
+            self.strips[window_addr] = strip
+
+    def clear_menu_strip(self, window_addr: int) -> None:
+        if self.strips.pop(window_addr, None) is not None and window_addr not in self.strips_cleared:
+            self.strips_cleared.append(window_addr)
 
     def bind_registry(self, registry: Any) -> None:
         self._registry = registry
