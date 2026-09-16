@@ -17,8 +17,10 @@ from __future__ import annotations
 from typing import Any
 
 from ..host.projection import GadgetDescription, OpenWindowIntent
+from . import menu_state
 from .base_library import BaseLibrary
 from .gadget_state import gadget_registry_from_ctx
+from .menu_state import menu_registry_from_ctx
 from .rastport_state import JAM1, RastPortRegistry
 
 # --- struct Screen (classic, pre-RasInfo ViewPort embedded) ------------------
@@ -246,6 +248,15 @@ class IntuitionLibrary(BaseLibrary):
         # pointer around listview resorting): a host-side op for the future
         # renderer rather than a silent no-op.
         self.set_window_pointer_ops: list[dict[str, Any]] = []
+        # window addr -> the emulated ``struct Menu *`` the app attached there via
+        # ``SetMenuStrip``. The window's own ``MenuStrip`` field is the state the
+        # app reads; this mirror is what lets ``ClearMenuStrip``/``CloseWindow``
+        # tell the host projection to remove the matching host menu bar.
+        self._menu_strips: dict[int, int] = {}
+        # Strips the app attached but this layer cannot project, because it did
+        # not create them and so has no decoded description. Recorded rather than
+        # guessed at — an empty or invented menu bar would be a fabricated UI.
+        self.unprojected_menu_strips: list[int] = []
 
     def get_version(self) -> int:
         """Report a plausible baseline library version for Workbench 3.x startup."""
@@ -759,12 +770,80 @@ class IntuitionLibrary(BaseLibrary):
         return mem
 
     def SetMenuStrip(self, ctx, window, menu):
-        """Attach (or detach, with a NULL menu) a menu strip to a window."""
+        """intuition.library ``SetMenuStrip(window, menu)``: attach a menu strip.
+
+        Two real effects, both derived from the app's own arguments:
+
+        1. the classic state change — the window's ``MenuStrip`` field is set (a
+           NULL ``menu`` detaches, the documented way to remove a strip), so
+           anything reading the window sees what the app asked for;
+        2. the host projection — the strip's decoded description, recorded by
+           ``gadtools.library`` when ``CreateMenus`` built the real
+           ``struct Menu`` chain, is handed to the projection so the host window
+           grows a real menu bar of its own (the Amiga menu bar belongs to its
+           window, never to a shared application menu bar).
+
+        A strip this layer did not create has no decoded description; that gap
+        is recorded in :attr:`unprojected_menu_strips` instead of being papered
+        over with an invented menu bar. Returns None (VOID).
+        """
         if not window:
             return None
-        mem = ctx.mem
-        mem.w32(window + _WIN_OFF_MENUSTRIP, menu)
+        ctx.mem.w32(window + _WIN_OFF_MENUSTRIP, menu & 0xFFFFFFFF)
+        if not menu:
+            self._clear_projected_menu_strip(ctx, window)
+            return None
+        self._menu_strips[window] = menu
+        registry = menu_registry_from_ctx(ctx)
+        strip = registry.get(menu) if registry is not None else None
+        if strip is None:
+            if menu not in self.unprojected_menu_strips:
+                self.unprojected_menu_strips.append(menu)
+            return None
+        projection = getattr(ctx, "host_projection", None)
+        if projection is not None:
+            projection.set_menu_strip(window, strip)
         return None
+
+    def ClearMenuStrip(self, ctx, window):
+        """intuition.library ``ClearMenuStrip(window)``: detach the window's strip.
+
+        Clears the window's real ``MenuStrip`` field, drops our record, and asks
+        the projection to remove the host menu bar. Returns None (VOID).
+        """
+        if not window:
+            return None
+        ctx.mem.w32(window + _WIN_OFF_MENUSTRIP, 0)
+        self._clear_projected_menu_strip(ctx, window)
+        return None
+
+    def _clear_projected_menu_strip(self, ctx, window: int) -> None:
+        """Drop our strip record for ``window`` and detach it from the projection."""
+
+        strip_addr = self._menu_strips.pop(window, 0)
+        projection = getattr(ctx, "host_projection", None)
+        if projection is not None:
+            projection.clear_menu_strip(window)
+        if strip_addr:
+            self.unprojected_menu_strips = [addr for addr in self.unprojected_menu_strips if addr != strip_addr]
+        return None
+
+    def ItemAddress(self, ctx, menu_strip, menu_number):
+        """intuition.library ``ItemAddress(menuStrip, menuNumber)`` -> ``struct MenuItem *``.
+
+        The classic selector walk, delegated to
+        :func:`amiga_ui.vamos.menu_state.resolve_menu_item_address`: ``Menu``
+        links to the nth menu, that menu's ``FirstItem``/``NextItem`` chain to the
+        item, and a sub-item component follows ``MenuItem.SubItem``.
+
+        ``menuNumber`` is the *packed* 16-bit selector exactly as Intuition
+        delivers it in ``IntuiMessage.Code`` — the target passes that word
+        straight in without unpacking it, so nothing is unpacked here either
+        (evidence and reasoning: ``docs/apps/itidy/menu-strip-menupick-abi.md``).
+        ``MENUNULL`` and selectors that name no item in this strip give NULL, not
+        a made-up address.
+        """
+        return menu_state.resolve_menu_item_address(ctx.mem, menu_strip, menu_number)
 
     def SetDefaultPubScreen(self, ctx, name):
         """Stub for SetDefaultPubScreen - returns success."""
@@ -797,6 +876,10 @@ class IntuitionLibrary(BaseLibrary):
         self._registry(ctx).remove(win_rp.addr)
         ctx.alloc.free_memory(win_rp)
         ctx.alloc.free_memory(win)
+        # The window's menu strip dies with the window: drop our record so a
+        # recycled window address cannot inherit it (the projection drops the
+        # host menu bar together with the window record below).
+        self._menu_strips.pop(window, None)
         # Host event bridge stale guard: forget the window (and its gadgets) so
         # a late projected-widget or window-manager callback cannot post into a
         # released UserPort (idempotent; no Qt import here). No-op for plain

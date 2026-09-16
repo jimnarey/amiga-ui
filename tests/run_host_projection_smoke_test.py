@@ -12,6 +12,10 @@ The target *binary* still ends at the honest ``WaitPort``-on-empty-queue
 boundary (a documented target limitation), so this asserts the host window was
 created, titled, correctly sized, and actually painted — not a clean app exit.
 
+The target also attaches a menu strip with ``SetMenuStrip``, so the check asserts
+the window carries one host menu bar whose entries stand for real ``struct
+MenuItem`` blocks (the same address-based pattern as the projected gadgets).
+
 Run as a module so the ``tests`` package (for the launcher fixture) and the
 installed ``amiga_ui`` are importable::
 
@@ -145,8 +149,35 @@ def _check(projection, app, exit_code: int) -> list[str]:
             f"host window geometry {window.width()}x{window.height()} != Amiga window {intent.width}x{intent.height}"
         )
 
-    if window.findChildren(QMenuBar):
-        failures.append("host window unexpectedly has a menu bar (should be menu-bar-free)")
+    # The target attaches a real menu strip via SetMenuStrip, so this window must
+    # carry exactly one (non-native) host menu bar, and every entry in it must
+    # stand for a real Amiga menu item — a fabricated bar would fail here.
+    from amiga_ui.host.qt_projection import QtMenuAction
+    from amiga_ui.vamos.menu_state import decode_menu_number
+
+    bars = window.findChildren(QMenuBar)
+    if len(bars) != 1:
+        failures.append(f"host window has {len(bars)} menu bars, expected exactly one (SetMenuStrip)")
+    else:
+        bar = bars[0]
+        if bar.isNativeMenuBar():
+            failures.append("projected menu bar is a native host menu bar")
+        titles = [action.text() for action in bar.actions() if action.text()]
+        entries = bar.findChildren(QtMenuAction)
+        print(f"menu bar titles: {titles}; Amiga-backed entries: {len(entries)}", file=sys.stderr)
+        if not titles:
+            failures.append("projected menu bar has no menu titles")
+        if not entries:
+            failures.append("projected menu bar has no Amiga-backed menu entries")
+        for entry in entries:
+            if entry.amiga_window_addr != addr:
+                failures.append(
+                    f"menu entry {entry.text()!r} belongs to window 0x{entry.amiga_window_addr:X}, not 0x{addr:X}"
+                )
+            if not entry.amiga_item_addr:
+                failures.append(f"menu entry {entry.text()!r} has no real struct MenuItem *")
+            if decode_menu_number(entry.amiga_menu_code) is None:
+                failures.append(f"menu entry {entry.text()!r} carries a selector that names no item")
 
     # The surface must hold a replayed RastPort op stream and actually paint it.
     surface = window.surface

@@ -25,6 +25,7 @@ from .event_bridge import IntuitionEventBridge
 from .extensions import get_library_impl_overrides
 from .fd_creator import install_repo_fd_creator
 from .gadget_state import GadgetDescriptionRegistry
+from .menu_state import MenuDescriptionRegistry
 from .rastport_state import RastPortRegistry
 
 
@@ -69,6 +70,11 @@ class ProjectSetupLibManager(SetupLibManager):
         # the window's real FirstGadget chain to resolve which gadgets a window
         # owns and projects them.
         self.gadget_descriptions = GadgetDescriptionRegistry()
+        # One shared host-side registry of decoded Amiga menu strips for the whole
+        # run. GadTools (CreateMenusA) records each created strip's immutable,
+        # host-safe description here; Intuition (SetMenuStrip) looks it up by the
+        # real ``struct Menu *`` to project it, and (FreeMenus) drops it.
+        self.menu_descriptions = MenuDescriptionRegistry()
         # Bind the run-wide op registry to the projection so refresh_window can
         # resolve the RastPort op stream to replay for a window's RPort.
         self.host_projection.bind_registry(self.rastports)
@@ -111,6 +117,10 @@ class ProjectSetupLibManager(SetupLibManager):
         # (OpenWindowTagList) can share decoded gadget state without importing
         # each other.
         lib_mgr.vlib_mgr.set_ctx_extra_attr("gadget_descriptions", self.gadget_descriptions)
+        # Expose the shared menu-strip description registry to library contexts so
+        # GadTools (CreateMenusA/FreeMenus) and Intuition (SetMenuStrip) can share
+        # decoded menu state without importing each other.
+        lib_mgr.vlib_mgr.set_ctx_extra_attr("menu_descriptions", self.menu_descriptions)
         # ``super().setup()`` registered the bootstrap exec/dos contexts via
         # ``add_ctx`` *before* the extra attributes above were set; ``add_ctx``
         # copies the then-empty extra-attr set, so those contexts never saw

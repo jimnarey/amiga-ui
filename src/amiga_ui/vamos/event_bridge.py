@@ -108,8 +108,10 @@ class IntuitionEventBridge:
 
     ``schedule_*`` is the *pre-open* form: the event waits until a window that
     admits the class opens. A live Qt host instead drives the address-based
-    forms from widget callbacks — ``gadget_up()`` for a projected BUTTON and
-    ``request_close_window()`` for a host window-manager close request.
+    forms from widget callbacks — ``gadget_up()`` for a projected BUTTON,
+    ``menu_pick()`` for a projected menu entry (carrying the packed
+    ``MenuNumber`` in ``Code``), and ``request_close_window()`` for a host
+    window-manager close request.
     The library impls reach the bridge through the ``event_bridge`` context
     extra attribute (registered by the launcher); without it (plain probes)
     the bridge simply never gets hooks and behaviour is unchanged.
@@ -194,6 +196,16 @@ class IntuitionEventBridge:
             mousex=mousex,
             mousey=mousey,
         )
+
+    def schedule_menu_pick(self, window: str = FIRST_WINDOW, code: int = 0, mousex: int = 0, mousey: int = 0) -> None:
+        """Schedule an IDCMP_MenuPick event carrying the packed ``MenuNumber``.
+
+        ``code`` is the classic packed selector (menu / item / optional sub-item
+        fields, see :mod:`amiga_ui.vamos.menu_state`) — the value the app hands to
+        ``ItemAddress(strip, Code)`` unchanged. ``IAddress`` stays 0: for a menu
+        pick real Intuition puts the selector in ``Code``, not a struct pointer.
+        """
+        self.schedule_event(IDCMP_MENUPICK, window=window, code=code, mousex=mousex, mousey=mousey)
 
     # -- hooks called by the repo-owned library impls --------------------------
     def on_window_opened(
@@ -329,6 +341,60 @@ class IntuitionEventBridge:
         )
         # The message is on the real UserPort now; only then is the hint
         # meaningful. The scheduler rechecks the real queue before resuming.
+        scheduler = getattr(self._ctx, "scheduler", None)
+        if scheduler is not None:
+            scheduler.notify_resource_changed(WaitResource.MESSAGE_PORT, info["user_port"])
+        return imsg
+
+    def menu_pick(self, window_addr: int, code: int, *, mousex: int = 0, mousey: int = 0) -> int | None:
+        """Translate one *host menu-bar* activation into a real ``IntuiMessage``.
+
+        The live counterpart of :meth:`schedule_menu_pick`, in the same shape as
+        :meth:`gadget_up` is the live counterpart of :meth:`schedule_gadget_up`:
+        a projected menu action fires while the window is already open and the
+        target is parked in ``WaitPort``, so the message must reach *that* window
+        now. ``window_addr`` is the real ``struct Window *`` recorded on the host
+        widget and ``code`` is the packed ``MenuNumber`` recorded on the host
+        action when the strip was created — so what the app resolves with
+        ``ItemAddress(strip, Code)`` is exactly the entry the user clicked. No
+        label or title participates.
+
+        Steps, in the same order as :meth:`gadget_up`:
+
+        1. verify the owning window is still open (a pick racing the app's own
+           ``CloseWindow`` is an honest no-op);
+        2. verify it requested ``IDCMP_MENUPICK`` — real Intuition delivers menu
+           picks to the ``Screen``'s pointer-user, and this model attaches the
+           strip to a window that asked for the class; a window that did not ask
+           gets no event, exactly as Intuition generates no class unrequested;
+        3. allocate and fill a real ``IntuiMessage`` of class ``IDCMP_MENUPICK``
+           with ``Code`` = ``code`` and ``IAddress`` = 0 (a menu pick carries its
+           selector in ``Code``, not a struct pointer);
+        4. enqueue it on the owning ``Window.UserPort``;
+        5. only *after* the queue insertion, notify the scheduler.
+
+        Returns the ``IntuiMessage`` address, or ``None`` when the pick was stale
+        or filtered out (recorded in ``self.skipped``).
+        """
+        info = self._windows.get(window_addr)
+        if info is None:
+            self.skipped.append(f"menupick: window {window_addr:06x} not open (stale pick)")
+            return None
+        if not (info["idcmp"] & IDCMP_MENUPICK):
+            self.skipped.append(f"menupick: window {window_addr:06x} did not request IDCMP_MENUPICK")
+            return None
+        if self._ctx is None:
+            self.skipped.append("menupick: no live context to allocate the message")
+            return None
+        imsg = self.post_event(
+            self._ctx,
+            window_addr,
+            IDCMP_MENUPICK,
+            code=code,
+            iaddress=0,
+            mousex=mousex,
+            mousey=mousey,
+        )
         scheduler = getattr(self._ctx, "scheduler", None)
         if scheduler is not None:
             scheduler.notify_resource_changed(WaitResource.MESSAGE_PORT, info["user_port"])

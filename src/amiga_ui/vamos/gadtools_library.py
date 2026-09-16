@@ -16,6 +16,8 @@ locked screen the app passed in, not constants.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from ..host.projection import (
@@ -35,9 +37,13 @@ from ..host.projection import (
     KIND_TEXT,
     KIND_UNSUPPORTED,
     GadgetDescription,
+    MenuEntryDescription,
+    MenuTitleDescription,
 )
+from . import menu_state
 from .base_library import BaseLibrary
 from .gadget_state import gadget_registry_from_ctx
+from .menu_state import menu_registry_from_ctx, pack_menu_number
 from .rastport_state import RastPortRegistry
 
 # --- struct VisualInfo (private GadTools block, screen‑derived) --------------
@@ -213,32 +219,42 @@ _NM_IGNORE = 64
 _MENU_IMAGE = 128
 _NM_BARLABEL = 0xFFFFFFFF  # (STRPTR)-1: separator bar
 
-# --- struct Menu (classic intuition, 30 bytes) -------------------------------
-_MENU_SIZE = 0x1E
-_MENU_OFF_NEXT = 0x00  # APTR struct Menu *NextMenu
-_MENU_OFF_LEFT = 0x04  # WORD LeftEdge
-_MENU_OFF_TOP = 0x06  # WORD TopEdge
-_MENU_OFF_WIDTH = 0x08  # WORD Width
-_MENU_OFF_HEIGHT = 0x0A  # WORD Height
-_MENU_OFF_FLAGS = 0x0C  # UWORD Flags
-_MENU_OFF_NAME = 0x0E  # CONST_STRPTR MenuName
-_MENU_OFF_FIRSTITEM = 0x12  # APTR struct MenuItem *FirstItem
+# --- struct Menu / struct MenuItem (classic intuition) -----------------------
+# Field positions, sizes, and the item user-data slot are defined once in
+# :mod:`amiga_ui.vamos.menu_state` (with the binary evidence for the slot) and
+# used from there here and in ``intuition.library``'s ``ItemAddress`` walk, so
+# the creator and the resolver can never disagree about where a field lives.
 
-# --- struct MenuItem (classic intuition, Cmd field at 0x21) ------------------
-_MI_SIZE = 0x25
-_MI_OFF_NEXT = 0x00  # APTR struct MenuItem *NextItem
-_MI_OFF_LEFT = 0x04  # WORD LeftEdge
-_MI_OFF_TOP = 0x06  # WORD TopEdge
-_MI_OFF_WIDTH = 0x08  # WORD Width
-_MI_OFF_HEIGHT = 0x0A  # WORD Height
-_MI_OFF_FLAGS = 0x0C  # UWORD Flags
-_MI_OFF_MUTE = 0x0E  # LONG MutualExclude
-_MI_OFF_FILL = 0x12  # APTR ItemFill (IntuiText / Image / NULL)
-_MI_OFF_SELECT = 0x16  # APTR SelectFill
-_MI_OFF_CMD = 0x1A  # BYTE Command (command key)
-_MI_OFF_SUBITEM = 0x1B  # APTR SubItem
-_MI_OFF_NEXTSELECT = 0x1F  # UWORD NextSelect
-_MI_OFF_CMDVAL = 0x21  # LONG Cmd (item id from nm_UserData)
+
+@dataclass
+class _EntryAssembly:
+    """Mutable holder for one menu entry while its sub-item chain is still growing."""
+
+    entry: MenuEntryDescription
+    subs: list[MenuEntryDescription] = field(default_factory=list)
+
+
+@dataclass
+class _MenuAssembly:
+    """Mutable holder for one menu title and its top-level entries."""
+
+    title: str
+    entries: list[_EntryAssembly] = field(default_factory=list)
+
+
+def _freeze_menus(assembly: Sequence[_MenuAssembly]) -> tuple[MenuTitleDescription, ...]:
+    """Turn the assembly holders into the immutable host-safe descriptions."""
+
+    return tuple(
+        MenuTitleDescription(
+            menu.title,
+            tuple(
+                replace(holder.entry, sub_items=tuple(holder.subs)) if holder.subs else holder.entry
+                for holder in menu.entries
+            ),
+        )
+        for menu in assembly
+    )
 
 
 class GadToolsLibrary(BaseLibrary):
@@ -637,12 +653,24 @@ class GadToolsLibrary(BaseLibrary):
     def CreateMenusA(self, ctx, newmenu, taglist):
         """Build a real menu structure from a flat ``NewMenu`` template array.
 
-        The template is a flat array: ``NM_TITLE`` starts a menu, ``NM_ITEM`` /
-        ``NM_SUB`` add items to the current menu, ``NM_END`` terminates. We
-        allocate genuine ``struct Menu`` / ``struct MenuItem`` blocks, attach
-        IntuiText labels, carry the command key and the item id the app set in
-        ``nm_UserData``, and link them. The result is a populated menu the app
-        can hand to ``LayoutMenus``/``FreeMenus`` -- not an empty handle.
+        The template is a flat array: ``NM_TITLE`` starts a menu, ``NM_ITEM``
+        adds an entry to it, ``NM_SUB`` adds an entry to the sub-item chain of
+        the entry that precedes it, ``NM_END`` terminates. We allocate genuine
+        ``struct Menu`` / ``struct MenuItem`` blocks (classic field layout from
+        :mod:`amiga_ui.vamos.menu_state`), attach IntuiText labels, carry the
+        command key, and store the item id the app set in ``nm_UserData`` in the
+        slot ``CreateMenus`` reserves right after ``mi_SIZEOF`` — which is what
+        the app reads back through ``GTMENUITEM_USERDATA(item)`` after a pick.
+        The ``NextMenu`` / ``FirstItem`` / ``NextItem`` / ``SubItem`` chains are
+        linked exactly as the classic walk expects, so the app's
+        ``ItemAddress(strip, menu_number)`` resolves a delivered
+        ``IntuiMessage.Code`` back to this very entry: the chain positions encode
+        the packed ``MenuNumber`` we record for it in the description.
+
+        Each created strip is also decoded into an immutable, host-safe
+        :class:`~amiga_ui.host.projection.MenuStripDescription` and recorded in
+        the run-wide registry, so ``SetMenuStrip`` can project it without reading
+        emulated memory again.
         """
         if not newmenu:
             return 0
@@ -650,67 +678,163 @@ class GadToolsLibrary(BaseLibrary):
         alloc = ctx.alloc
         first_menu = 0
         current_menu = 0
-        prev_item = 0
+        menu_index = -1
+        prev_top_item = 0
+        top_index = -1
+        prev_sub_item = 0
+        sub_index = -1
+        assembly: list[_MenuAssembly] = []
         off = 0
         for _ in range(0x400):
-            type_val = mem.r8(newmenu + off + _NM_OFF_TYPE)
+            entry = newmenu + off
+            type_val = mem.r8(entry + _NM_OFF_TYPE)
             off += _NM_SIZE
             if type_val & _NM_IGNORE:
                 continue
             if type_val == _NM_END:
                 break
             if type_val == _NM_TITLE:
-                menu = alloc.alloc_memory(_MENU_SIZE, label="GadTools.Menu")
+                menu = alloc.alloc_memory(menu_state.MENU_SIZE, label="GadTools.Menu")
                 addr = menu.addr
-                mem.w32(addr + _MENU_OFF_NEXT, 0)
-                mem.w32(addr + _MENU_OFF_FIRSTITEM, 0)
-                mem.w32(addr + _MENU_OFF_NAME, mem.r32(newmenu + off - _NM_SIZE + _NM_OFF_LABEL))
-                mem.w16(addr + _MENU_OFF_FLAGS, mem.r16(newmenu + off - _NM_SIZE + _NM_OFF_FLAGS))
+                mem.w32(addr + menu_state.MENU_OFF_NEXT, 0)
+                mem.w32(addr + menu_state.MENU_OFF_FIRSTITEM, 0)
+                title = mem.r32(entry + _NM_OFF_LABEL)
+                mem.w32(addr + menu_state.MENU_OFF_NAME, title)
+                mem.w16(addr + menu_state.MENU_OFF_FLAGS, mem.r16(entry + _NM_OFF_FLAGS))
                 self._menu_blocks[addr] = menu
                 if not first_menu:
                     first_menu = addr
                 elif current_menu:
-                    mem.w32(current_menu + _MENU_OFF_NEXT, addr)
+                    mem.w32(current_menu + menu_state.MENU_OFF_NEXT, addr)
                 current_menu = addr
-                prev_item = 0
+                menu_index += 1
+                assembly.append(_MenuAssembly(self._decode_c_string(mem, title)))
+                prev_top_item = 0
+                top_index = -1
+                prev_sub_item = 0
+                sub_index = -1
                 continue
             if not current_menu:
                 # NM_ITEM before any NM_TITLE: illegal template.
                 break
-            label = mem.r32(newmenu + off - _NM_SIZE + _NM_OFF_LABEL)
-            item = alloc.alloc_memory(_MI_SIZE, label="GadTools.MenuItem")
-            iaddr = item.addr
-            mem.w32(iaddr + _MI_OFF_NEXT, 0)
-            mem.w16(iaddr + _MI_OFF_FLAGS, mem.r16(newmenu + off - _NM_SIZE + _NM_OFF_FLAGS))
-            mem.w32(iaddr + _MI_OFF_MUTE, mem.r32(newmenu + off - _NM_SIZE + _NM_OFF_MUTE))
+            label = mem.r32(entry + _NM_OFF_LABEL)
             is_separator = label == _NM_BARLABEL or bool(type_val & _MENU_IMAGE)
-            if not is_separator and label:
-                it = alloc.alloc_memory(_IT_SIZE, label="GadTools.MenuIntuiText")
-                mem.w16(it.addr + _IT_OFF_FACE, 0)
-                mem.w16(it.addr + _IT_OFF_WIDTH, 5)
-                mem.w16(it.addr + _IT_OFF_HEIGHT, _DEFAULT_FONT_HEIGHT)
-                mem.w32(it.addr + _IT_OFF_TEXT, label)
-                mem.w32(iaddr + _MI_OFF_FILL, it.addr)
-                self._menu_blocks[it.addr] = it
-            comm_key = mem.r32(newmenu + off - _NM_SIZE + _NM_OFF_COMMKEY)
-            if comm_key:
-                mem.w8(iaddr + _MI_OFF_CMD, mem.r8(comm_key) & 0xFF)
-            mem.w32(iaddr + _MI_OFF_CMDVAL, mem.r32(newmenu + off - _NM_SIZE + _NM_OFF_USERDATA))
-            if not prev_item:
-                mem.w32(current_menu + _MENU_OFF_FIRSTITEM, iaddr)
+            item_addr = self._create_menu_item(ctx, entry, is_separator=is_separator)
+            is_sub = type_val == _NM_SUB and prev_top_item and assembly
+            if is_sub:
+                sub_index += 1
+                if not prev_sub_item:
+                    mem.w32(prev_top_item + menu_state.MENUITEM_OFF_SUBITEM, item_addr)
+                else:
+                    mem.w32(prev_sub_item + menu_state.MENUITEM_OFF_NEXT, item_addr)
+                prev_sub_item = item_addr
+                description = self._describe_menu_entry(
+                    ctx, item_addr, entry, is_separator, menu_index, top_index, sub_index
+                )
+                assembly[-1].entries[-1].subs.append(description)
+                continue
+            top_index += 1
+            sub_index = -1
+            prev_sub_item = 0
+            if not prev_top_item:
+                mem.w32(current_menu + menu_state.MENU_OFF_FIRSTITEM, item_addr)
             else:
-                mem.w32(prev_item + _MI_OFF_NEXT, iaddr)
-            prev_item = iaddr
-            self._menu_blocks[iaddr] = item
+                mem.w32(prev_top_item + menu_state.MENUITEM_OFF_NEXT, item_addr)
+            prev_top_item = item_addr
+            description = self._describe_menu_entry(ctx, item_addr, entry, is_separator, menu_index, top_index, None)
+            assembly[-1].entries.append(_EntryAssembly(description))
+        if not first_menu:
+            return 0
+        strip = menu_state.describe_strip(_freeze_menus(assembly), strip_addr=first_menu)
+        registry = menu_registry_from_ctx(ctx)
+        if registry is not None:
+            registry.record(first_menu, strip)
         return first_menu
+
+    def _create_menu_item(self, ctx, entry: int, *, is_separator: bool) -> int:
+        """Allocate and fill one classic ``struct MenuItem`` block, return its address.
+
+        Every field a later reader can reach is written explicitly: vamos'
+        ``alloc_memory`` does *not* zero memory, so an unwritten ``SubItem`` or
+        ``NextSelect`` would hand the app's own chain walk allocator residue to
+        follow into unrelated memory.  ``NextSelect`` specifically gets
+        ``NEXTSELECT_NULL`` (``MENUNULL``), the value Intuition leaves in an item
+        that is not chained into a selection -- leaving it zero makes a
+        ``while (menu_number != MENUNULL)`` walk of the picked item never
+        terminate.  Geometry is written as unset (zero) here and filled by
+        ``LayoutMenusA``.
+        """
+
+        mem = ctx.mem
+        alloc = ctx.alloc
+        item = alloc.alloc_memory(menu_state.MENUITEM_BLOCK_SIZE, label="GadTools.MenuItem")
+        addr = item.addr
+        mem.w32(addr + menu_state.MENUITEM_OFF_NEXT, 0)
+        mem.w32(addr + menu_state.MENUITEM_OFF_SUBITEM, 0)
+        mem.w16(addr + menu_state.MENUITEM_OFF_NEXTSELECT, menu_state.NEXTSELECT_NULL)
+        mem.w16(addr + menu_state.MENUITEM_OFF_LEFT, 0)
+        mem.w16(addr + menu_state.MENUITEM_OFF_TOP, 0)
+        mem.w16(addr + menu_state.MENUITEM_OFF_WIDTH, 0)
+        mem.w16(addr + menu_state.MENUITEM_OFF_HEIGHT, 0)
+        mem.w16(addr + menu_state.MENUITEM_OFF_FLAGS, mem.r16(entry + _NM_OFF_FLAGS))
+        mem.w32(addr + menu_state.MENUITEM_OFF_MUTE, mem.r32(entry + _NM_OFF_MUTE))
+        label = mem.r32(entry + _NM_OFF_LABEL)
+        if not is_separator and label:
+            it = alloc.alloc_memory(_IT_SIZE, label="GadTools.MenuIntuiText")
+            mem.w16(it.addr + _IT_OFF_FACE, 0)
+            mem.w16(it.addr + _IT_OFF_WIDTH, 5)
+            mem.w16(it.addr + _IT_OFF_HEIGHT, _DEFAULT_FONT_HEIGHT)
+            mem.w32(it.addr + _IT_OFF_TEXT, label)
+            mem.w32(addr + menu_state.MENUITEM_OFF_FILL, it.addr)
+            self._menu_blocks[it.addr] = it
+        comm_key = mem.r32(entry + _NM_OFF_COMMKEY)
+        if comm_key:
+            mem.w8(addr + menu_state.MENUITEM_OFF_CMD, mem.r8(comm_key) & 0xFF)
+        # GTMENUITEM_USERDATA(item): the id the app reads back after a pick, in
+        # the slot CreateMenus reserves just past the classic struct (+0x22).
+        # The shipped binary reads it there (``move.l $22(a2),d1`` in its menu
+        # dispatcher), which is what fixes this offset and the block size.
+        mem.w32(addr + menu_state.MENUITEM_OFF_USERDATA, mem.r32(entry + _NM_OFF_USERDATA))
+        self._menu_blocks[addr] = item
+        return addr
+
+    def _describe_menu_entry(
+        self,
+        ctx,
+        item_addr: int,
+        entry: int,
+        is_separator: bool,
+        menu_index: int,
+        item_index: int,
+        sub_index: int | None,
+    ) -> MenuEntryDescription:
+        """Decode one created item into its host-safe description.
+
+        The packed ``code`` is computed from the chain positions the item was
+        linked at, so the value a host menu pick carries is the very value the
+        app resolves back to ``item_addr``.
+        """
+
+        mem = ctx.mem
+        label = mem.r32(entry + _NM_OFF_LABEL)
+        comm_key = mem.r32(entry + _NM_OFF_COMMKEY)
+        return MenuEntryDescription(
+            item_addr=item_addr,
+            code=pack_menu_number(menu_index, item_index, sub_index),
+            label="" if is_separator else self._decode_c_string(mem, label),
+            is_separator=is_separator,
+            command_key=self._decode_c_string(mem, comm_key, 1) if comm_key else "",
+            item_data=mem.r32(entry + _NM_OFF_USERDATA),
+        )
 
     def LayoutMenusA(self, ctx, firstmenu, vi, taglist):
         """Assign position/size to a created menu strip and return success.
 
         ``CreateMenusA`` leaves the geometry unset; this fills plausible
         per-menu and per-item LeftEdge/TopEdge/Width/Height from the label
-        text metrics so the strip has real layout information. Returns TRUE on
-        success, FALSE if the strip is missing.
+        text metrics so the strip has real layout information. Sub-item chains
+        are laid out too — they are real ``struct MenuItem`` blocks. Returns TRUE
+        on success, FALSE if the strip is missing.
         """
         if not firstmenu:
             return 0
@@ -722,23 +846,34 @@ class GadToolsLibrary(BaseLibrary):
         for _ in range(0x100):
             if not menu:
                 break
-            mem.w16(menu + _MENU_OFF_HEIGHT, row_h)
-            mem.w16(menu + _MENU_OFF_WIDTH, title_w)
-            item = mem.r32(menu + _MENU_OFF_FIRSTITEM)
-            item_h = row_h
-            item_w = title_w
-            for _ in range(0x100):
-                if not item:
-                    break
-                mem.w16(item + _MI_OFF_HEIGHT, item_h)
-                mem.w16(item + _MI_OFF_WIDTH, item_w)
-                mem.w16(item + _MI_OFF_TOP, 0)
-                item = mem.r32(item + _MI_OFF_NEXT)
-            menu = mem.r32(menu + _MENU_OFF_NEXT)
+            mem.w16(menu + menu_state.MENU_OFF_HEIGHT, row_h)
+            mem.w16(menu + menu_state.MENU_OFF_WIDTH, title_w)
+            self._layout_item_chain(mem, mem.r32(menu + menu_state.MENU_OFF_FIRSTITEM), row_h, title_w, depth=0)
+            menu = mem.r32(menu + menu_state.MENU_OFF_NEXT)
         return 1
 
+    def _layout_item_chain(self, mem, item: int, row_h: int, width: int, *, depth: int) -> None:
+        """Fill geometry for one item chain and, recursively, its sub-item chains."""
+
+        for _ in range(0x100):
+            if not item:
+                return
+            mem.w16(item + menu_state.MENUITEM_OFF_HEIGHT, row_h)
+            mem.w16(item + menu_state.MENUITEM_OFF_WIDTH, width)
+            mem.w16(item + menu_state.MENUITEM_OFF_TOP, 0)
+            if depth < 4:
+                self._layout_item_chain(
+                    mem, mem.r32(item + menu_state.MENUITEM_OFF_SUBITEM), row_h, width, depth=depth + 1
+                )
+            item = mem.r32(item + menu_state.MENUITEM_OFF_NEXT)
+
     def FreeMenus(self, ctx, menu):
-        """Free a menu strip created by ``CreateMenusA`` (menus, items, texts)."""
+        """Free a menu strip created by ``CreateMenusA`` (menus, items, texts).
+
+        Sub-item chains are freed as well, and the strip's decoded description
+        is dropped from the run-wide registry: after this call the addresses the
+        description named are gone, so keeping it would be a stale lie.
+        """
         if not menu:
             return None
         mem = ctx.mem
@@ -747,24 +882,33 @@ class GadToolsLibrary(BaseLibrary):
         for _ in range(0x100):
             if not cur_menu:
                 break
-            cur_item = mem.r32(cur_menu + _MENU_OFF_FIRSTITEM)
-            for _ in range(0x100):
-                if not cur_item:
-                    break
-                fill = mem.r32(cur_item + _MI_OFF_FILL)
-                if fill:
-                    it_obj = self._menu_blocks.pop(fill, None)
-                    if it_obj is not None:
-                        alloc.free_memory(it_obj)
-                item_obj = self._menu_blocks.pop(cur_item, None)
-                if item_obj is not None:
-                    alloc.free_memory(item_obj)
-                cur_item = mem.r32(cur_item + _MI_OFF_NEXT)
+            self._free_item_chain(mem, alloc, mem.r32(cur_menu + menu_state.MENU_OFF_FIRSTITEM), depth=0)
             menu_obj = self._menu_blocks.pop(cur_menu, None)
             if menu_obj is not None:
                 alloc.free_memory(menu_obj)
-            cur_menu = mem.r32(cur_menu + _MENU_OFF_NEXT)
+            cur_menu = mem.r32(cur_menu + menu_state.MENU_OFF_NEXT)
+        registry = menu_registry_from_ctx(ctx)
+        if registry is not None:
+            registry.release(menu)
         return None
+
+    def _free_item_chain(self, mem, alloc, item: int, *, depth: int) -> None:
+        """Free one item chain, including each item's sub-item chain and IntuiText."""
+
+        for _ in range(0x100):
+            if not item:
+                return
+            if depth < 4:
+                self._free_item_chain(mem, alloc, mem.r32(item + menu_state.MENUITEM_OFF_SUBITEM), depth=depth + 1)
+            fill = mem.r32(item + menu_state.MENUITEM_OFF_FILL)
+            if fill:
+                it_obj = self._menu_blocks.pop(fill, None)
+                if it_obj is not None:
+                    alloc.free_memory(it_obj)
+            item_obj = self._menu_blocks.pop(item, None)
+            if item_obj is not None:
+                alloc.free_memory(item_obj)
+            item = mem.r32(item + menu_state.MENUITEM_OFF_NEXT)
 
     def DrawBevelBoxA(self, ctx, rport, left, top, width, height, taglist):
         """gadtools.library ``DrawBevelBoxA(rport, left, top, width, height, taglist)``.

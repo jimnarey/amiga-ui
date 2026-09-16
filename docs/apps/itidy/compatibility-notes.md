@@ -133,6 +133,14 @@ read the **app's** IntuiText in the old pre-2.0 field layout the target builds
   (`LeftEdge`/`TopEdge` = 0 at `0x04`/`0x06`, `ITextFont` = NULL at `0x08`,
   `NextText` = NULL at `0x10`) corroborate the aligned layout. `intuition_library.py`
   reads the string pointer and front pen from these offsets.
+- **Menu-pick ABI — settled from the shipped binary.** `handle_main_window_menu_selection`
+  passes `IntuiMessage.Code` to `ItemAddress()` unchanged (no `MENUNUM`/`ITEMNUM` unpacking),
+  reads the command id from `GTMENUITEM_USERDATA` — a LONG at `MenuItem + 0x22` — and advances
+  the walk with the zero-extended WORD `mi_NextSelect` at `MenuItem + 0x20`, terminated by
+  `MENUNULL` (`$FFFF`). `_LVOItemAddress = -144`, `_LVOSetMenuStrip = -264`, and
+  `_LVOClearMenuStrip = -54` are pinned by the call sites themselves. Byte-level evidence,
+  the resulting obligations (including the `mi_NextSelect` terminator), and what remains open
+  are in `menu-strip-menupick-abi.md`.
 
 The following remain **unconfirmed against the binary** and should be settled by
 disassembling `iTidy`'s event handler and RastPort reads (the HUNK CODE segment is the
@@ -155,7 +163,10 @@ treated as settled:
     **library-returned pointer** and compare it to `1`/`2` — an enum/state field, not a
     font metric (a width is multiplied, never compared to 1/2).
   - The `RpFont`-offset `move.l` hits are not RastPort reads either: `move.l $22(a2)` at
-    `0x21c66` subtracts `HUNK_CODE` (`0x3e9`) — a HUNK-type check — and the `move.l
+    `0x21c66` is the menu command dispatch — `GTMENUITEM_USERDATA` (`MenuItem + 0x22`) fed to
+    the `MENU_PROJECT_*` ladder, whose first case subtracts `0x3E9` = 1001 =
+    `MENU_PROJECT_NEW`, **not** a `HUNK_CODE` check (corrected 2026-09-16; see
+    `menu-strip-menupick-abi.md`) — and the `move.l
     $34(aX)` hits push struct fields for an internal call whose base is not a RastPort.
   - The `lea.l $54(aX)` (RastPort-in-`Screen`) sites either pass the RastPort pointer to a
     graphics-library call or read a word from a non-Screen struct; none lead to a

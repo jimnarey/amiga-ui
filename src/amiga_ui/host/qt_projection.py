@@ -16,16 +16,21 @@ that turns window-open / refresh / close intent into *real* host effects:
   classic ``PLACETEXT_LEFT`` cycle label), ``CHECKBOX`` -> :class:`QCheckBox`;
   only the projectable kinds are rendered — the invisible context gadget and any
   unsupported kind are recorded by the boundary but never projected,
-- no menu bar unless an Amiga menu strip has actually been attached (none are
-  in this increment, so every host window is menu-bar-free by construction),
+- a host menu bar (:class:`QMenuBar`, non-native) built from the Amiga menu
+  strip the app attached with ``SetMenuStrip`` — and only then, so a window
+  without a strip stays menu-bar-free by construction. Activating a projected
+  menu entry posts a real ``IDCMP_MENUPICK`` carrying the packed ``MenuNumber``
+  the strip was created with (see :class:`QtMenuAction`),
 - no public Workbench screen canvas and no containing desktop surface.
 
-The widgets are *static* in this increment: they display the decoded initial
-state (labels, geometry, checkbox flag, cycle active option, text content) but
-are not yet wired to the Amiga event loop. The future interactive route — a Qt
-widget event -> a real :class:`IntuiMessage` posted to the window's real
-``UserPort`` -> ``WaitPort`` -> ``GT_GetIMsg`` -> ``GT_ReplyIMsg`` — is preserved
-but deliberately not wired here (see ``docs/host-gui/`` and the session log).
+The projected widgets carry the Amiga-side *addresses* they stand for and are
+wired to the Amiga event loop through the event bridge: a ``BUTTON`` click posts
+a real ``IDCMP_GADGETUP`` (``IAddress`` = the real ``struct Gadget *``), a menu
+entry posts a real ``IDCMP_MENUPICK`` (``Code`` = the packed ``MenuNumber``), and
+a host window-manager close request posts a real ``IDCMP_CLOSEWINDOW`` — each
+queued on the window's real ``UserPort`` for ``WaitPort`` -> ``GT_GetIMsg`` ->
+``GT_ReplyIMsg`` to pick up. A projection without an event source (plain smoke
+tests) keeps the widgets display-only.
 
 Threading: every widget here is created and mutated on the GUI thread. The
 compatibility layer drives the projection during the in-process vamos run,
@@ -38,16 +43,19 @@ from the low-level Amiga library implementations.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPen
+from PySide6.QtGui import QAction, QColor, QFont, QImage, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
     QLabel,
+    QMenu,
+    QMenuBar,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -60,6 +68,8 @@ from .projection import (
     KIND_CYCLE,
     KIND_TEXT,
     GadgetDescription,
+    MenuEntryDescription,
+    MenuStripDescription,
     OpenWindowIntent,
 )
 
@@ -415,10 +425,12 @@ class RastPortReplaySurface(QWidget):
 class AmigaHostWindow(QWidget):
     """One host top-level window projecting a single app-facing Amiga window.
 
-    A plain top-level ``QWidget`` (not ``QMainWindow``) so it has *no* menu bar
-    unless an Amiga menu strip is attached — none are in this increment, so every
-    host window is menu-bar-free by construction. It carries the Amiga window's
-    title and initial geometry and hosts one :class:`RastPortReplaySurface`.
+    A plain top-level ``QWidget`` (not ``QMainWindow``): it has *no* menu bar
+    unless an Amiga menu strip is attached to this very window via
+    :meth:`attach_menu_strip` — the classic menu strip belongs to the window that
+    called ``SetMenuStrip``, never to a shared application-wide or native menu
+    bar. It carries the Amiga window's title and initial geometry and hosts one
+    :class:`RastPortReplaySurface`.
 
     Host close requests are **deferred, not honoured**, whenever an event source
     is wired (``close_request_handler``): the window-manager / close-button
@@ -473,6 +485,118 @@ class AmigaHostWindow(QWidget):
     @property
     def has_menu_strip(self) -> bool:
         return self._has_menu_strip
+
+    # -- menu strip projection -------------------------------------------------
+    @staticmethod
+    def _menu_text(label: str) -> str:
+        """The label as literal menu text: Qt reads ``&`` as a mnemonic prefix.
+
+        Classic Amiga menu labels are literal text (their own shortcut marker is
+        ``\\1``, and iTidy's templates use neither), so doubling the ``&`` keeps
+        what the app wrote on screen instead of swallowing a character.
+        """
+
+        return label.replace("&", "&&")
+
+    @staticmethod
+    def _add_submenu(container: Any, title: str) -> QMenu:
+        """Create a ``QMenu`` owned by ``container`` (a ``QMenuBar`` or ``QMenu``) and add it.
+
+        Never ``container.addMenu(title)``: under PySide6 that hands *Python*
+        ownership of the new menu, so the C++ menu is destroyed as soon as the
+        local name is rebound — while the bar or parent menu still shows it, and
+        the next access raises ``Internal C++ object ... already deleted``.
+        Passing the Qt parent explicitly keeps the menu alive exactly as long as
+        the widget it belongs to.
+        """
+
+        menu = QMenu(title, container)
+        container.addMenu(menu)
+        return menu
+
+    def _fill_menu(
+        self, menu: QMenu, entries: Sequence[MenuEntryDescription], pick_handler: Any, *, depth: int
+    ) -> None:
+        """Add one level of decoded menu entries to ``menu``, in chain order.
+
+        ``NM_BARLABEL`` entries become real separators (they consume a slot in the
+        Amiga item chain, so they are *not* triggerable actions), a sub-item chain
+        becomes a nested ``QMenu`` — classic Intuition opens a sub-menu instead of
+        delivering a pick, so a parent entry is never itself triggerable — and a
+        selectable entry becomes one :class:`QtMenuAction`. An entry this layer
+        cannot render (no label at all, e.g. an image menu) adds nothing: the host
+        never shows a menu entry the app did not give text to.
+        """
+
+        if depth >= 4:  # bounded nesting, mirroring the decode-side chain walk
+            return
+        for entry in entries:
+            if entry.is_separator:
+                menu.addSeparator()
+                continue
+            if entry.sub_items:
+                submenu = self._add_submenu(menu, self._menu_text(entry.label))
+                self._fill_menu(submenu, entry.sub_items, pick_handler, depth=depth + 1)
+                continue
+            if not entry.is_selectable:
+                continue
+            action = QtMenuAction(
+                self._menu_text(entry.label), self.amiga_window_addr, entry.code, entry.item_addr, menu
+            )
+            menu.addAction(action)
+            if pick_handler is not None:
+                action.triggered.connect(lambda _checked=False, act=action: pick_handler(act))
+
+    def attach_menu_strip(self, strip: MenuStripDescription, pick_handler: Any = None) -> QMenuBar:
+        """Build this window's host menu bar from a decoded Amiga menu strip.
+
+        The real host effect behind ``SetMenuStrip``: one ``QMenu`` per
+        ``struct Menu`` title and one triggerable ``QAction`` per selectable
+        ``struct MenuItem``, in the order of the real Amiga chains. The bar is
+        non-native (``setNativeMenuBar(False)``) and a child of *this* window,
+        because the classic strip belongs to the window the app attached it to —
+        never to a shared application-wide or platform menu bar — and is placed
+        above the window's drawing surface.
+
+        ``pick_handler(action)`` is connected to every selectable action; that
+        action carries the real ``struct Window *`` and the packed ``MenuNumber``
+        recorded when the strip was created, so the activation path needs no
+        label, title or hard-coded id. Re-attaching replaces the previous bar (an
+        app may legitimately call ``SetMenuStrip`` again with a different strip).
+        """
+
+        self.clear_menu_strip()
+        bar = QMenuBar(self)
+        bar.setNativeMenuBar(False)
+        for menu in strip.menus:
+            submenu = self._add_submenu(bar, self._menu_text(menu.title))
+            self._fill_menu(submenu, menu.items, pick_handler, depth=0)
+        layout = self.layout()
+        if isinstance(layout, QVBoxLayout):
+            layout.insertWidget(0, bar)
+        self.menu_bar = bar
+        self._has_menu_strip = True
+        bar.show()
+        return bar
+
+    def clear_menu_strip(self) -> None:
+        """Remove this window's host menu bar. Idempotent.
+
+        The bar is a child widget, so it is destroyed with its actions when the
+        window closes; this is the ``ClearMenuStrip`` path that has to drop it
+        while the window itself stays open.
+        """
+
+        bar = self.menu_bar
+        if bar is None:
+            return
+        self.menu_bar = None
+        layout = self.layout()
+        if layout is not None:
+            layout.removeWidget(bar)
+        bar.setParent(None)
+        bar.deleteLater()
+        self._has_menu_strip = False
 
     def closeEvent(self, event: Any) -> None:  # noqa: N802 (Qt naming)
         """Defer a host close request to the Amiga side; never self-destroy.
@@ -533,6 +657,34 @@ class QtGadgetButton(QPushButton):
         # this gadget's real ``struct Gadget *`` (preserved as ``IAddress``).
         self.amiga_window_addr = window_addr
         self.amiga_gadget_addr = gadget_addr
+
+
+class QtMenuAction(QAction):
+    """A projected Amiga menu entry recording the real addresses it stands for.
+
+    Same address-based pattern as :class:`QtGadgetButton`, for menu picks: the
+    activation is translated from ``amiga_window_addr`` (the owning window's real
+    ``struct Window *``, whose ``UserPort`` the message goes to) and
+    ``amiga_menu_code`` (the packed ``MenuNumber`` recorded when the strip was
+    created, delivered as ``IntuiMessage.Code``). That is exactly the word the
+    app hands to ``ItemAddress(strip, Code)``, so the entry the user clicked is
+    the entry the app resolves — no label, title or hard-coded item id
+    participates. ``amiga_item_addr`` is the entry's real ``struct MenuItem *``,
+    carried as identity only (never dereferenced by the host).
+    """
+
+    def __init__(
+        self,
+        text: str,
+        window_addr: int,
+        menu_code: int,
+        item_addr: int,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(text, parent)
+        self.amiga_window_addr = window_addr
+        self.amiga_menu_code = menu_code
+        self.amiga_item_addr = item_addr
 
 
 @dataclass
@@ -732,6 +884,57 @@ class QtHostWindowProjection:
         if self._event_source is None:
             return
         self._event_source.gadget_up(button.amiga_window_addr, button.amiga_gadget_addr)
+
+    # -- menu strip projection -------------------------------------------------
+    def set_menu_strip(self, window_addr: int, strip: MenuStripDescription) -> None:
+        """Give ``window_addr``'s host window a real menu bar for ``strip``.
+
+        The host effect behind ``intuition.library``'s ``SetMenuStrip``: the strip
+        description is the one recorded when ``CreateMenus`` built the real
+        ``struct Menu``/``struct MenuItem`` chain, so the bar mirrors the app's
+        own menus (titles, entries, separators, sub-menus, chain order). When an
+        event source is wired, each selectable entry is connected to
+        :meth:`_on_menu_pick`; without one the bar stays display-only, exactly
+        like the gadget widgets.
+
+        A window this projection does not have (a helper window kept internal, or
+        one already closed) gets nothing: there is no host surface to attach the
+        bar to, and no fabricated fallback bar.
+        """
+
+        projected = self._windows.get(window_addr)
+        if projected is None or projected.host_window is None:
+            return
+        projected.intent.has_menu_strip = True
+        pick_handler = self._on_menu_pick if self._event_source is not None else None
+        projected.host_window.attach_menu_strip(strip, pick_handler)
+
+    def clear_menu_strip(self, window_addr: int) -> None:
+        """Remove ``window_addr``'s host menu bar (``ClearMenuStrip``). Idempotent."""
+
+        projected = self._windows.get(window_addr)
+        if projected is None or projected.host_window is None:
+            return
+        projected.intent.has_menu_strip = False
+        projected.host_window.clear_menu_strip()
+
+    def _on_menu_pick(self, action: QtMenuAction) -> None:
+        """Translate a projected menu-entry activation into a real menu pick.
+
+        The generic, address-based counterpart of :meth:`_on_gadget_clicked`: it
+        asks the event source (the Intuition event bridge) for a real
+        ``IDCMP_MENUPICK`` ``IntuiMessage`` whose ``Code`` is this action's packed
+        ``MenuNumber``, queued on the owning window's real ``UserPort`` — which is
+        what wakes a target parked in ``WaitPort``. The app then runs its own
+        ``ItemAddress(strip, Code)`` walk over its own menu chain, so the resolved
+        item is the app's, not a host invention. A pick racing the app's own
+        ``CloseWindow`` is an honest no-op in the bridge (recorded in its
+        ``skipped`` list).
+        """
+
+        if self._event_source is None:
+            return
+        self._event_source.menu_pick(action.amiga_window_addr, action.amiga_menu_code)
 
     def mark_session_ended(self) -> None:
         """Record that the Amiga session behind this projection has ended.

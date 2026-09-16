@@ -88,10 +88,33 @@ visible chrome is recorded rather than dropped:
   shares the launcher's run-wide `RastPortRegistry` (`ctx.rastports`) with
   `graphics.library` `Text` and `intuition.library` `PrintIText`, so a window's
   bevel frame, text, and titles are one chronological stream.
-- `GT_RefreshWindow(win, req)` records the refresh request (window address) on
-  the library as a host-side repaint signal for the future renderer, rather than
-  silently dropping it. There is no host window yet, so the record — not a
-  repaint — is the meaningful effect.
+- `GT_RefreshWindow(win, req)` records the refresh request (window address) for
+  probes and, when a host projection is installed, asks it to replay that
+  window's recorded RastPort op stream onto its drawing surface.
 
 The bevel-box tags the app passes are the two above plus `TAG_END`; the optional
 `VB_Pen`/`VB_Bevel` attributes are ignored (the app does not set them).
+
+## Menu Creation From `NewMenu`
+
+`CreateMenusA`, `LayoutMenusA`, and `FreeMenus` are implemented
+(`src/amiga_ui/vamos/gadtools_library.py`) as real producers rather than stubs:
+
+- `CreateMenusA` walks the app's flat `NewMenu` template (`NM_TITLE`, `NM_ITEM`,
+  `NM_SUB`, `NM_END`, with `_NM_BARLABEL` handled), allocates real `Menu` and
+  `MenuItem` blocks in target memory with the classic field layout, stores each
+  item's `nm_UserData` in the `GTMENUITEM_USERDATA` slot (`MenuItem + 0x22`),
+  chains the blocks, and records a host-safe `MenuStripDescription` for the
+  strip so `intuition.library` `SetMenuStrip` can project it.
+- Every created item gets `mi_NextSelect = MENUNULL` (`$FFFF`). The released
+  binary advances its selection walk with the zero-extended WORD at
+  `MenuItem + 0x20` and stops only on `$FFFF`, so a zeroed field turns
+  `while (menu_number != MENUNULL)` into an endless `ItemAddress` loop.
+  Separators are real items and therefore consume a chain slot.
+- `LayoutMenusA` fills `LeftEdge`/`TopEdge`/`Width`/`Height` for each menu, item,
+  and sub-item chain from the supplied `VisualInfo`'s font metrics, and
+  `FreeMenus` releases the blocks it allocated.
+
+The selector encoding (`MENUNULL`, `NOMENU`/`NOITEM`/`NOSUB`, 1-based fields) and
+the binary evidence behind these obligations are recorded in
+`docs/apps/itidy/menu-strip-menupick-abi.md`.
