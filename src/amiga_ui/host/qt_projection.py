@@ -47,12 +47,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from amitools.vamos.error import UnsupportedFeatureError
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QColor, QFont, QImage, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QFileDialog,
     QLabel,
     QMenu,
     QMenuBar,
@@ -1128,9 +1130,7 @@ class QtHostWindowProjection:
         if window_addr is not None:
             parent = self.host_window(window_addr)
             if parent is None:
-                raise ValueError(
-                    f"show_file_dialog: window {window_addr:06x} is not projected"
-                )
+                raise ValueError(f"show_file_dialog: window {window_addr:06x} is not projected")
 
         # Create the file dialog.
         dialog = QFileDialog(parent, title)
@@ -1139,12 +1139,12 @@ class QtHostWindowProjection:
         # The target (iTidy) uses ASLFR_DrawersOnly = TRUE, so this is a directory-only
         # picker with no pattern filtering.
         if directories_only:
-            dialog.setFileMode(QFileDialog.Directory)
-            dialog.setOption(QFileDialog.DontShowHiddenFiles, False)  # Classic behavior
+            dialog.setFileMode(QFileDialog.Directory)  # type: ignore[attr-defined]
+            dialog.setOption(QFileDialog.DontShowHiddenFiles, False)  # type: ignore[attr-defined]  # Classic behavior
         else:
             # General file picker (not the accepted target's use case, but we support it).
-            dialog.setFileMode(QFileDialog.ExistingFile if file_only else QFileDialog.AnyFile)
-            dialog.setOption(QFileDialog.DontResolveSymlinks, False)  # Classic behavior
+            dialog.setFileMode(QFileDialog.ExistingFile if file_only else QFileDialog.AnyFile)  # type: ignore[attr-defined]
+            dialog.setOption(QFileDialog.DontResolveSymlinks, False)  # type: ignore[attr-defined]  # Classic behavior
 
         # Set the initial directory (if any).
         if initial_directory:
@@ -1162,9 +1162,7 @@ class QtHostWindowProjection:
             # Allocate the string in the emulation context (alloc, mem).
             ctx = getattr(self, "_ctx", None)
             if ctx is None:
-                raise UnsupportedFeatureError(
-                    "ASL: host projection context not set; cannot allocate string"
-                )
+                raise UnsupportedFeatureError("ASL: host projection context not set; cannot allocate string")
             return self._alloc_emulated_cstring(ctx, selected_file)
         else:
             # User clicked Cancel.

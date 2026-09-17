@@ -1,4 +1,5 @@
 """Qt-free tests for the ASL library tag decoding and result handling."""
+
 import unittest
 from types import SimpleNamespace
 
@@ -12,19 +13,26 @@ from amiga_ui.vamos.asllibrary import (
 
 class _FakeMem:
     """A minimal big-endian 68k memory model."""
+
     def __init__(self):
         self._bytes = {}
+
     def r8(self, addr):
         return self._bytes.get(addr, 0) & 0xFF
+
     def w8(self, addr, value):
         self._bytes[addr] = value & 0xFF
+
     def r16(self, addr):
         return (self.r8(addr) << 8) | self.r8(addr + 1)
+
     def w16(self, addr, value):
         self.w8(addr, (value >> 8) & 0xFF)
         self.w8(addr + 1, value & 0xFF)
+
     def r32(self, addr):
         return (self.r8(addr) << 24) | (self.r8(addr + 1) << 16) | (self.r8(addr + 2) << 8) | self.r8(addr + 3)
+
     def w32(self, addr, value):
         value &= 0xFFFFFFFF
         self.w8(addr, (value >> 24) & 0xFF)
@@ -35,11 +43,12 @@ class _FakeMem:
 
 class _FakeAlloc:
     """Fake allocator that writes to the same memory instance."""
+
     def __init__(self, mem):
         self.blocks = {}
         self.next_addr = 0x1000
         self.mem = mem
-    
+
     def alloc_memory(self, size, label=None):
         addr = self.next_addr
         self.next_addr += size
@@ -48,7 +57,7 @@ class _FakeAlloc:
         for i in range(size):
             self.mem.w8(addr + i, 0)
         return SimpleNamespace(addr=addr)
-    
+
     def free_memory(self, addr, label=None):
         if addr in self.blocks:
             del self.blocks[addr]

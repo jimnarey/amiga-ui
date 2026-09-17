@@ -17,7 +17,6 @@ from amitools.vamos.error import UnsupportedFeatureError
 
 from .base_library import BaseLibrary
 
-
 # --- ASL request types ------------------------------------------------------
 # Classic Amiga ASL request types (from <libraries/asl.h>, V36+).
 # Only ASL_FileRequest is implemented for this increment.
@@ -32,18 +31,18 @@ _FILE_REQUESTER_SIZE = 0x50  # classic size without fr_Pattern field
 
 # Offsets per the classic structure.
 _FR_OFF_RESERVED0 = 0x00
-_FR_OFF_FILE = 0x04        # Contents of File gadget on exit (str pointer)
-_FR_OFF_DRAWER = 0x08      # Contents of Drawer gadget on exit (str pointer)
+_FR_OFF_FILE = 0x04  # Contents of File gadget on exit (str pointer)
+_FR_OFF_DRAWER = 0x08  # Contents of Drawer gadget on exit (str pointer)
 _FR_OFF_RESERVED1 = 0x0C
-_FR_OFF_LEFT = 0x16        # Suggested left edge
-_FR_OFF_TOP = 0x18         # Suggested top edge
-_FR_OFF_WIDTH = 0x1A       # Suggested width
-_FR_OFF_HEIGHT = 0x1C      # Suggested height
+_FR_OFF_LEFT = 0x16  # Suggested left edge
+_FR_OFF_TOP = 0x18  # Suggested top edge
+_FR_OFF_WIDTH = 0x1A  # Suggested width
+_FR_OFF_HEIGHT = 0x1C  # Suggested height
 _FR_OFF_RESERVED2 = 0x1E
-_FR_OFF_NUM_ARGS = 0x20    # Number of files selected
-_FR_OFF_ARG_LIST = 0x24    # List of files selected (struct WBArg *)
-_FR_OFF_USER_DATA = 0x28   # Application-provided data
-_FR_OFF_RESERVED3 = 0x2C    # Padding to reach fr_Pattern in newer versions
+_FR_OFF_NUM_ARGS = 0x20  # Number of files selected
+_FR_OFF_ARG_LIST = 0x24  # List of files selected (struct WBArg *)
+_FR_OFF_USER_DATA = 0x28  # Application-provided data
+_FR_OFF_RESERVED3 = 0x2C  # Padding to reach fr_Pattern in newer versions
 
 
 # --- File requester tag values (classic Workbench-era) ----------------------
@@ -51,18 +50,35 @@ _FR_OFF_RESERVED3 = 0x2C    # Padding to reach fr_Pattern in newer versions
 # Only the subset used by the accepted target (iTidy's directory picker) are
 # implemented here.
 ASL_TB = 0x8000
-ASLFR_TitleText = ASL_TB + 1      # Title of requester
+ASLFR_TitleText = ASL_TB + 1  # Title of requester
+ASLFR_PositiveText = ASL_TB + 18  # Positive gadget text (not used for dir picker)
+ASLFR_NegativeText = ASL_TB + 19  # Negative gadget text (not used for dir picker)
+ASLFR_Window = ASL_TB + 2  # Parent window
+ASLFR_InitialLeftEdge = ASL_TB + 3  # Initial requester coordinates
+ASLFR_InitialTopEdge = ASL_TB + 4  # Initial requester coordinates
+ASLFR_InitialWidth = ASL_TB + 5  # Initial requester coordinates
+ASLFR_InitialHeight = ASL_TB + 6  # Initial requester coordinates
+ASLFR_InitialFile = ASL_TB + 8  # Initial contents of File gadget
+ASLFR_InitialDrawer = ASL_TB + 9  # Initial contents of Drawer gadget
+ASLFR_InitialPattern = ASL_TB + 10  # Initial contents of Pattern gadget
+ASLFR_DoPatterns = ASL_TB + 46  # Display a Pattern gadget?
+ASLFR_DrawersOnly = ASL_TB + 47  # Don't display files (directory-only picker)
+# Tag values from <libraries/asl.h>, V36+.
+# Only the subset used by the accepted target (iTidy's directory picker) are
+# implemented here.
+ASL_TB = 0x8000
+ASLFR_TitleText = ASL_TB + 1  # Title of requester
 ASLFR_PositiveText = ASL_TB + 18  # Positive gadget text (not used for dir picker)
 ASLFR_NegativeText = ASL_TB + 19  # Negative gadget text (not used for dir picker)
 ASLFR_InitialLeftEdge = ASL_TB + 3  # Initial requester coordinates
-ASLFR_InitialTopEdge = ASL_TB + 4   # Initial requester coordinates
-ASLFR_InitialWidth = ASL_TB + 5     # Initial requester coordinates
-ASLFR_InitialHeight = ASL_TB + 6    # Initial requester coordinates
-ASLFR_InitialFile = ASL_TB + 8      # Initial contents of File gadget
-ASLFR_InitialDrawer = ASL_TB + 9    # Initial contents of Drawer gadget
+ASLFR_InitialTopEdge = ASL_TB + 4  # Initial requester coordinates
+ASLFR_InitialWidth = ASL_TB + 5  # Initial requester coordinates
+ASLFR_InitialHeight = ASL_TB + 6  # Initial requester coordinates
+ASLFR_InitialFile = ASL_TB + 8  # Initial contents of File gadget
+ASLFR_InitialDrawer = ASL_TB + 9  # Initial contents of Drawer gadget
 ASLFR_InitialPattern = ASL_TB + 10  # Initial contents of Pattern gadget
-ASLFR_DoPatterns = ASL_TB + 46      # Display a Pattern gadget?
-ASLFR_DrawersOnly = ASL_TB + 47     # Don't display files (directory-only picker)
+ASLFR_DoPatterns = ASL_TB + 46  # Display a Pattern gadget?
+ASLFR_DrawersOnly = ASL_TB + 47  # Don't display files (directory-only picker)
 
 
 class ASLLibrary(BaseLibrary):
@@ -86,7 +102,7 @@ class ASLLibrary(BaseLibrary):
     # These are the entry points the app actually calls.
     _LVO_ALLOC_ASL_REQUEST = 0x24  # AllocAslRequest (32-bit)
     _LVO_FREE_ASL_REQUEST = 0x30  # FreeAslRequest (48-bit)
-    _LVO_ASL_REQUEST = 0x60       # AslRequest (96-bit) - the non-varargs entry point
+    _LVO_ASL_REQUEST = 0x60  # AslRequest (96-bit) - the non-varargs entry point
     _LVO_ASL_REQUEST_TAGS = 0x66  # AslRequestTags (102-bit) - the varargs entry point
 
     @staticmethod
@@ -124,9 +140,7 @@ class ASLLibrary(BaseLibrary):
         mem = ctx.mem
 
         if reqType != ASL_FileRequest:
-            raise UnsupportedFeatureError(
-                f"ASL request type {reqType:#x} not implemented (only ASL_FileRequest)"
-            )
+            raise UnsupportedFeatureError(f"ASL request type {reqType:#x} not implemented (only ASL_FileRequest)")
 
         # Allocate the classic FileRequester struct (0x50 bytes).
         # We use the classic layout without the fr_Pattern field.
@@ -196,7 +210,7 @@ class ASLLibrary(BaseLibrary):
         The requester must have been allocated with ``AllocAslRequest``.
         """
         alloc = ctx.alloc
-        mem = ctx.mem
+        mem = ctx.mem  # noqa: F841
 
         if not requester:
             return  # idempotent: NULL is a no-op
@@ -290,9 +304,7 @@ class ASLLibrary(BaseLibrary):
         # Get the host projection and show the real file dialog.
         projection = getattr(ctx, "host_projection", None)
         if projection is None:
-            raise UnsupportedFeatureError(
-                "ASL: headless mode does not support file/directory requesters"
-            )
+            raise UnsupportedFeatureError("ASL: headless mode does not support file/directory requesters")
 
         # Show the dialog and get the selected path (or an empty path if cancelled).
         selected_path = projection.show_file_dialog(
