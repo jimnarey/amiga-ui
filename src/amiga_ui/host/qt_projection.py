@@ -47,12 +47,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from amitools.vamos.error import UnsupportedFeatureError
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QColor, QFont, QImage, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QFileDialog,
     QLabel,
     QMenu,
     QMenuBar,
@@ -1076,6 +1078,122 @@ class QtHostWindowProjection:
         # Defensive: exec() always returns via a button click, so this is not
         # reachable in practice; fall back to the (cancel) position.
         return len(buttons) - 1
+
+    def show_file_dialog(
+        self,
+        window_addr: int | None,
+        title: str,
+        initial_directory: str,
+        file_only: bool,
+        directories_only: bool,
+        allow_patterns: bool,
+        initial_file: str,
+    ) -> int:
+        """Show the app's ASL file/directory requester as a real, blocking :class:`QFileDialog`.
+
+        The host half of ``asl.library``'s ``AslRequestTags`` (or ``AslRequest``):
+        a real directory/file picker, parented to the app's own host window (if
+        provided), carrying the app's own title, initial directory, and options
+        (directory-only vs. file-only, pattern filtering). ``.exec()`` blocks the
+        GUI thread until the user actually clicks OK or Cancel, and the method
+        returns the emulated pointer to the selected path (0 if cancelled).
+
+        The directory-only flag (``directories_only=True``) matches the accepted
+        target's ``ASLFR_DrawersOnly`` setting — no pattern filtering and no file
+        display.
+
+        Args:
+            window_addr: The address of the app's Amiga window (or ``None`` for no
+                parent window).
+            title: The title to use for the dialog (from ``ASLFR_TitleText``).
+            initial_directory: The initial directory path (from ``ASLFR_InitialDrawer``).
+            file_only: If ``True``, the dialog is a file picker; if ``False``, a
+                directory-only picker (matches ``directories_only``).
+            directories_only: If ``True``, the dialog is a directory-only picker
+                (matches ``ASLFR_DrawersOnly``).
+            allow_patterns: If ``True``, the dialog shows the pattern text field
+                (matches ``ASLFR_DoPatterns``).
+            initial_file: The initial file path (from ``ASLFR_InitialFile``).
+
+        Returns:
+            int: The emulated pointer to the selected path (C string) in
+                emulated memory, or 0 if the user cancelled.
+
+        Raises:
+            ValueError: If ``window_addr`` is provided but the window is not
+                projected (the dialog cannot be parented).
+            UnsupportedFeatureError: If the app is running in a headless
+                (null-projected) mode without a host projection.
+        """
+        # Parent the dialog to the app's host window (if provided).
+        parent = None
+        if window_addr is not None:
+            parent = self.host_window(window_addr)
+            if parent is None:
+                raise ValueError(f"show_file_dialog: window {window_addr:06x} is not projected")
+
+        # Create the file dialog.
+        dialog = QFileDialog(parent, title)
+
+        # Set the dialog mode (directory-only picker for the accepted target).
+        # The target (iTidy) uses ASLFR_DrawersOnly = TRUE, so this is a directory-only
+        # picker with no pattern filtering.
+        if directories_only:
+            dialog.setFileMode(QFileDialog.Directory)  # type: ignore[attr-defined]
+            dialog.setOption(QFileDialog.DontShowHiddenFiles, False)  # type: ignore[attr-defined]  # Classic behavior
+        else:
+            # General file picker (not the accepted target's use case, but we support it).
+            dialog.setFileMode(QFileDialog.ExistingFile if file_only else QFileDialog.AnyFile)  # type: ignore[attr-defined]
+            dialog.setOption(QFileDialog.DontResolveSymlinks, False)  # type: ignore[attr-defined]  # Classic behavior
+
+        # Set the initial directory (if any).
+        if initial_directory:
+            dialog.setDirectory(initial_directory)
+
+        # Show the initial file path (if any).
+        if initial_file:
+            dialog.selectFile(initial_file)
+
+        # Execute the dialog (blocking).
+        if dialog.exec():
+            # User clicked OK.
+            selected_file = dialog.selectedFiles()[0] if dialog.selectedFiles() else ""
+            # Convert the selected path to an emulated C string pointer.
+            # Allocate the string in the emulation context (alloc, mem).
+            ctx = getattr(self, "_ctx", None)
+            if ctx is None:
+                raise UnsupportedFeatureError("ASL: host projection context not set; cannot allocate string")
+            return self._alloc_emulated_cstring(ctx, selected_file)
+        else:
+            # User clicked Cancel.
+            return 0
+
+    def _alloc_emulated_cstring(self, ctx: Any, text: str) -> int:
+        """Allocate a C string in emulated memory and return its address.
+
+        Args:
+            ctx: The emulation context (alloc, mem).
+            text: The C string to allocate (UTF-8 encoded).
+
+        Returns:
+            int: The address of the C string in emulated memory.
+        """
+        # Encode the string as UTF-8.
+        utf8_bytes = text.encode("utf-8")
+
+        # Allocate space for the C string (length + NUL terminator).
+        alloc = ctx.alloc
+        addr = alloc.alloc_memory(len(utf8_bytes) + 1, label="ASL.CString")
+
+        # Write the bytes to emulated memory (big-endian).
+        mem = ctx.mem
+        for i, byte in enumerate(utf8_bytes):
+            mem.w8(addr + i, byte)
+
+        # Write the NUL terminator.
+        mem.w8(addr + len(utf8_bytes), 0)
+
+        return addr
 
     def close_window(self, window_addr: int) -> None:
         projected = self._windows.pop(window_addr, None)
