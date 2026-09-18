@@ -48,6 +48,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from amitools.vamos.error import UnsupportedFeatureError
+
 # --- GadTools gadget kind names (host-safe) ----------------------------------
 # The compatibility layer maps the numeric GadTools ``GadgetType`` (NDK 3.2
 # ``libraries/gadtools.h``: BUTTON_KIND=1, CHECKBOX_KIND=2, INTEGER_KIND=3,
@@ -270,6 +272,27 @@ class HostWindowProjection(Protocol):
     def bind_registry(self, registry: Any) -> None:
         """Attach the run-wide RastPort op registry used to resolve replay ops."""
 
+    def show_file_dialog(
+        self,
+        window_addr: int | None,
+        title: str,
+        initial_directory: str = "",
+        directories_only: bool = False,
+        save_mode: bool = False,
+        allow_patterns: bool = False,
+        initial_file: str = "",
+    ) -> str | None:
+        """Present the app's ASL file/directory requester and await the user's choice.
+
+        The host half of ``asl.library``'s blocking ``AslRequest``: the caller
+        (the Qt-free ASL library) has already decoded the app's tag list into
+        host-safe values; the projection presents a real picker carrying them
+        and returns the user's actual selection as a host path, or ``None``
+        if the user cancelled. Implementations without a host dialog surface
+        must raise :class:`UnsupportedFeatureError` rather than invent an
+        answer the app would branch on.
+        """
+
 
 class NullHostWindowProjection:
     """Default no-GUI projection used by plain (headless) probes.
@@ -286,6 +309,10 @@ class NullHostWindowProjection:
         # windows can hold one; a clear removes it and is recorded).
         self.strips: dict[int, MenuStripDescription] = {}
         self.strips_cleared: list[int] = []
+        # the decoded file-requester intents seen (so the boundary is
+        # observable even though a headless run cannot present one; see
+        # show_file_dialog).
+        self.file_dialog_requests: list[dict[str, Any]] = []
         self._registry: Any = None
         self._known: set[int] = set()
 
@@ -317,6 +344,40 @@ class NullHostWindowProjection:
 
     def bind_registry(self, registry: Any) -> None:
         self._registry = registry
+
+    def show_file_dialog(
+        self,
+        window_addr: int | None,
+        title: str,
+        initial_directory: str = "",
+        directories_only: bool = False,
+        save_mode: bool = False,
+        allow_patterns: bool = False,
+        initial_file: str = "",
+    ) -> str | None:
+        """Record the requester intent, then fail honestly — there is no host dialog.
+
+        A headless run has no user to answer the requester. Returning
+        ``None`` here would *fabricate* a cancel the user never made and let
+        the app silently take its cancel branch, so the documented boundary
+        is the error: :class:`UnsupportedFeatureError`, not a bare
+        ``AttributeError`` from a missing method. The decoded intent is still
+        recorded first, so probes can observe exactly what the app asked for.
+        """
+        self.file_dialog_requests.append(
+            {
+                "window_addr": window_addr,
+                "title": title,
+                "initial_directory": initial_directory,
+                "directories_only": directories_only,
+                "save_mode": save_mode,
+                "allow_patterns": allow_patterns,
+                "initial_file": initial_file,
+            }
+        )
+        raise UnsupportedFeatureError(
+            f"NullHostWindowProjection: no host dialog to present the app's file requester {title!r} on"
+        )
 
 
 def projection_from_ctx(ctx: Any) -> HostWindowProjection | None:
