@@ -539,6 +539,31 @@ class IntuitionLibrary(BaseLibrary):
             )
         return addr
 
+    def ModifyIDCMP(self, ctx, window, flags):
+        """intuition.library ``ModifyIDCMP(window, flags)``: set a window's IDCMP filter.
+
+        Real Intuition replaces ``Window.IDCMPFlags`` with *flags* (the app
+        later re-enables its full set explicitly, as iTidy's main-window
+        disable/re-enable around its restore-window loop does). Both halves of
+        that state are updated here: the emulated ``Window`` struct's
+        ``IDCMPFlags`` field, and the host event bridge's per-window record,
+        whose posting path filters host events by the window's current
+        ``IDCMPFlags`` (real Intuition never generates a class the window did
+        not request) — so a masked window (``flags == 0``) genuinely stops
+        admitting host events until the app un-masks it. Returns None (VOID).
+        """
+        if not window:
+            return None
+        ctx.mem.w32(window + _WIN_OFF_IDCMP, flags & 0xFFFFFFFF)
+        # Host event bridge hook: refresh the window's IDCMP filter so the
+        # posting path admits/withholds classes exactly as real Intuition
+        # would. No-op without a bridge (plain probes) or for a window the
+        # bridge does not track (already closed).
+        bridge = getattr(ctx, "event_bridge", None)
+        if bridge is not None:
+            bridge.on_window_idcmp_changed(window, flags & 0xFFFFFFFF)
+        return None
+
     def _create_window_rport(self, ctx, screen: int):
         """Allocate and initialise the window-owned RastPort block.
 

@@ -668,6 +668,47 @@ class IntuitionSetWindowPointerATest(unittest.TestCase):
         self.assertFalse(self.lib.set_window_pointer_ops[-1]["busy_pointer"])
 
 
+class IntuitionModifyIDCMPTest(unittest.TestCase):
+    """``ModifyIDCMP`` sets the real ``Window.IDCMPFlags`` and updates the host filter.
+
+    The real state change behind the app's main-window disable/re-enable around
+    its restore-window loop: the emulated ``Window`` struct's ``IDCMPFlags``
+    field is replaced, and the host event bridge's per-window record is
+    refreshed so host events are admitted/withheld exactly as real Intuition
+    would filter them.
+    """
+
+    _WIN_OFF_IDCMP = 0x52  # ULONG IDCMPFlags (mirrors intuition_library.py)
+
+    def test_sets_idcmpflags_and_notifies_bridge(self) -> None:
+        mem = _FakeMem()
+        calls: list[tuple[int, int]] = []
+        ctx = SimpleNamespace(
+            mem=mem,
+            event_bridge=SimpleNamespace(on_window_idcmp_changed=lambda win, flags: calls.append((win, flags))),
+        )
+        win = 0x0006B3B0  # the app's main window address (probe log)
+        lib = IntuitionLibrary()
+
+        self.assertIsNone(lib.ModifyIDCMP(ctx, win, 0))
+        self.assertEqual(mem.r32(win + self._WIN_OFF_IDCMP), 0)
+        self.assertIsNone(lib.ModifyIDCMP(ctx, win, 0x00000344))
+        self.assertEqual(mem.r32(win + self._WIN_OFF_IDCMP), 0x344)
+        # The bridge filter sees both transitions, in order.
+        self.assertEqual(calls, [(win, 0), (win, 0x344)])
+
+    def test_no_bridge_still_writes_real_struct(self) -> None:
+        mem = _FakeMem()
+        ctx = SimpleNamespace(mem=mem)
+        win = 0x0006B3B0
+
+        self.assertIsNone(IntuitionLibrary().ModifyIDCMP(ctx, win, 0))
+        self.assertEqual(mem.r32(win + self._WIN_OFF_IDCMP), 0)
+
+    def test_null_window_is_noop(self) -> None:
+        self.assertIsNone(IntuitionLibrary().ModifyIDCMP(_ctx(), 0, 0))
+
+
 class IntuitionScannerTest(unittest.TestCase):
     """Regression guard: both IntuiText methods must be valid .fd traps."""
 
@@ -696,6 +737,10 @@ class IntuitionScannerTest(unittest.TestCase):
     def test_set_window_pointer_a_is_a_wired_trap(self) -> None:
         scan = self._scan()
         self.assertIn("SetWindowPointerA", set(scan.get_valid_func_names()))
+
+    def test_modify_idcmp_is_a_wired_trap(self) -> None:
+        scan = self._scan()
+        self.assertIn("ModifyIDCMP", set(scan.get_valid_func_names()))
 
 
 if __name__ == "__main__":
