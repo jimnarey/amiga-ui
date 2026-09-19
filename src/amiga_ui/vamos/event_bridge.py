@@ -254,6 +254,20 @@ class IntuitionEventBridge:
                 still_pending.append(spec)
         self._pending = still_pending
 
+    def on_window_idcmp_changed(self, window_addr: int, idcmp_flags: int) -> None:
+        """Update an open window's IDCMP filter (called from ``ModifyIDCMP``).
+
+        Real Intuition filters generated input classes by the window's current
+        ``IDCMPFlags``; the posting path does too (see ``gadget_up`` /
+        ``request_close_window``), so a window the app has masked
+        (``ModifyIDCMP(win, 0)``) genuinely stops admitting host events, and a
+        later re-enable admits them again. A window this bridge does not track
+        (plain probe without a window record, or already closed) is a no-op.
+        """
+        info = self._windows.get(window_addr)
+        if info is not None:
+            info["idcmp"] = idcmp_flags
+
     def register_gadget(self, gadget_addr: int, gadget_id: int) -> None:
         """Record a created gadget for later IAddress resolution."""
         if gadget_addr:

@@ -411,6 +411,34 @@ class GadgetUpActivationTest(unittest.TestCase):
         self.assertEqual(len(bridge.skipped), 1)
         self.assertIn("did not request IDCMP_GADGETUP", bridge.skipped[0])
 
+    def test_modify_idcmp_mask_withholds_then_readmits_gadgetup(self) -> None:
+        # The real ModifyIDCMP state change (intuition_library.ModifyIDCMP ->
+        # on_window_idcmp_changed): the app's own disable/re-enable around its
+        # restore-window loop must genuinely change which host events the
+        # window admits, not merely log a number.
+        env = self._setup(IDCMP_GADGETUP)
+        bridge = IntuitionEventBridge()
+        win = 0x062000
+        gadget_addr = env.alloc.alloc_memory(0x2C).addr
+        bridge.on_window_opened(env.ctx, win, env.main_up, env.main_wp, IDCMP_GADGETUP, "Main")
+        bridge.register_gadget(gadget_addr, 1)
+
+        bridge.on_window_idcmp_changed(win, 0)
+        imsg = bridge.gadget_up(win, gadget_addr)
+        self.assertIsNone(imsg)
+        self.assertEqual(bridge.posted, [])
+        self.assertEqual(len(bridge.skipped), 1)
+        self.assertIn("did not request IDCMP_GADGETUP", bridge.skipped[0])
+
+        bridge.on_window_idcmp_changed(win, IDCMP_GADGETUP)
+        imsg = bridge.gadget_up(win, gadget_addr)
+        self.assertIsNotNone(imsg)
+        assert imsg is not None
+        self.assertEqual(len(bridge.posted), 1)
+        self.assertEqual(bridge.posted[0]["window"], win)
+        self.assertTrue(env.port_mgr.has_msg(env.main_up))
+        self.assertEqual(env.port_mgr.peek_msg(env.main_up), imsg)
+
     def test_released_gadget_activation_is_noop(self) -> None:
         env = self._setup(IDCMP_GADGETUP)
         bridge = IntuitionEventBridge()
