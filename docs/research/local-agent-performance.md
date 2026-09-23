@@ -9,11 +9,11 @@ citations_used: []
 
 # Local Agent Performance Notes
 
-Purpose: Summarize observed behaviour from the persisted OpenHands, Goose, and OpenCode logs/sessions while testing local autonomous coding agents against this repository.
+Purpose: Summarize observed behaviour from the persisted OpenHands, Goose, OpenCode, and DSH (DeepSeek Harness) logs/sessions while testing local autonomous coding agents against this repository.
 
 Scope: This is operational evidence from local logs and session databases, not a benchmark. It records what happened in this repo on this machine so future agent runs can start from the least bad configuration and avoid repeated failure modes.
 
-Last reviewed: 2026-08-21.
+Last reviewed: 2026-09-19.
 
 ## Evidence Inspected
 
@@ -281,6 +281,65 @@ Observed failure:
 
 Assessment:
 - Same basic mismatch seen in Goose: the model can describe a tool call but does not emit it in the tool-call protocol expected by the harness.
+
+## DSH (DeepSeek Harness)
+
+DSH is this project's current, actively-used harness (see
+`docs/prompts/dsh-autonomous-dev.md` and the growing `docs/sessions/` log),
+materially different from OpenHands/Goose/OpenCode above -- newer, and it
+has proven reliable across many models for real, coherent, multi-hundred-
+step tool-using sessions (see the session logs for the window-close,
+menu-strip, EasyRequestArgs, ASL, and restore-backups increments). The
+entry below is the first DSH-specific negative data point recorded in this
+note; it should not be read as a DSH capability finding, since five other
+models completed substantial DSH sessions in the same window without this
+failure -- it's specific to this one model.
+
+### `DeepSeek-Coder-V2-Lite-Instruct-Q4_K_M`
+
+Evidence:
+- DSH session `session-63e5b8eb-c1e1-4ed7-90de-a09eb8301ac7`,
+  `--workspace-amiga-ui--`, 2026-09-19.
+- Full reconstruction (written by Claude, since the session itself produced
+  no log):
+  `docs/sessions/20260919T1855Z-session-log-dispatch-annotation-guard-test-failed.md`.
+
+Observed failure:
+- Zero tool calls in the entire session -- no `read`, `write`, or `bash`
+  events at all. The session produced one assistant message narrating a
+  four-step plan in prose, including fabricated code blocks presented as if
+  about to be written, and closed with literal `git commit` instructions for
+  the user to run, as if the work were already done.
+- The task was deliberately narrow and fully pre-diagnosed (add a
+  regression guard test; root cause, target files, and acceptance criteria
+  were all handed to the model directly), specifically to control for task
+  difficulty and isolate whether the model would engage its tools at all.
+- The narrated (never-executed) code contained three real defects a single
+  test run would have caught: it introspects a module's top-level
+  functions instead of the class's methods defined inside it; it checks a
+  parameter's annotation against `None` instead of the real
+  `inspect.Parameter.empty` sentinel, so the check would never pass even if
+  the first defect were fixed; and its "prove the test catches the bug"
+  step invents a function signature (`ModifyIDCMP(window: int, new_idcmp:
+  int)`) that doesn't match the real, already-merged code
+  (`ModifyIDCMP(self, ctx, window, flags)`) -- consistent with the file
+  having never actually been read.
+
+Assessment:
+- This reproduces a finding already on record in this same document under a
+  different harness: `deepseek-coder-v2:16b` in Goose "produced immediate
+  `Maximum retry attempts (10) exceeded` sessions with no useful tool
+  progress recorded" (see the Goose section above). That finding was filed
+  as a harness/tool-call-protocol issue, not a verdict on the model, because
+  Goose's tool-calling has its own documented problems. This DSH result
+  removes that excuse for this specific model: DSH's tool-calling is
+  reliable (five other models completed substantial sessions on this exact
+  repository in the same window), the task was deliberately scoped down to
+  remove ambiguity, and the model still produced zero tool calls. Not
+  usable unsupervised for implementation work in this repository as
+  currently configured. Not re-attempted with a different prompt shape or
+  system-prompt nudge; whether that would change the outcome is an open
+  question, not a settled one.
 
 ## Cross-Harness Failure Patterns
 

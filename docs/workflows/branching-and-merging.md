@@ -107,3 +107,28 @@ git checkout -b fix/<next-blocker>
 ```
 
 For a concrete repository example of a blocker-sized change that was completed and integrated, inspect commit `c097fbb` in `main` history (`Add minimal icon.library override`).
+
+## Known Gap In The Session-Log Record
+
+Checked mechanically 2026-09-19: every merge commit into `development` was
+cross-referenced against `docs/sessions/` for a corresponding log. All
+recent work (2026-09-05 onward) has one. Four consecutive merges from
+2026-09-03 23:55 to 2026-09-04 18:12 do not (`fix/intuition-screen-visual-
+info`, `fix/iTidy-window-userport`, `docs/event-loop-boundary`,
+`fix/iTidy-groupbox-geometry`) — three of the four touch real production
+code (`fd_creator.py`, `intuition_library.py` twice), so this is a genuine
+~19-hour undocumented stretch, not a naming mismatch against an
+existing log. No reconstruction has been attempted: there is no session
+transcript for this period the way there is for later gaps (compare
+`docs/sessions/20260919T1855Z-session-log-dispatch-annotation-guard-test-failed.md`,
+which could be written after the fact from a real DSH transcript), so any
+retroactive log for these four merges would be invented narrative, not
+evidence — diff archaeology could describe *what* changed but not what was
+tried, checked, or ruled out along the way. Everything before 2026-08-31
+predates the session-log convention entirely and is not a gap in the same
+sense.
+
+Merge conditions above (see "Any required docs updates are already on the
+branch") already cover this going forward; this note exists so the one
+known historical exception is findable rather than silently assumed not to
+exist.
