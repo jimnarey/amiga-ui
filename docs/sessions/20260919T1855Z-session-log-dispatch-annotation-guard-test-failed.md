@@ -3,7 +3,6 @@ title: "Session log — dispatch-annotation guard test: session produced no code
 status: log
 depends_on:
   - "20260918T0303Z-session-log-host-asl-directory-requester-fix-completed.md"
-  - "../../.agents/skills/code-review/SKILL.md"
 citations_used: []
 ---
 
