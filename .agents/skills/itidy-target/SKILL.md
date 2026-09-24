@@ -30,7 +30,7 @@ description: >
 
 ## Default Commands
 - `uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy`
-- `PYTHONPATH=src .venv/bin/python -m amiga_ui probe amiga_apps/itidy1classic/binary/extracted/iTidy --direct --timeout 5`
+- `PYTHONPATH=src uv run python -m amiga_ui probe amiga_apps/itidy1classic/binary/extracted/iTidy --direct --timeout 5`
 
 ## Milestone Order
 1. Binary loads under the launcher.

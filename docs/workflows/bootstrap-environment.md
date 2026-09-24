@@ -34,9 +34,9 @@ The project directory is bind-mounted into the DSH container (host `/mnt/work/pr
 
 The convention is:
 
-- The DSH container (and everything the agent docs and skills describe, including literal `.venv/bin/python` commands) uses `.venv`.
-- Host-side runs (a human shell, an IDE terminal, Claude Code) set `UV_PROJECT_ENVIRONMENT=.venv-host`. It is a relative path, so it resolves per project root; the host sets it once in `~/.zshenv`. Both directories are gitignored.
-- If an IDE auto-activates `.venv`, `uv` warns that `VIRTUAL_ENV` does not match the project environment; select `.venv-host` as the IDE interpreter to silence it.
+- The host uses the default `.venv`, which IDEs and Pyright discover on their own.
+- The DSH container sets `UV_PROJECT_ENVIRONMENT=.venv-container` in its service environment (`compose.ai.yml`, outside this repository). The value is relative, so it resolves per project root and the container never touches the host's `.venv`. `.venv-container/` is gitignored.
+- Because the container's environment is not at `.venv`, commands in docs and skills must go through `uv run python ...` rather than `.venv/bin/python`. Pyright is not pinned to a `venv` in `pyrightconfig.json` for the same reason: it uses the interpreter of whichever environment `uv run` selected.
 
 ## First GUI Validation
 

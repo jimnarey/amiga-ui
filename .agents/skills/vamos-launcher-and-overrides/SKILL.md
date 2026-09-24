@@ -29,7 +29,7 @@ Keep `vamos` integration reviewable, repo-owned, and easy to rerun.
 4. Use a narrowly-scoped bootstrap patch only if upstream offers no clean seam.
 
 ## Hard Rules
-- Do not edit files under `.venv/`.
+- Do not edit files under `.venv*/`.
 - Do not fork or vendor `amitools` unless explicitly asked.
 - Prefer subclassing over monkey patching.
 - If a patch is necessary, keep it local, reversible, and documented in code.
@@ -43,5 +43,5 @@ Keep `vamos` integration reviewable, repo-owned, and easy to rerun.
 5. Confirm the first blocker has changed for the right reason.
 
 ## Verification
-- `PYTHONPATH=src .venv/bin/python -m unittest tests.test_vamos_launcher`
-- `PYTHONPATH=src .venv/bin/python -m amiga_ui probe amiga_apps/itidy1classic/binary/extracted/iTidy --direct --timeout 5`
+- `PYTHONPATH=src uv run python -m unittest tests.test_vamos_launcher`
+- `PYTHONPATH=src uv run python -m amiga_ui probe amiga_apps/itidy1classic/binary/extracted/iTidy --direct --timeout 5`

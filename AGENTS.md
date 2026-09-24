@@ -8,7 +8,7 @@ Read `docs/README.md` for the documentation map, then `docs/workflows/dsh.md` fo
 - Use `uv` for Python commands and dependency management.
 - Treat the repo-owned in-process `vamos` launcher as the standard execution path.
 - Prefer one real blocker at a time: run, inspect artifacts, make the smallest useful fix, rerun.
-- Keep compatibility changes in the repository, not in `.venv/` or other installed-package locations.
+- Keep compatibility changes in the repository, not in `.venv*/` or other installed-package locations.
 - Prefer subclassing or explicit extension points over monkey patching. If a patch is necessary, keep it narrow and local.
 - Before substantial work, assess the docs tree cheaply with `uv run python tools/docs_triage.py` or a filename-only scan, then read in full only the docs relevant to the immediate task.
 - Use `bash tools/bootstrap.sh` as the shared bootstrap entrypoint for local agent containers unless the environment has already been bootstrapped.

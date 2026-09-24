@@ -34,7 +34,7 @@ Every AmigaOS library ships an `.fd` file describing its callable functions and 
 For example, `icon.library`'s table is at `amitools/data/fd/icon_lib.fd`. Find the installed location with:
 
 ```bash
-.venv/bin/python -c "import amitools, pathlib; print(pathlib.Path(amitools.__file__).parent / 'data' / 'fd')"
+uv run python -c "import amitools, pathlib; print(pathlib.Path(amitools.__file__).parent / 'data' / 'fd')"
 ```
 
 An `.fd` entry looks like:

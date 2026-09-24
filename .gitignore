@@ -4,7 +4,7 @@ artifacts/runs/
 __pycache__/
 /amitools/
 .venv/
-.venv-host/
+.venv-container/
 .openhands/state/
 .goose/state/
 .agent/state/
