@@ -28,6 +28,16 @@ The bootstrap script runs `uv sync --group dev`, verifies required host tools wi
 
 The project currently requires `Xvfb` for headless GUI execution and `7z` for archive and asset handling. `Xvfb` is the project-standard virtual display server because it provides a real X11 environment for machines with no physical display hardware [S20 §Description ¶1-2].
 
+## One Environment Per Side
+
+The project directory is bind-mounted into the DSH container (host `/mnt/work/projects/amiga-ui` is container `/workspace/amiga-ui`), so a single `.venv` cannot serve both sides. A `uv` virtual environment records absolute paths: `.venv/bin/python` is a symlink to the interpreter that created it, console-script shebangs and the editable-install `.pth` name the project path, and the host and the container differ in all three (host uv-managed Python 3.12.x vs the container's `/usr/bin/python3.12`, and `/mnt/work/projects/...` vs `/workspace/...`). When `uv` finds the other side's `.venv`, it reports "linked to non-existent Python interpreter", deletes it, and rebuilds it, so alternating host and container runs repeatedly wipe each other's environment and re-download dependencies.
+
+The convention is:
+
+- The DSH container (and everything the agent docs and skills describe, including literal `.venv/bin/python` commands) uses `.venv`.
+- Host-side runs (a human shell, an IDE terminal, Claude Code) set `UV_PROJECT_ENVIRONMENT=.venv-host`. It is a relative path, so it resolves per project root; the host sets it once in `~/.zshenv`. Both directories are gitignored.
+- If an IDE auto-activates `.venv`, `uv` warns that `VIRTUAL_ENV` does not match the project environment; select `.venv-host` as the IDE interpreter to silence it.
+
 ## First GUI Validation
 
 After Python dependencies are installed, validate the host GUI path with:
