@@ -41,15 +41,15 @@ Move the target app forward by fixing the earliest meaningful blocker, then reru
 - Do not bundle multiple unrelated fixes into one change.
 - Do not hide a real failure behind a broad fake unless the fake is explicitly temporary and documented.
 - Do not treat a later symptom as the target if an earlier blocker is already visible.
-- Do not patch installed packages under `.venv/`; keep changes in the repository.
+- Do not patch installed packages under `.venv*/`; keep changes in the repository.
 - If the failure points to direct hardware access, broad audio/peripheral/device emulation, or another full-system concern, stop and mark it clearly.
 - If the failure should produce visible UI behavior, do not bypass it with an invented success result.
 - Do not carry the next blocker forward on the same branch after the current blocker branch has been merged.
 
 ## Preferred Commands
 - `uv run amiga-ui probe amiga_apps/itidy1classic/binary/extracted/iTidy`
-- `PYTHONPATH=src .venv/bin/python -m amiga_ui probe amiga_apps/itidy1classic/binary/extracted/iTidy --direct --timeout 5`
-- `PYTHONPATH=src .venv/bin/python -m unittest tests.test_vamos_launcher`
+- `PYTHONPATH=src uv run python -m amiga_ui probe amiga_apps/itidy1classic/binary/extracted/iTidy --direct --timeout 5`
+- `PYTHONPATH=src uv run python -m unittest tests.test_vamos_launcher`
 
 ## Key Repo Files
 - `src/amiga_ui/cli.py`

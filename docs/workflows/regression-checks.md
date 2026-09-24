@@ -22,7 +22,7 @@ Notes:
 Run these checks before and after a compatibility change:
 
 ```bash
-./.venv/bin/python -m unittest tests.test_helper tests.test_docs_metadata
+uv run python -m unittest tests.test_helper tests.test_docs_metadata
 uv run python tests/run_gui_smoke_test.py
 ```
 

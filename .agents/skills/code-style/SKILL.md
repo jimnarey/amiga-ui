@@ -54,7 +54,7 @@ Conform to sound coding practices and the standards of this project.
 ### Editing Discipline
 - Make small, targeted edits.
 - Do not rewrite unrelated code while making a requested change.
-- Do not edit installed packages under `.venv/`.
+- Do not edit installed packages under `.venv*/`.
 - Use ASCII unless the file already requires something else.
 
 ### Validation
